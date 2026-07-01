@@ -1,0 +1,15 @@
+appId: com.rookery.app
+productName: Rookery
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+# Signing and auto-update are deferred to Phase 7 (task 7.3).
+win:
+  target: dir
+mac:
+  target: dir
+linux:
+  target: dir
