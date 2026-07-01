@@ -28,8 +28,20 @@ export type AgentRunnerEvent =
       numTurns: number
       totalCostUsd: number | null
       stopReason: string | null
+      resultText: string
     }
   | { kind: 'error'; message: string }
+
+/** The collected outcome of an agent run (used by the orchestration engine). */
+export interface AgentResult {
+  agentRunId: string
+  /** Concatenated assistant text across the run. */
+  text: string
+  /** The SDK's final result string (falls back to `text` when absent). */
+  resultText: string
+  isError: boolean
+  subtype: string
+}
 
 export interface AgentRunHandle {
   /** Resolves when the run finishes (normally, on error, or after cancel). */

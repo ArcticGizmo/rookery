@@ -90,3 +90,52 @@ export const workflowDefs = sqliteTable('workflow_defs', {
 })
 
 export type WorkflowDefRow = typeof workflowDefs.$inferSelect
+
+/**
+ * A run: one execution of a workflow over a work item. `workflowBody` snapshots
+ * the workflow definition at start so a later edit doesn't mutate an in-flight
+ * run. `status`/`currentStageIndex` mirror the run state machine.
+ */
+export const runs = sqliteTable(
+  'runs',
+  {
+    id: text('id').primaryKey(),
+    workItemId: text('work_item_id')
+      .notNull()
+      .references(() => workItems.id, { onDelete: 'cascade' }),
+    workflowId: text('workflow_id').notNull(),
+    workflowVersion: integer('workflow_version').notNull(),
+    workflowBody: text('workflow_body', { mode: 'json' }).notNull(),
+    status: text('status').notNull(),
+    currentStageIndex: integer('current_stage_index').notNull(),
+    maxIterations: integer('max_iterations').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull()
+  },
+  (table) => [index('idx_runs_work_item').on(table.workItemId)]
+)
+
+export type RunRow = typeof runs.$inferSelect
+
+/** Per-stage execution record within a run. */
+export const stageExecutions = sqliteTable(
+  'stage_executions',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => runs.id, { onDelete: 'cascade' }),
+    stageId: text('stage_id').notNull(),
+    stageIndex: integer('stage_index').notNull(),
+    status: text('status').notNull(),
+    iteration: integer('iteration').notNull(),
+    startedAt: text('started_at'),
+    finishedAt: text('finished_at')
+  },
+  (table) => [
+    index('idx_stage_exec_run').on(table.runId),
+    uniqueIndex('idx_stage_exec_run_stage').on(table.runId, table.stageIndex)
+  ]
+)
+
+export type StageExecutionRow = typeof stageExecutions.$inferSelect

@@ -3,8 +3,12 @@ import type {
   AgentRunConfig,
   CreateWorkItemInput,
   CredentialStatus,
+  GateActionInput,
+  Run,
+  RunDetail,
   SpecDiff,
   SpecVersion,
+  StartRunInput,
   UpdateWorkItemInput,
   WorkItem,
   WorkItemDetail,
@@ -38,7 +42,12 @@ export const IPC = {
   // Single-agent runs
   agentCredentials: 'agent:credentials',
   agentStart: 'agent:start',
-  agentCancel: 'agent:cancel'
+  agentCancel: 'agent:cancel',
+  // Orchestration runs
+  runsStart: 'runs:start',
+  runsList: 'runs:list',
+  runsGet: 'runs:get',
+  runsGate: 'runs:gate'
 } as const
 
 /** Request/response channels: renderer invokes, main handles. */
@@ -68,6 +77,11 @@ export interface IpcInvokeMap {
   'agent:credentials': { args: []; result: CredentialStatus }
   'agent:start': { args: [config: AgentRunConfig]; result: { agentRunId: string } }
   'agent:cancel': { args: [agentRunId: string]; result: void }
+
+  'runs:start': { args: [input: StartRunInput]; result: Run }
+  'runs:list': { args: []; result: Run[] }
+  'runs:get': { args: [runId: string]; result: RunDetail | null }
+  'runs:gate': { args: [input: GateActionInput]; result: void }
 }
 
 /** Push channels: main sends, renderer listens. */

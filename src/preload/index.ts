@@ -39,6 +39,12 @@ const api: RookeryApi = {
     credentials: () => ipcRenderer.invoke(IPC.agentCredentials),
     start: (config) => ipcRenderer.invoke(IPC.agentStart, config),
     cancel: (agentRunId) => ipcRenderer.invoke(IPC.agentCancel, agentRunId)
+  },
+  runs: {
+    start: (input) => ipcRenderer.invoke(IPC.runsStart, input),
+    list: () => ipcRenderer.invoke(IPC.runsList),
+    get: (runId) => ipcRenderer.invoke(IPC.runsGet, runId),
+    gate: (input) => ipcRenderer.invoke(IPC.runsGate, input)
   }
 }
 

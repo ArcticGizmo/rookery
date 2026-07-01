@@ -4,11 +4,15 @@ import type { ListEventsOptions } from '@shared/events'
 import type {
   AgentRunConfig,
   CreateWorkItemInput,
+  GateActionInput,
+  StartRunInput,
   UpdateWorkItemInput,
   WorkflowDefBody
 } from '@shared/domain'
+import type { RunEngine } from '../engine/run-engine'
 import type { AgentService } from '../services/agent-service'
 import type { AuditLog } from '../services/audit-log'
+import type { RunStore } from '../services/run-store'
 import type { SpecService } from '../services/spec-service'
 import type { WorkItemService } from '../services/work-item-service'
 import type { WorkflowService } from '../services/workflow-service'
@@ -19,11 +23,13 @@ export interface IpcServices {
   specs: SpecService
   workflows: WorkflowService
   agent: AgentService
+  runs: RunStore
+  engine: RunEngine
 }
 
 /** Register request/response handlers and wire event-log push to all windows. */
 export function registerIpc(services: IpcServices): void {
-  const { auditLog, workItems, specs, workflows, agent } = services
+  const { auditLog, workItems, specs, workflows, agent, runs, engine } = services
 
   ipcMain.handle(IPC.appPing, () => 'pong')
 
@@ -66,6 +72,12 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.agentCredentials, () => agent.credentials())
   ipcMain.handle(IPC.agentStart, (_event, config: AgentRunConfig) => agent.start(config))
   ipcMain.handle(IPC.agentCancel, (_event, agentRunId: string) => agent.cancel(agentRunId))
+
+  // Orchestration runs
+  ipcMain.handle(IPC.runsStart, (_event, input: StartRunInput) => engine.start(input))
+  ipcMain.handle(IPC.runsList, () => runs.list())
+  ipcMain.handle(IPC.runsGet, (_event, runId: string) => runs.getDetail(runId))
+  ipcMain.handle(IPC.runsGate, (_event, input: GateActionInput) => engine.resolveGate(input))
 
   auditLog.onAppend((event) => {
     for (const window of BrowserWindow.getAllWindows()) {

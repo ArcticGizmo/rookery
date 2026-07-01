@@ -3,8 +3,12 @@ import type {
   AgentRunConfig,
   CreateWorkItemInput,
   CredentialStatus,
+  GateActionInput,
+  Run,
+  RunDetail,
   SpecDiff,
   SpecVersion,
+  StartRunInput,
   UpdateWorkItemInput,
   WorkItem,
   WorkItemDetail,
@@ -51,5 +55,13 @@ export interface RookeryApi {
     /** Start a single agent run; its activity streams via `events.onAppend`. */
     start: (config: AgentRunConfig) => Promise<{ agentRunId: string }>
     cancel: (agentRunId: string) => Promise<void>
+  }
+  runs: {
+    /** Start a workflow run over a work item; activity streams via `events.onAppend`. */
+    start: (input: StartRunInput) => Promise<Run>
+    list: () => Promise<Run[]>
+    get: (runId: string) => Promise<RunDetail | null>
+    /** Resolve a pending human gate (approve/reject/request-changes). */
+    gate: (input: GateActionInput) => Promise<void>
   }
 }

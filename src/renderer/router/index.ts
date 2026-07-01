@@ -42,6 +42,17 @@ export const router = createRouter({
       path: '/agent-run',
       name: 'agent-run',
       component: () => import('@renderer/views/AgentRun.vue')
+    },
+    {
+      path: '/runs',
+      name: 'runs',
+      component: () => import('@renderer/views/Runs.vue')
+    },
+    {
+      path: '/runs/:id',
+      name: 'run-detail',
+      component: () => import('@renderer/views/RunDetail.vue'),
+      props: true
     }
   ]
 })

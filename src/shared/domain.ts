@@ -218,3 +218,71 @@ export interface CredentialStatus {
   /** e.g. 'ANTHROPIC_API_KEY', 'claude-code-oauth', or null when none found. */
   source: string | null
 }
+
+// --- Runs / orchestration (Phase 4) ----------------------------------------
+
+export const runStatusSchema = z.enum([
+  'pending',
+  'running',
+  'awaiting_gate',
+  'passed',
+  'failed',
+  'cancelled'
+])
+export type RunStatus = z.infer<typeof runStatusSchema>
+
+export const stageStatusSchema = z.enum(['pending', 'running', 'awaiting_gate', 'passed', 'failed'])
+export type StageStatus = z.infer<typeof stageStatusSchema>
+
+/** A single execution of a workflow over a work item. */
+export interface Run {
+  id: string
+  workItemId: string
+  workflowId: string
+  workflowVersion: number
+  status: RunStatus
+  currentStageIndex: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** The execution record for one stage within a run (may re-run: `iteration`). */
+export interface StageExecution {
+  id: string
+  runId: string
+  stageId: string
+  stageIndex: number
+  status: StageStatus
+  iteration: number
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+/** Aggregate for the run view: the run, its stage executions, and the workflow. */
+export interface RunDetail {
+  run: Run
+  stages: StageExecution[]
+  workflow: WorkflowDef
+}
+
+export const gateDecisionSchema = z.enum(['approve', 'reject', 'request_changes'])
+export type GateDecision = z.infer<typeof gateDecisionSchema>
+
+export const startRunInputSchema = z.object({
+  workItemId: z.string().min(1),
+  workflowId: z.string().min(1),
+  /** Max implementer→reviewer iterations per stage before failing (default 3). */
+  maxIterations: z.number().int().positive().max(20).default(3)
+})
+export type StartRunInput = z.infer<typeof startRunInputSchema>
+
+export const gateActionInputSchema = z.object({
+  runId: z.string().min(1),
+  decision: gateDecisionSchema,
+  /** Who acted (freeform, e.g. an email). */
+  by: z.string().default('human'),
+  note: z.string().default(''),
+  /** For `request_changes`: stage index to route back to (default 0). */
+  targetStageIndex: z.number().int().min(0).optional()
+})
+export type GateActionInput = z.infer<typeof gateActionInputSchema>

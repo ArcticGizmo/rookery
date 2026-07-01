@@ -69,7 +69,8 @@ export function translateMessage(message: SDKMessage, emit: (e: AgentRunnerEvent
         isError: message.is_error,
         numTurns: message.num_turns,
         totalCostUsd: message.total_cost_usd ?? null,
-        stopReason: message.stop_reason ?? null
+        stopReason: message.stop_reason ?? null,
+        resultText: 'result' in message ? message.result : ''
       })
       break
     }

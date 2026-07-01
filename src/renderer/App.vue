@@ -6,7 +6,8 @@ const links = [
   { to: '/', label: 'Events' },
   { to: '/work-items', label: 'Work items' },
   { to: '/workflows', label: 'Workflows' },
-  { to: '/agent-run', label: 'Agent run' }
+  { to: '/agent-run', label: 'Agent run' },
+  { to: '/runs', label: 'Runs' }
 ]
 
 function isActive(to: string): boolean {

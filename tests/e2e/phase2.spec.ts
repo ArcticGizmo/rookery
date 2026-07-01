@@ -57,6 +57,13 @@ test('create a work item with a versioned spec, then a workflow — both audited
   await window.getByRole('button', { name: 'Save workflow' }).click()
   await expect(window.locator('h1')).toHaveText('Edit workflow')
 
+  // --- Runs page wiring (start form renders with the created work item/workflow) ---
+  await window.getByRole('link', { name: 'Runs' }).click()
+  await expect(window.locator('h1')).toHaveText('Runs')
+  await expect(window.getByRole('heading', { name: 'Start a run' })).toBeVisible()
+  await expect(window.locator('#wi option', { hasText: 'E2E login feature' })).toHaveCount(1)
+  await expect(window.locator('#wf option', { hasText: 'E2E basic flow' })).toHaveCount(1)
+
   // --- Audit trail ---
   await window.getByRole('link', { name: 'Events' }).click()
   await expect(window.getByText('workitem.created').first()).toBeVisible()

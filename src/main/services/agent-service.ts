@@ -4,8 +4,14 @@ import { type AgentRunConfig, type CredentialStatus, agentRunConfigSchema } from
 import { startAgentRun } from '../agent/agent-runner'
 import { detectCredentials } from '../agent/credentials'
 import { mapPersonaToOptions } from '../agent/persona-mapping'
-import type { AgentRunHandle, AgentRunnerEvent, QueryFn } from '../agent/types'
+import type { AgentResult, AgentRunHandle, AgentRunnerEvent, QueryFn } from '../agent/types'
 import type { AppendInput, AuditLog } from './audit-log'
+
+/** Optional audit scope so agent events can be tied to an orchestration run. */
+export interface AgentScope {
+  runId?: string | null
+  stageId?: string | null
+}
 
 interface RunState {
   handle: AgentRunHandle
@@ -13,6 +19,8 @@ interface RunState {
   model: string
   /** Serializes audit appends so events land in emission order. */
   tail: Promise<unknown>
+  /** Run/stage this agent belongs to (null for standalone single-agent runs). */
+  scope: { runId: string | null; stageId: string | null }
 }
 
 /**
@@ -34,6 +42,48 @@ export class AgentService {
 
   /** Start an agent run; returns its id. Events flow to the audit log. */
   start(rawConfig: AgentRunConfig): { agentRunId: string } {
+    const { agentRunId } = this.launch(rawConfig)
+    return { agentRunId }
+  }
+
+  /**
+   * Run an agent to completion, projecting its activity to the audit log and
+   * resolving with the collected result. Used by the orchestration engine to
+   * drive stage agents and criterion checks.
+   */
+  async run(rawConfig: AgentRunConfig, scope?: AgentScope): Promise<AgentResult> {
+    let text = ''
+    let resultText = ''
+    let isError = false
+    let subtype = 'success'
+    const { agentRunId, done } = this.launch(
+      rawConfig,
+      (event) => {
+        if (event.kind === 'text') text += (text ? '\n' : '') + event.text
+        else if (event.kind === 'result') {
+          resultText = event.resultText
+          isError = event.isError
+          subtype = event.subtype
+        } else if (event.kind === 'error') {
+          isError = true
+          subtype = 'error'
+          resultText = event.message
+        }
+      },
+      scope
+    )
+    await done
+    return { agentRunId, text, resultText: resultText || text, isError, subtype }
+  }
+
+  /** Set up a run: parse config, register it, emit `agent.spawned`, and start
+   * consuming the SDK stream. `extra` observes normalized events for callers
+   * that need the result. */
+  private launch(
+    rawConfig: AgentRunConfig,
+    extra?: (event: AgentRunnerEvent) => void,
+    scope?: AgentScope
+  ): { agentRunId: string; done: Promise<void> } {
     const config = agentRunConfigSchema.parse(rawConfig)
     const agentRunId = randomUUID()
     const options = mapPersonaToOptions(config.persona, {
@@ -44,7 +94,8 @@ export class AgentService {
     const state: RunState = {
       handle: { done: Promise.resolve(), cancel: () => {} },
       model: config.persona.model ?? 'default',
-      tail: Promise.resolve()
+      tail: Promise.resolve(),
+      scope: { runId: scope?.runId ?? null, stageId: scope?.stageId ?? null }
     }
     this.active.set(agentRunId, state)
 
@@ -63,10 +114,13 @@ export class AgentService {
       prompt: config.prompt,
       options,
       queryFn: this.queryFn,
-      emit: (event) => this.onEvent(agentRunId, state, event)
+      emit: (event) => {
+        this.project(agentRunId, state, event)
+        extra?.(event)
+      }
     })
 
-    return { agentRunId }
+    return { agentRunId, done: state.handle.done }
   }
 
   /** Cancel a running agent. No-op if unknown/already finished. */
@@ -78,7 +132,7 @@ export class AgentService {
     this.active.delete(agentRunId)
   }
 
-  private onEvent(agentRunId: string, state: RunState, event: AgentRunnerEvent): void {
+  private project(agentRunId: string, state: RunState, event: AgentRunnerEvent): void {
     switch (event.kind) {
       case 'init':
         state.model = event.model
@@ -151,8 +205,13 @@ export class AgentService {
 
   /** Append in emission order; failures are logged, never thrown into the loop. */
   private enqueue(state: RunState, event: AppendInput): void {
+    const scoped: AppendInput = {
+      ...event,
+      runId: event.runId ?? state.scope.runId,
+      stageId: event.stageId ?? state.scope.stageId
+    }
     state.tail = state.tail
-      .then(() => this.audit.append(event))
+      .then(() => this.audit.append(scoped))
       .catch((error) => console.error('Failed to append agent event:', error))
   }
 }
