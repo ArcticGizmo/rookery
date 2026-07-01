@@ -1,0 +1,39 @@
+import type { Options, Query, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+
+/** The Agent SDK `query()` function signature — injected so runs are testable. */
+export type QueryFn = (args: {
+  prompt: string | AsyncIterable<SDKUserMessage>
+  options?: Options
+}) => Query
+
+/**
+ * Normalized events emitted by the runner as it consumes the SDK stream. The
+ * agent service adds the `agentRunId` and forwards these to the audit log.
+ */
+export type AgentRunnerEvent =
+  | { kind: 'init'; model: string; cwd: string; apiKeySource: string; tools: string[] }
+  | { kind: 'text'; text: string }
+  | { kind: 'tool_use'; toolUseId: string; toolName: string; input: unknown }
+  | {
+      kind: 'usage'
+      inputTokens: number
+      outputTokens: number
+      cacheReadTokens: number
+      cacheCreationTokens: number
+    }
+  | {
+      kind: 'result'
+      subtype: string
+      isError: boolean
+      numTurns: number
+      totalCostUsd: number | null
+      stopReason: string | null
+    }
+  | { kind: 'error'; message: string }
+
+export interface AgentRunHandle {
+  /** Resolves when the run finishes (normally, on error, or after cancel). */
+  done: Promise<void>
+  /** Abort the run: signals the SDK and terminates the CLI subprocess. */
+  cancel: () => void
+}

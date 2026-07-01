@@ -5,7 +5,8 @@ const route = useRoute()
 const links = [
   { to: '/', label: 'Events' },
   { to: '/work-items', label: 'Work items' },
-  { to: '/workflows', label: 'Workflows' }
+  { to: '/workflows', label: 'Workflows' },
+  { to: '/agent-run', label: 'Agent run' }
 ]
 
 function isActive(to: string): boolean {

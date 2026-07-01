@@ -2,7 +2,9 @@ import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import { closeDb, initDb } from './db'
 import { runMigrations } from './db/migrate'
+import { query } from '@anthropic-ai/claude-agent-sdk'
 import { registerIpc } from './ipc'
+import { AgentService } from './services/agent-service'
 import { AuditLog } from './services/audit-log'
 import { SpecService } from './services/spec-service'
 import { SqliteEventStore } from './services/sqlite-event-store'
@@ -54,7 +56,8 @@ async function bootstrap(): Promise<void> {
   const specs = new SpecService(db, auditLog)
   const workItems = new WorkItemService(db, auditLog, specs)
   const workflows = new WorkflowService(db, auditLog)
-  registerIpc({ auditLog, workItems, specs, workflows })
+  const agent = new AgentService(auditLog, query)
+  registerIpc({ auditLog, workItems, specs, workflows, agent })
 
   await auditLog.append({
     type: 'app.booted',

@@ -37,6 +37,11 @@ export const router = createRouter({
       name: 'workflow-edit',
       component: () => import('@renderer/views/WorkflowBuilder.vue'),
       props: true
+    },
+    {
+      path: '/agent-run',
+      name: 'agent-run',
+      component: () => import('@renderer/views/AgentRun.vue')
     }
   ]
 })

@@ -1,6 +1,8 @@
 import type { ListEventsOptions, StoredEvent } from './events'
 import type {
+  AgentRunConfig,
   CreateWorkItemInput,
+  CredentialStatus,
   SpecDiff,
   SpecVersion,
   UpdateWorkItemInput,
@@ -32,7 +34,11 @@ export const IPC = {
   workflowsGet: 'workflows:get',
   workflowsCreate: 'workflows:create',
   workflowsUpdate: 'workflows:update',
-  workflowsDelete: 'workflows:delete'
+  workflowsDelete: 'workflows:delete',
+  // Single-agent runs
+  agentCredentials: 'agent:credentials',
+  agentStart: 'agent:start',
+  agentCancel: 'agent:cancel'
 } as const
 
 /** Request/response channels: renderer invokes, main handles. */
@@ -58,6 +64,10 @@ export interface IpcInvokeMap {
   'workflows:create': { args: [input: WorkflowDefBody]; result: WorkflowDef }
   'workflows:update': { args: [id: string, input: WorkflowDefBody]; result: WorkflowDef }
   'workflows:delete': { args: [id: string]; result: void }
+
+  'agent:credentials': { args: []; result: CredentialStatus }
+  'agent:start': { args: [config: AgentRunConfig]; result: { agentRunId: string } }
+  'agent:cancel': { args: [agentRunId: string]; result: void }
 }
 
 /** Push channels: main sends, renderer listens. */

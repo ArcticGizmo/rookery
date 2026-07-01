@@ -131,13 +131,26 @@ export const gateSchema = z.object({
 })
 export type Gate = z.infer<typeof gateSchema>
 
-/** An agent persona assigned to a stage. Kept minimal; Phase 3 extends it. */
+/** Reasoning effort levels supported by the Agent SDK. */
+export const effortLevelSchema = z.enum(['low', 'medium', 'high', 'xhigh', 'max'])
+export type EffortLevel = z.infer<typeof effortLevelSchema>
+
+/**
+ * An agent persona. `systemPrompt`, `model`, and `effort` shape the model; the
+ * tool/MCP fields are BYO (bring-your-own) and map to Agent SDK options in
+ * Phase 3. All tooling fields are optional and degrade gracefully when absent.
+ */
 export const agentPersonaSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1, 'Persona name is required'),
   role: z.string().min(1, 'Persona role is required'),
   systemPrompt: z.string().default(''),
-  model: z.string().nullish()
+  model: z.string().nullish(),
+  effort: effortLevelSchema.nullish(),
+  allowedTools: z.array(z.string()).optional(),
+  disallowedTools: z.array(z.string()).optional(),
+  /** Passed through to the SDK's `mcpServers` option verbatim (BYO MCP). */
+  mcpServers: z.record(z.string(), z.unknown()).optional()
 })
 export type AgentPersona = z.infer<typeof agentPersonaSchema>
 
@@ -170,3 +183,38 @@ export const workflowDefSchema = workflowDefBodySchema.extend({
   updatedAt: z.string()
 })
 export type WorkflowDef = z.infer<typeof workflowDefSchema>
+
+// --- Single-agent runs (Phase 3) -------------------------------------------
+
+/** How the Agent SDK handles tool-permission decisions during a run. */
+export const permissionModeSchema = z.enum([
+  'default',
+  'acceptEdits',
+  'bypassPermissions',
+  'plan',
+  'dontAsk',
+  'auto'
+])
+export type PermissionMode = z.infer<typeof permissionModeSchema>
+
+/** Configuration for running one agent: a persona, a prompt, and a workdir. */
+export const agentRunConfigSchema = z.object({
+  persona: agentPersonaSchema,
+  prompt: z.string().min(1, 'A prompt is required'),
+  /** Working directory for the agent (typically a repo's local path). */
+  cwd: z.string().nullish(),
+  /**
+   * Permission mode. Defaults to `plan` (read-only, no tool execution) — the
+   * safe choice until Phase 5 runs agents inside isolated worktrees. Choose
+   * `bypassPermissions` for autonomous editing/execution.
+   */
+  permissionMode: permissionModeSchema.default('plan')
+})
+export type AgentRunConfig = z.infer<typeof agentRunConfigSchema>
+
+/** Whether Agent SDK credentials resolve, and where from. */
+export interface CredentialStatus {
+  available: boolean
+  /** e.g. 'ANTHROPIC_API_KEY', 'claude-code-oauth', or null when none found. */
+  source: string | null
+}

@@ -28,6 +28,54 @@ export type AppEvent =
       payload: { workflowId: string; name: string; version: number }
     }
   | { type: 'workflow.deleted'; actor: 'human'; payload: { workflowId: string } }
+  // Phase 3 — single-agent runs (Claude Agent SDK).
+  | {
+      type: 'agent.spawned'
+      actor: 'agent'
+      payload: { agentRunId: string; personaName: string; model: string; cwd: string | null }
+    }
+  | { type: 'agent.message'; actor: 'agent'; payload: { agentRunId: string; text: string } }
+  | {
+      type: 'agent.tool_use'
+      actor: 'agent'
+      payload: { agentRunId: string; toolUseId: string; toolName: string; input: unknown }
+    }
+  | {
+      type: 'agent.usage'
+      actor: 'agent'
+      payload: {
+        agentRunId: string
+        inputTokens: number
+        outputTokens: number
+        cacheReadTokens: number
+        cacheCreationTokens: number
+      }
+    }
+  | {
+      type: 'agent.context_pressure'
+      actor: 'agent'
+      payload: {
+        agentRunId: string
+        usedTokens: number
+        contextWindow: number
+        percent: number
+        level: 'ok' | 'warn' | 'high'
+      }
+    }
+  | {
+      type: 'agent.finished'
+      actor: 'agent'
+      payload: {
+        agentRunId: string
+        subtype: string
+        isError: boolean
+        numTurns: number
+        totalCostUsd: number | null
+        stopReason: string | null
+      }
+    }
+  | { type: 'agent.error'; actor: 'agent'; payload: { agentRunId: string; message: string } }
+  | { type: 'agent.cancelled'; actor: 'human'; payload: { agentRunId: string } }
 
 /** Optional scoping fields common to every appended event. */
 export interface EventScope {

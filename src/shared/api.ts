@@ -1,6 +1,8 @@
 import type { ListEventsOptions, StoredEvent } from './events'
 import type {
+  AgentRunConfig,
   CreateWorkItemInput,
+  CredentialStatus,
   SpecDiff,
   SpecVersion,
   UpdateWorkItemInput,
@@ -42,5 +44,12 @@ export interface RookeryApi {
     create: (input: WorkflowDefBody) => Promise<WorkflowDef>
     update: (id: string, input: WorkflowDefBody) => Promise<WorkflowDef>
     remove: (id: string) => Promise<void>
+  }
+  agent: {
+    /** Whether Agent SDK credentials resolve (drives the login banner). */
+    credentials: () => Promise<CredentialStatus>
+    /** Start a single agent run; its activity streams via `events.onAppend`. */
+    start: (config: AgentRunConfig) => Promise<{ agentRunId: string }>
+    cancel: (agentRunId: string) => Promise<void>
   }
 }

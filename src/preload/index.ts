@@ -34,6 +34,11 @@ const api: RookeryApi = {
     create: (input) => ipcRenderer.invoke(IPC.workflowsCreate, input),
     update: (id, input) => ipcRenderer.invoke(IPC.workflowsUpdate, id, input),
     remove: (id) => ipcRenderer.invoke(IPC.workflowsDelete, id)
+  },
+  agent: {
+    credentials: () => ipcRenderer.invoke(IPC.agentCredentials),
+    start: (config) => ipcRenderer.invoke(IPC.agentStart, config),
+    cancel: (agentRunId) => ipcRenderer.invoke(IPC.agentCancel, agentRunId)
   }
 }
 

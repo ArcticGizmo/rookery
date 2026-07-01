@@ -1,7 +1,13 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { IPC } from '@shared/ipc-contract'
 import type { ListEventsOptions } from '@shared/events'
-import type { CreateWorkItemInput, UpdateWorkItemInput, WorkflowDefBody } from '@shared/domain'
+import type {
+  AgentRunConfig,
+  CreateWorkItemInput,
+  UpdateWorkItemInput,
+  WorkflowDefBody
+} from '@shared/domain'
+import type { AgentService } from '../services/agent-service'
 import type { AuditLog } from '../services/audit-log'
 import type { SpecService } from '../services/spec-service'
 import type { WorkItemService } from '../services/work-item-service'
@@ -12,11 +18,12 @@ export interface IpcServices {
   workItems: WorkItemService
   specs: SpecService
   workflows: WorkflowService
+  agent: AgentService
 }
 
 /** Register request/response handlers and wire event-log push to all windows. */
 export function registerIpc(services: IpcServices): void {
-  const { auditLog, workItems, specs, workflows } = services
+  const { auditLog, workItems, specs, workflows, agent } = services
 
   ipcMain.handle(IPC.appPing, () => 'pong')
 
@@ -54,6 +61,11 @@ export function registerIpc(services: IpcServices): void {
     workflows.update(id, input)
   )
   ipcMain.handle(IPC.workflowsDelete, (_event, id: string) => workflows.delete(id))
+
+  // Single-agent runs
+  ipcMain.handle(IPC.agentCredentials, () => agent.credentials())
+  ipcMain.handle(IPC.agentStart, (_event, config: AgentRunConfig) => agent.start(config))
+  ipcMain.handle(IPC.agentCancel, (_event, agentRunId: string) => agent.cancel(agentRunId))
 
   auditLog.onAppend((event) => {
     for (const window of BrowserWindow.getAllWindows()) {
