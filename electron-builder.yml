@@ -6,6 +6,9 @@ directories:
 files:
   - out/**/*
   - package.json
+extraResources:
+  - from: drizzle
+    to: drizzle
 # Signing and auto-update are deferred to Phase 7 (task 7.3).
 win:
   target: dir

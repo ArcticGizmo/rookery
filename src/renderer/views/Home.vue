@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { Button } from '@renderer/components/ui/button'
+import EventLog from '@renderer/components/EventLog.vue'
 </script>
 
 <template>
   <main
-    class="flex min-h-screen flex-col items-center justify-center gap-6 bg-background text-foreground"
+    class="mx-auto flex min-h-screen max-w-4xl flex-col items-center gap-8 bg-background px-6 py-10 text-foreground"
   >
-    <h1 class="text-4xl font-bold tracking-tight">Rookery</h1>
-    <p class="text-muted-foreground">Agent orchestrator &amp; workflow desktop app</p>
-    <Button>Get started</Button>
+    <header class="flex flex-col items-center gap-1">
+      <h1 class="text-3xl font-bold tracking-tight">Rookery</h1>
+      <p class="text-sm text-muted-foreground">Agent orchestrator &amp; workflow desktop app</p>
+    </header>
+    <EventLog />
   </main>
 </template>

@@ -33,6 +33,7 @@ This also runs a `postinstall` step that downloads the Electron runtime binary.
 | `pnpm test` / `pnpm test:watch` | Vitest unit tests. |
 | `pnpm test:e2e` | Build, then run the Playwright + Electron smoke test. |
 | `pnpm package` | Build and produce an unpacked app in `release/` (electron-builder `--dir`). |
+| `pnpm db:generate` | Generate SQL migrations from the Drizzle schema into `drizzle/`. |
 
 ## Project layout
 
@@ -49,9 +50,22 @@ tests/
 
 Path aliases: `@shared/*` (all processes), `@renderer/*` (renderer).
 
+## Persistence
+
+- **SQLite via libsql** (`@libsql/client`) with **Drizzle ORM**. libsql is N-API, so one
+  prebuilt binary works in both Electron and Node (see [ADR 0002](./adr/0002-sqlite-driver.md)).
+- The database lives at `app.getPath('userData')/rookery.db` (outside the repo).
+- **Migrations** are authored by editing `src/main/db/schema.ts` then running
+  `pnpm db:generate`, which writes SQL into `drizzle/` (committed). They are applied
+  automatically on boot, before the window loads. In a packaged app the `drizzle/` folder is
+  bundled under resources (electron-builder `extraResources`).
+- The event log is the append-only source of truth (`src/main/services`): `AuditLog` over an
+  `EventStore` port — `SqliteEventStore` (libsql) in the app, `InMemoryEventStore` in tests.
+
 ## Notes
 
 - `contextIsolation` is on and `nodeIntegration` is off. All main↔renderer traffic goes
-  through the typed contract in `src/shared` (fleshed out in Phase 1).
+  through the typed contract in `src/shared/ipc-contract.ts`; the preload exposes it on
+  `window.rookery`.
 - UI components live under `src/renderer/components/ui` and follow shadcn-vue conventions;
   add more with the shadcn-vue CLI (config in `components.json`).

@@ -17,7 +17,7 @@ and isolated per-feature infrastructure (worktrees + docker).
 | Renderer | **Vue 3** (`<script setup>`, TS) + **Pinia** + **vue-router** |
 | Styling / UI | **Tailwind CSS v4** + **shadcn-vue** (reka-ui) |
 | Agent engine | **Claude Agent SDK** (`@anthropic-ai/claude-agent-sdk`), in-process in the main process |
-| Persistence | **SQLite** via **better-sqlite3**, **Drizzle ORM** + drizzle-kit migrations *(added in Phase 1)* |
+| Persistence | **SQLite** via **libsql** (`@libsql/client`), **Drizzle ORM** + drizzle-kit migrations — driver revised from better-sqlite3, see [ADR 0002](./0002-sqlite-driver.md) |
 | IPC | Hand-rolled typed contract in `src/shared`; `contextIsolation: true`, `nodeIntegration: false` |
 | Worktree + docker infra | `InfraProvider` interface; **sprig** CLI-backed provider is the v1 implementation *(Phase 5)* |
 | Package manager | **pnpm** (hoisted node-linker for Electron/native-module compatibility) |

@@ -1,5 +1,13 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
+import { closeDb, initDb } from './db'
+import { runMigrations } from './db/migrate'
+import { registerIpc } from './ipc'
+import { AuditLog } from './services/audit-log'
+import { SqliteEventStore } from './services/sqlite-event-store'
+
+let auditLog: AuditLog | null = null
+let shuttingDown = false
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -33,7 +41,19 @@ function createWindow(): void {
   }
 }
 
-void app.whenReady().then(() => {
+async function bootstrap(): Promise<void> {
+  const db = initDb(join(app.getPath('userData'), 'rookery.db'))
+  await runMigrations(db)
+
+  auditLog = new AuditLog(new SqliteEventStore(db))
+  registerIpc(auditLog)
+
+  await auditLog.append({
+    type: 'app.booted',
+    actor: 'system',
+    payload: { version: app.getVersion(), platform: process.platform }
+  })
+
   createWindow()
 
   app.on('activate', () => {
@@ -41,10 +61,29 @@ void app.whenReady().then(() => {
       createWindow()
     }
   })
-})
+}
+
+void app.whenReady().then(bootstrap)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// Record a shutdown event before quitting, then close the database.
+app.on('before-quit', (event) => {
+  if (shuttingDown || !auditLog) {
+    closeDb()
+    return
+  }
+  event.preventDefault()
+  shuttingDown = true
+  void auditLog
+    .append({ type: 'app.shutdown', actor: 'system', payload: {} })
+    .catch((error) => console.error('Failed to record shutdown event:', error))
+    .finally(() => {
+      closeDb()
+      app.quit()
+    })
 })

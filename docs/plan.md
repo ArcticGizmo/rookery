@@ -21,7 +21,7 @@ These are settled. Do not relitigate them in implementation without raising it e
 | Styling / components | **Tailwind CSS** + **shadcn-vue** (built on reka-ui) | Modern, headless, accessible; low lock-in. |
 | Main process | Node (Electron main) — orchestration engine, persistence, agent SDK | Node runtime available in-process. |
 | Agent engine | **Claude Agent SDK** (`@anthropic-ai/claude-agent-sdk`), in-process in main | Native session control, per-turn token/context usage, BYO MCP/skills/subagents map to SDK config. Reuses local Claude Code credentials. |
-| Persistence | **SQLite** via **better-sqlite3**, **Drizzle ORM** + drizzle-kit migrations | Synchronous, fast, embedded; typed queries; append-only audit + spec versioning. |
+| Persistence | **SQLite** via **libsql** (`@libsql/client`), **Drizzle ORM** + drizzle-kit migrations | Embedded, typed queries, append-only audit + spec versioning. Driver revised from better-sqlite3 (no Electron-43 prebuilt + corporate proxy blocks source builds; libsql is N-API/ABI-stable) — see ADR 0002. |
 | IPC | Hand-rolled **typed IPC contract** shared across main/preload/renderer (contextBridge, `contextIsolation: true`, `nodeIntegration: false`) | Type safety without a heavy dependency early. `electron-trpc` is a possible later upgrade. |
 | Worktree + docker infra | **`InfraProvider` interface**; `SprigProvider` (shells out to the `sprig` CLI, parses JSON) is the v1 implementation | Reuse proven tooling now; keep a native backend possible later without touching the engine. |
 | Testing | **Vitest** (unit), **Playwright** (Electron e2e) | |
@@ -123,7 +123,7 @@ Legend: `∥` = parallel-safe once dependencies met · `→` = depends on.
 
 | # | Task | Deliverable / acceptance | Deps |
 |---|---|---|---|
-| 1.1 | better-sqlite3 in main | DB opens at a resolved userData path; connection singleton; graceful close on quit. Native module rebuilt for Electron (electron-rebuild wired). | 0.2 |
+| 1.1 | libsql in main | DB opens at a resolved userData path; connection singleton; graceful close on quit. libsql is N-API (no per-runtime rebuild). | 0.2 |
 | 1.2 | Drizzle + migration runner | drizzle-kit configured; migrations run automatically on boot before the window loads; a no-op baseline migration applies cleanly on a fresh DB. | 1.1 |
 | 1.3 | Event log schema | `events` table: `id` (seq PK), `ts` (UTC ISO), `type`, `actor` (system/human/agent), `run_id?`, `stage_id?`, `payload` (JSON), plus supporting indexes. Migration + Drizzle model. | 1.2 |
 | 1.4 | Event type union | `src/shared/events.ts`: discriminated union of event types (start with `app.booted`, `app.shutdown`; extend later). Typed payloads. | 0.3 ∥ |

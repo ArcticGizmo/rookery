@@ -17,6 +17,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "db:generate": "drizzle-kit generate",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
@@ -30,8 +31,10 @@
     "package": "electron-vite build && electron-builder --dir"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
     "pinia": "^3.0.4",
     "reka-ui": "^2.10.1",
     "tailwind-merge": "^3.6.0",
@@ -45,6 +48,7 @@
     "@types/node": "^26.0.1",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/test-utils": "^2.4.11",
+    "drizzle-kit": "^0.31.10",
     "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
