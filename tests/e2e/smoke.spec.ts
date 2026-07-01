@@ -11,7 +11,9 @@ test('app boots, migrates, and shows the app.booted event in the log', async () 
 
   try {
     const window = await app.firstWindow()
-    await expect(window.locator('h1')).toHaveText('Rookery')
+    // The brand lives in the top nav; the page heading is the Event log view.
+    await expect(window.getByText('Rookery').first()).toBeVisible()
+    await expect(window.locator('h1')).toHaveText('Event log')
     // The boot event is appended before the window loads and rendered live via IPC.
     await expect(window.getByText('app.booted').first()).toBeVisible()
   } finally {

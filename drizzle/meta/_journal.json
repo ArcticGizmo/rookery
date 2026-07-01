@@ -8,6 +8,13 @@
       "when": 1782904812170,
       "tag": "0000_lucky_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1782906421437,
+      "tag": "0001_new_frank_castle",
+      "breakpoints": true
     }
   ]
 }

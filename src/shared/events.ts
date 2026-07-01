@@ -8,6 +8,26 @@ export type EventActor = 'system' | 'human' | 'agent'
 export type AppEvent =
   | { type: 'app.booted'; actor: 'system'; payload: { version: string; platform: string } }
   | { type: 'app.shutdown'; actor: 'system'; payload: Record<string, never> }
+  // Phase 2 — work items, spec versioning, workflow definitions.
+  | { type: 'workitem.created'; actor: 'human'; payload: { workItemId: string; title: string } }
+  | { type: 'workitem.updated'; actor: 'human'; payload: { workItemId: string; title: string } }
+  | { type: 'workitem.deleted'; actor: 'human'; payload: { workItemId: string } }
+  | {
+      type: 'spec.version_created'
+      actor: 'human'
+      payload: { workItemId: string; version: number; contentHash: string }
+    }
+  | {
+      type: 'workflow.created'
+      actor: 'human'
+      payload: { workflowId: string; name: string; version: number }
+    }
+  | {
+      type: 'workflow.updated'
+      actor: 'human'
+      payload: { workflowId: string; name: string; version: number }
+    }
+  | { type: 'workflow.deleted'; actor: 'human'; payload: { workflowId: string } }
 
 /** Optional scoping fields common to every appended event. */
 export interface EventScope {

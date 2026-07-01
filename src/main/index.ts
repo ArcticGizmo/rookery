@@ -4,7 +4,10 @@ import { closeDb, initDb } from './db'
 import { runMigrations } from './db/migrate'
 import { registerIpc } from './ipc'
 import { AuditLog } from './services/audit-log'
+import { SpecService } from './services/spec-service'
 import { SqliteEventStore } from './services/sqlite-event-store'
+import { WorkItemService } from './services/work-item-service'
+import { WorkflowService } from './services/workflow-service'
 
 let auditLog: AuditLog | null = null
 let shuttingDown = false
@@ -42,11 +45,16 @@ function createWindow(): void {
 }
 
 async function bootstrap(): Promise<void> {
-  const db = initDb(join(app.getPath('userData'), 'rookery.db'))
+  // Allow tests (and advanced users) to point at an alternate database file.
+  const dbPath = process.env['ROOKERY_DB_PATH'] ?? join(app.getPath('userData'), 'rookery.db')
+  const db = initDb(dbPath)
   await runMigrations(db)
 
   auditLog = new AuditLog(new SqliteEventStore(db))
-  registerIpc(auditLog)
+  const specs = new SpecService(db, auditLog)
+  const workItems = new WorkItemService(db, auditLog, specs)
+  const workflows = new WorkflowService(db, auditLog)
+  registerIpc({ auditLog, workItems, specs, workflows })
 
   await auditLog.append({
     type: 'app.booted',
