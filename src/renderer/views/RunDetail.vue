@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import type { GateDecision, RunDetail, StageStatus } from '@shared/domain'
+import type { GateDecision, LandingMethod, RunDetail, StageStatus } from '@shared/domain'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, RunInfra } from '@shared/infra'
+import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useEventsStore } from '@renderer/stores/events'
 import { useRunsStore } from '@renderer/stores/runs'
@@ -15,12 +16,19 @@ const { events } = storeToRefs(eventsStore)
 
 const detail = ref<RunDetail | null>(null)
 const infra = ref<RunInfra | null>(null)
+const landing = ref<LandingTargets | null>(null)
 const notFound = ref(false)
 const by = ref('human')
 const note = ref('')
 const targetStageIndex = ref(0)
 const acting = ref(false)
 const error = ref<string | null>(null)
+/** `${repo}:${method}` of the in-flight landing, or null. */
+const landingAction = ref<string | null>(null)
+const landingError = ref<string | null>(null)
+const tearingDown = ref(false)
+
+const passed = computed(() => detail.value?.run.status === 'passed')
 
 async function refresh(): Promise<void> {
   const d = await runsStore.get(props.id)
@@ -30,6 +38,42 @@ async function refresh(): Promise<void> {
     infra.value = await window.rookery.runs.infra(props.id)
   } catch {
     infra.value = null
+  }
+  // Landing is only relevant once a run has succeeded (Phase 6.4).
+  if (d?.run.status === 'passed') {
+    try {
+      landing.value = await window.rookery.runs.landTargets(props.id)
+    } catch {
+      landing.value = null
+    }
+  } else {
+    landing.value = null
+  }
+}
+
+async function landRepo(repo: string, method: LandingMethod): Promise<void> {
+  landingError.value = null
+  landingAction.value = `${repo}:${method}`
+  try {
+    await window.rookery.runs.land({ runId: props.id, repo, method, by: by.value.trim() || 'human' })
+    await refresh()
+  } catch (e) {
+    landingError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    landingAction.value = null
+  }
+}
+
+async function teardownInfra(): Promise<void> {
+  landingError.value = null
+  tearingDown.value = true
+  try {
+    await window.rookery.runs.teardown(props.id)
+    await refresh()
+  } catch (e) {
+    landingError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    tearingDown.value = false
   }
 }
 
@@ -122,6 +166,14 @@ function activityLine(event: StoredEvent): string {
         : `⚠ Verification failed — escalated for human intervention: ${p.issues}`
     case 'run.finished':
       return `■ Run ${p.status}`
+    case 'run.landing_started':
+      return `⚑ Landing ${p.repo} via ${p.method} (by ${p.by})`
+    case 'run.landed':
+      return `✅ Landed ${p.repo} via ${p.method}${
+        p.prUrl ? `: ${p.prUrl}` : p.mergedInto ? ` → ${p.mergedInto}` : ''
+      }`
+    case 'run.landing_failed':
+      return `✖ Landing ${p.repo} failed: ${p.message}`
     case 'agent.spawned':
       return `▶ ${p.personaName} (${p.model})`
     case 'agent.message':
@@ -157,7 +209,12 @@ function lineClass(type: string): string {
   if (type.endsWith('_failed') || type === 'agent.error') return 'text-red-600'
   if (type === 'agent.permission_denied') return 'text-red-600'
   if (type === 'run.gate_awaiting' || type === 'run.changes_requested') return 'text-amber-700'
-  if (type === 'run.finished' || type === 'run.stage_passed' || type === 'infra.up')
+  if (
+    type === 'run.finished' ||
+    type === 'run.stage_passed' ||
+    type === 'run.landed' ||
+    type === 'infra.up'
+  )
     return 'text-green-700'
   if (type === 'agent.tool_use') return 'text-blue-700'
   if (type === 'agent.tool_result' || type === 'agent.task') return 'text-muted-foreground'
@@ -336,6 +393,71 @@ onMounted(() => {
           <Button variant="ghost" :disabled="acting" @click="act('reject')">Reject</Button>
           <span v-if="error" class="text-sm text-red-600">{{ error }}</span>
         </div>
+      </section>
+
+      <!-- Landing changes (Phase 6.4) -->
+      <section
+        v-if="passed && landing"
+        class="flex flex-col gap-3 rounded-md border border-green-500/40 bg-green-500/5 p-4"
+      >
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-green-800">Land changes</h2>
+          <span class="text-xs text-muted-foreground">via {{ landing.provider }}</span>
+        </div>
+
+        <p v-if="!landing.canLand" class="text-sm text-muted-foreground">{{ landing.reason }}</p>
+
+        <template v-else>
+          <p
+            v-if="!landing.providerAvailable"
+            class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800"
+          >
+            The “{{ landing.provider }}” landing tooling (git/gh) isn’t available on this machine —
+            install it to open PRs or merge.
+          </p>
+
+          <p v-if="landing.targets.length === 0" class="text-sm text-muted-foreground">
+            No worktrees to land.
+          </p>
+          <ul v-else class="flex flex-col gap-2">
+            <li
+              v-for="t in landing.targets"
+              :key="t.repo"
+              class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-card px-3 py-2 text-sm"
+            >
+              <span class="font-medium">{{ t.repo }}</span>
+              <span class="font-mono text-xs text-muted-foreground">{{ t.branch }} → {{ t.base }}</span>
+              <span v-if="!t.remoteUrl" class="text-xs text-amber-700">no remote</span>
+              <span
+                v-if="t.landed"
+                class="rounded bg-green-500/15 px-2 py-0.5 text-xs text-green-700"
+                >landed</span
+              >
+              <span class="flex-1"></span>
+              <Button
+                size="sm"
+                variant="outline"
+                :disabled="landingAction !== null || !landing.providerAvailable"
+                @click="landRepo(t.repo, 'pr')"
+                >{{ landingAction === `${t.repo}:pr` ? 'Opening…' : 'Open PR' }}</Button
+              >
+              <Button
+                size="sm"
+                variant="ghost"
+                :disabled="landingAction !== null || !landing.providerAvailable"
+                @click="landRepo(t.repo, 'merge')"
+                >{{ landingAction === `${t.repo}:merge` ? 'Merging…' : 'Merge' }}</Button
+              >
+            </li>
+          </ul>
+
+          <div class="flex items-center gap-3">
+            <Button variant="ghost" :disabled="tearingDown" @click="teardownInfra">{{
+              tearingDown ? 'Tearing down…' : 'Tear down infrastructure'
+            }}</Button>
+            <span v-if="landingError" class="text-sm text-red-600">{{ landingError }}</span>
+          </div>
+        </template>
       </section>
 
       <!-- Infrastructure -->

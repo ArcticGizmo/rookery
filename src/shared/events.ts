@@ -203,6 +203,32 @@ export type AppEvent =
       }
     }
   | { type: 'run.finished'; actor: 'system'; payload: { runId: string; status: string } }
+  // Phase 6.4 — landing changes: how a successful run's change reaches main.
+  | {
+      type: 'run.landing_started'
+      actor: 'human'
+      payload: { runId: string; repo: string; method: string; by: string }
+    }
+  | {
+      type: 'run.landed'
+      actor: 'human'
+      payload: {
+        runId: string
+        repo: string
+        method: string
+        /** PR URL (method `pr`), when reported. */
+        prUrl: string | null
+        /** Base branch merged into (method `merge`), when known. */
+        mergedInto: string | null
+        detail: string
+        by: string
+      }
+    }
+  | {
+      type: 'run.landing_failed'
+      actor: 'system'
+      payload: { runId: string; repo: string; method: string; message: string }
+    }
   // Phase 5 — infrastructure (worktrees + docker via InfraProvider / sprig).
   | {
       type: 'infra.provisioning'

@@ -273,6 +273,13 @@ These do **not** block the plan; resolve when the relevant phase is reached.
    "always allow" rules per run, instead of auto-denying un-allow-listed tools. Also revisit
    whether to relax specific deny-backstop entries (e.g. `docker`, `WebFetch`) per persona,
    and whether to enable the SDK OS `sandbox` layer (verify Windows support first).
+9. **PR host abstraction (deferred from Phase 6.4).** The v1 `GitLandingProvider` opens PRs via
+   the GitHub `gh` CLI, so PR creation assumes GitHub + an installed/authenticated `gh` (direct
+   `merge` uses only `git` and is host-agnostic). Landing already sits behind the
+   `LandingProvider` port, so revisit whether to abstract the PR host — GitLab (`glab`),
+   Bitbucket, Azure DevOps, or a generic "push branch + print compare URL" fallback — either as
+   alternate providers or a pluggable PR backend within `GitLandingProvider`, selected per repo
+   (e.g. from the remote URL). Not needed while every target repo is on GitHub.
 
 ---
 

@@ -315,14 +315,39 @@ export class RunEngine {
     }
   }
 
-  /** Emit run.finished and tear down the run's infra when configured to. */
+  /**
+   * Emit run.finished and tear down the run's infra when configured to. A
+   * *successful* run defers teardown (Phase 6.4): its worktrees + branches must
+   * survive so a human can land the change (open a PR / merge). Teardown then
+   * happens on demand via `teardownInfra`. Failed/cancelled runs tear down
+   * immediately as before.
+   */
   private async finalize(runId: string, ctx: RunCtx, status: string): Promise<void> {
     await this.emit(runId, {
       type: 'run.finished',
       actor: 'system',
       payload: { runId, status }
     })
-    if (ctx.infraTemplate && ctx.teardownOnComplete && this.infra.isConfigured()) {
+    if (
+      status !== 'passed' &&
+      ctx.infraTemplate &&
+      ctx.teardownOnComplete &&
+      this.infra.isConfigured()
+    ) {
+      await this.infra.teardown(runId, ctx.instanceName, { remove: true })
+    }
+  }
+
+  /**
+   * Tear down a run's infrastructure on demand (Phase 6.4) — used after a
+   * successful run's changes have been landed (or the user dismisses them),
+   * since success defers automatic teardown. No-op when the run requested no
+   * infra or no provider is configured. Idempotent.
+   */
+  async teardownInfra(runId: string): Promise<void> {
+    const ctx = await this.buildContext(runId)
+    if (!ctx) throw new Error(`Run ${runId} not found`)
+    if (ctx.infraTemplate && this.infra.isConfigured()) {
       await this.infra.teardown(runId, ctx.instanceName, { remove: true })
     }
   }

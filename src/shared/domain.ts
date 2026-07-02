@@ -305,3 +305,24 @@ export const gateActionInputSchema = z.object({
   targetStageIndex: z.number().int().min(0).optional()
 })
 export type GateActionInput = z.infer<typeof gateActionInputSchema>
+
+// --- Landing changes (Phase 6.4) -------------------------------------------
+
+/** How a repo's change reaches its main branch: open a PR, or merge directly. */
+export const landingMethodSchema = z.enum(['pr', 'merge'])
+export type LandingMethod = z.infer<typeof landingMethodSchema>
+
+/** Land one impacted repo of a successful run (per-repo, human-directed). */
+export const landRunInputSchema = z.object({
+  runId: z.string().min(1),
+  /** Repo alias (matches a provisioned worktree). */
+  repo: z.string().min(1),
+  method: landingMethodSchema,
+  /** Who initiated the landing (freeform, e.g. an email). */
+  by: z.string().default('human'),
+  /** PR title (method `pr`); defaults to the work item title when omitted. */
+  title: z.string().optional(),
+  /** PR body (method `pr`). */
+  body: z.string().optional()
+})
+export type LandRunInput = z.infer<typeof landRunInputSchema>

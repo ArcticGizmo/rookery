@@ -1,10 +1,12 @@
 import type { ListEventsOptions, StoredEvent } from './events'
 import type { RunInfra } from './infra'
+import type { LandingResult, LandingTargets } from './landing'
 import type {
   AgentRunConfig,
   CreateWorkItemInput,
   CredentialStatus,
   GateActionInput,
+  LandRunInput,
   Run,
   RunDetail,
   SpecDiff,
@@ -49,7 +51,10 @@ export const IPC = {
   runsList: 'runs:list',
   runsGet: 'runs:get',
   runsGate: 'runs:gate',
-  runsInfra: 'runs:infra'
+  runsInfra: 'runs:infra',
+  runsLandTargets: 'runs:land-targets',
+  runsLand: 'runs:land',
+  runsTeardown: 'runs:teardown'
 } as const
 
 /** Request/response channels: renderer invokes, main handles. */
@@ -85,6 +90,9 @@ export interface IpcInvokeMap {
   'runs:get': { args: [runId: string]; result: RunDetail | null }
   'runs:gate': { args: [input: GateActionInput]; result: void }
   'runs:infra': { args: [runId: string]; result: RunInfra }
+  'runs:land-targets': { args: [runId: string]; result: LandingTargets }
+  'runs:land': { args: [input: LandRunInput]; result: LandingResult }
+  'runs:teardown': { args: [runId: string]; result: void }
 }
 
 /** Push channels: main sends, renderer listens. */

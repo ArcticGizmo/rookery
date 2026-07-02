@@ -1,10 +1,12 @@
 import type { ListEventsOptions, StoredEvent } from './events'
 import type { RunInfra } from './infra'
+import type { LandingResult, LandingTargets } from './landing'
 import type {
   AgentRunConfig,
   CreateWorkItemInput,
   CredentialStatus,
   GateActionInput,
+  LandRunInput,
   Run,
   RunDetail,
   SpecDiff,
@@ -66,5 +68,11 @@ export interface RookeryApi {
     gate: (input: GateActionInput) => Promise<void>
     /** Live infrastructure status for a run (instances, worktrees, container health). */
     infra: (runId: string) => Promise<RunInfra>
+    /** Which repos of a successful run can be landed (open PR / merge). */
+    landTargets: (runId: string) => Promise<LandingTargets>
+    /** Land one impacted repo of a successful run via a PR or a direct merge. */
+    land: (input: LandRunInput) => Promise<LandingResult>
+    /** Tear down a run's infrastructure on demand (after landing/dismissal). */
+    teardown: (runId: string) => Promise<void>
   }
 }

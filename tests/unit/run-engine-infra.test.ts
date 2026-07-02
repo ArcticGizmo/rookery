@@ -117,10 +117,24 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
     expect(cwds).not.toContain('C:/git/api')
   })
 
-  it('tears infra down when the run completes (teardown on)', async () => {
+  it('defers teardown on success so changes can be landed, then tears down on demand', async () => {
     const run = await seed(true)
     const name = instanceNameForRun(run.id)
-    await waitFor(audit, (e) => has(e, 'infra.down'))
+    await waitFor(
+      audit,
+      (e) =>
+        e.some(
+          (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+        )
+    )
+
+    // A successful run keeps its infra up (Phase 6.4): the worktrees + branches
+    // must survive so a human can land the change.
+    expect(has(await audit.list({ limit: 1000 }), 'infra.down')).toBe(false)
+    expect((await provider.info(name))!.state).toBe('up')
+
+    // Explicit teardown (after landing/dismissal) removes it.
+    await engine.teardownInfra(run.id)
     expect(await provider.info(name)).toBeNull()
     expect((await runs.get(run.id))!.status).toBe('passed')
   })
