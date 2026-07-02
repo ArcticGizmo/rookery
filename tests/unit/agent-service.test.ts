@@ -68,6 +68,40 @@ describe('AgentService', () => {
     expect((pressure.payload as { contextWindow: number }).contextWindow).toBe(1_000_000)
   })
 
+  it('audits sub-agent activity, tool results, denials, and background tasks', async () => {
+    const query = fakeQuery([
+      msg.init('claude-opus-4-8'),
+      // A subagent's text + tool call (forwarded), then its tool result.
+      msg.assistant([{ type: 'text', text: 'sub work' }], undefined, {
+        parent_tool_use_id: 'task-1',
+        subagent_type: 'code-reviewer'
+      }),
+      msg.toolResult('tu1', 'ok', { parent_tool_use_id: 'task-1' }),
+      msg.permissionDenied('Bash', { agent_id: 'sub-1', decision_reason: 'deny rule' }),
+      msg.task('task_notification', { task_id: 'task-1', status: 'completed', summary: 'done' }),
+      msg.result()
+    ])
+    const service = new AgentService(audit, query)
+    const { agentRunId } = service.start(CONFIG)
+
+    const events = await waitFor(audit, (e) => e.some((x) => x.type === 'agent.finished'))
+    const t = types(events)
+    expect(t).toContain('agent.tool_result')
+    expect(t).toContain('agent.permission_denied')
+    expect(t).toContain('agent.task')
+
+    const message = events.find((e) => e.type === 'agent.message')!
+    expect((message.payload as { subagentType: string }).subagentType).toBe('code-reviewer')
+    expect((message.payload as { parentToolUseId: string }).parentToolUseId).toBe('task-1')
+
+    const denied = events.find((e) => e.type === 'agent.permission_denied')!
+    expect((denied.payload as { subagentId: string }).subagentId).toBe('sub-1')
+    // Everything, including nested activity, is tagged with the run id.
+    expect(
+      events.every((e) => (e.payload as { agentRunId?: string }).agentRunId === undefined || (e.payload as { agentRunId: string }).agentRunId === agentRunId)
+    ).toBe(true)
+  })
+
   it('emits agent.cancelled when a running agent is cancelled', async () => {
     const query = fakeQuery([msg.init('claude-opus-4-8')], { hangUntilAbort: true })
     const service = new AgentService(audit, query)

@@ -12,8 +12,37 @@ export type QueryFn = (args: {
  */
 export type AgentRunnerEvent =
   | { kind: 'init'; model: string; cwd: string; apiKeySource: string; tools: string[] }
-  | { kind: 'text'; text: string }
-  | { kind: 'tool_use'; toolUseId: string; toolName: string; input: unknown }
+  | { kind: 'text'; text: string; parentToolUseId?: string | null; subagentType?: string | null }
+  | {
+      kind: 'tool_use'
+      toolUseId: string
+      toolName: string
+      input: unknown
+      parentToolUseId?: string | null
+      subagentType?: string | null
+    }
+  | {
+      kind: 'tool_result'
+      toolUseId: string
+      isError: boolean
+      content: string
+      parentToolUseId?: string | null
+    }
+  | {
+      kind: 'permission_denied'
+      toolName: string
+      toolUseId: string
+      reason: string
+      subagentId?: string | null
+    }
+  | {
+      kind: 'task'
+      taskId: string
+      phase: 'started' | 'progress' | 'completed' | 'failed' | 'stopped'
+      summary: string
+      subagentType?: string | null
+      toolUseId?: string | null
+    }
   | {
       kind: 'usage'
       inputTokens: number

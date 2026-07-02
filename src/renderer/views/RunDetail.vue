@@ -105,9 +105,15 @@ function activityLine(event: StoredEvent): string {
     case 'agent.spawned':
       return `▶ ${p.personaName} (${p.model})`
     case 'agent.message':
-      return String(p.text)
+      return `${p.subagentType ? `↳ [${p.subagentType}] ` : ''}${String(p.text)}`
     case 'agent.tool_use':
-      return `🔧 ${p.toolName}`
+      return `${p.subagentType ? `↳ [${p.subagentType}] ` : ''}🔧 ${p.toolName}`
+    case 'agent.tool_result':
+      return `↳ ${p.isError ? '⚠ tool error' : 'tool result'}: ${String(p.content).slice(0, 200)}`
+    case 'agent.permission_denied':
+      return `⛔ Denied ${p.toolName}${p.subagentId ? ' (subagent)' : ''}: ${p.reason}`
+    case 'agent.task':
+      return `🧵 Task ${p.phase}${p.subagentType ? ` [${p.subagentType}]` : ''}${p.summary ? `: ${p.summary}` : ''}`
     case 'agent.error':
       return `✖ agent error: ${p.message}`
     case 'infra.provisioning':
@@ -127,10 +133,12 @@ const activity = computed(() => runEvents.value.filter((e) => activityLine(e) !=
 
 function lineClass(type: string): string {
   if (type.endsWith('_failed') || type === 'agent.error') return 'text-red-600'
+  if (type === 'agent.permission_denied') return 'text-red-600'
   if (type === 'run.gate_awaiting' || type === 'run.changes_requested') return 'text-amber-700'
   if (type === 'run.finished' || type === 'run.stage_passed' || type === 'infra.up')
     return 'text-green-700'
   if (type === 'agent.tool_use') return 'text-blue-700'
+  if (type === 'agent.tool_result' || type === 'agent.task') return 'text-muted-foreground'
   if (type === 'infra.provisioning' || type === 'infra.down') return 'text-purple-700'
   if (type.startsWith('run.')) return 'text-muted-foreground'
   return ''

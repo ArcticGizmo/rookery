@@ -100,7 +100,9 @@ const EVALUATORS: Record<PassCriterion['type'], Evaluator> = {
     const prompt =
       `Run the project's automated test suite in the working directory and report the outcome. ` +
       `Reply PASS on the first line if every test passes, otherwise FAIL followed by which failed.`
-    const result = await ctx.runAgent(testerPersona, prompt, 'bypassPermissions')
+    // `acceptEdits` (not `bypassPermissions`) so the security deny backstop still
+    // applies — the tester persona allow-lists Bash for running the suite.
+    const result = await ctx.runAgent(testerPersona, prompt, 'acceptEdits')
     return { criterion, ...verdict(result, 'PASS', 'FAIL') }
   }
 }

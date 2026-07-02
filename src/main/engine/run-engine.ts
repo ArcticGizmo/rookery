@@ -73,8 +73,9 @@ function buildImplPrompt(
  * `maxIterations`, halts at human gates, and advances — auditing every
  * transition. Stage agents run read-only (`plan`) until a `setup` stage
  * provisions an isolated worktree (Phase 5.4), after which implementer agents run
- * autonomously (`bypassPermissions`) inside it; the `tests_pass` criterion always
- * opts into `bypassPermissions`.
+ * with `acceptEdits` inside it — file edits auto-apply, but Bash/network stay
+ * gated by the persona allow-list and the security deny backstop (never
+ * `bypassPermissions` by default; see the Phase 5 security pass and plan §6 Q8).
  */
 export class RunEngine {
   private readonly driving = new Set<string>()
@@ -418,9 +419,10 @@ export class RunEngine {
       const index = current.currentStageIndex
       const iteration = current.stages[index]!.iteration
 
-      // Inside an isolated worktree, implementer agents may edit/execute
-      // autonomously; otherwise they stay read-only until a setup stage isolates.
-      const mode: PermissionMode = ctx.isolated ? 'bypassPermissions' : 'plan'
+      // Inside an isolated worktree, implementer agents may auto-apply file edits
+      // (Bash/network still gated by allow-list + deny backstop); otherwise they
+      // stay read-only until a setup stage isolates them.
+      const mode: PermissionMode = ctx.isolated ? 'acceptEdits' : 'plan'
       const agentResults: AgentResult[] = []
       for (const persona of stage.personas) {
         agentResults.push(

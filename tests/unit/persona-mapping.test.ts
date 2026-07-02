@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentPersona } from '../../src/shared/domain'
-import { mapPersonaToOptions } from '../../src/main/agent/persona-mapping'
+import { SECURITY_DENY_RULES, mapPersonaToOptions } from '../../src/main/agent/persona-mapping'
 
 function persona(overrides: Partial<AgentPersona> = {}): AgentPersona {
   return {
@@ -45,7 +45,8 @@ describe('mapPersonaToOptions', () => {
       { permissionMode: 'plan' }
     )
     expect(opts.allowedTools).toEqual(['Read', 'Grep'])
-    expect(opts.disallowedTools).toEqual(['Bash'])
+    // The security backstop is unioned into the persona's disallowed tools.
+    expect(opts.disallowedTools).toEqual(['Bash', 'WebFetch'])
     expect(opts.mcpServers).toEqual({ db: { command: 'node', args: ['s.js'] } })
   })
 
@@ -57,5 +58,31 @@ describe('mapPersonaToOptions', () => {
     expect(
       mapPersonaToOptions(persona(), { permissionMode: 'plan' }).allowDangerouslySkipPermissions
     ).toBeUndefined()
+  })
+
+  describe('security & audit hardening', () => {
+    it('isolates from the user global settings and never inherits them', () => {
+      const opts = mapPersonaToOptions(persona(), { permissionMode: 'plan' })
+      expect(opts.settingSources).toEqual([])
+    })
+
+    it('applies the deny backstop to every agent', () => {
+      const opts = mapPersonaToOptions(persona(), { permissionMode: 'acceptEdits' })
+      expect(opts.settings?.permissions?.deny).toEqual(SECURITY_DENY_RULES)
+      // Spot-check the highest-signal primitives are present.
+      for (const rule of ['Bash(curl:*)', 'Bash(docker:*)', 'Bash(git push:*)', 'WebFetch']) {
+        expect(opts.settings?.permissions?.deny).toContain(rule)
+      }
+    })
+
+    it('always disallows network egress tools even with no persona config', () => {
+      const opts = mapPersonaToOptions(persona(), { permissionMode: 'plan' })
+      expect(opts.disallowedTools).toContain('WebFetch')
+    })
+
+    it('forwards subagent text so nested agents are auditable', () => {
+      const opts = mapPersonaToOptions(persona(), { permissionMode: 'plan' })
+      expect(opts.forwardSubagentText).toBe(true)
+    })
   })
 })

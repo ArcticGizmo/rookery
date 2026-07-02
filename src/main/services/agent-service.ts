@@ -141,7 +141,12 @@ export class AgentService {
         this.enqueue(state, {
           type: 'agent.message',
           actor: 'agent',
-          payload: { agentRunId, text: event.text }
+          payload: {
+            agentRunId,
+            text: event.text,
+            ...(event.parentToolUseId ? { parentToolUseId: event.parentToolUseId } : {}),
+            ...(event.subagentType ? { subagentType: event.subagentType } : {})
+          }
         })
         break
       case 'tool_use':
@@ -152,7 +157,49 @@ export class AgentService {
             agentRunId,
             toolUseId: event.toolUseId,
             toolName: event.toolName,
-            input: event.input
+            input: event.input,
+            ...(event.parentToolUseId ? { parentToolUseId: event.parentToolUseId } : {}),
+            ...(event.subagentType ? { subagentType: event.subagentType } : {})
+          }
+        })
+        break
+      case 'tool_result':
+        this.enqueue(state, {
+          type: 'agent.tool_result',
+          actor: 'agent',
+          payload: {
+            agentRunId,
+            toolUseId: event.toolUseId,
+            isError: event.isError,
+            content: event.content,
+            ...(event.parentToolUseId ? { parentToolUseId: event.parentToolUseId } : {})
+          }
+        })
+        break
+      case 'permission_denied':
+        this.enqueue(state, {
+          type: 'agent.permission_denied',
+          actor: 'agent',
+          payload: {
+            agentRunId,
+            toolName: event.toolName,
+            toolUseId: event.toolUseId,
+            reason: event.reason,
+            ...(event.subagentId ? { subagentId: event.subagentId } : {})
+          }
+        })
+        break
+      case 'task':
+        this.enqueue(state, {
+          type: 'agent.task',
+          actor: 'agent',
+          payload: {
+            agentRunId,
+            taskId: event.taskId,
+            phase: event.phase,
+            summary: event.summary,
+            ...(event.subagentType ? { subagentType: event.subagentType } : {}),
+            ...(event.toolUseId ? { toolUseId: event.toolUseId } : {})
           }
         })
         break

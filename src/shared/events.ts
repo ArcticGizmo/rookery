@@ -34,11 +34,64 @@ export type AppEvent =
       actor: 'agent'
       payload: { agentRunId: string; personaName: string; model: string; cwd: string | null }
     }
-  | { type: 'agent.message'; actor: 'agent'; payload: { agentRunId: string; text: string } }
+  | {
+      type: 'agent.message'
+      actor: 'agent'
+      payload: {
+        agentRunId: string
+        text: string
+        /** Set when this text came from a subagent (the parent Task tool_use id). */
+        parentToolUseId?: string | null
+        /** Subagent type (e.g. 'code-reviewer') when produced inside a subagent. */
+        subagentType?: string | null
+      }
+    }
   | {
       type: 'agent.tool_use'
       actor: 'agent'
-      payload: { agentRunId: string; toolUseId: string; toolName: string; input: unknown }
+      payload: {
+        agentRunId: string
+        toolUseId: string
+        toolName: string
+        input: unknown
+        parentToolUseId?: string | null
+        subagentType?: string | null
+      }
+    }
+  | {
+      type: 'agent.tool_result'
+      actor: 'agent'
+      payload: {
+        agentRunId: string
+        toolUseId: string
+        isError: boolean
+        content: string
+        parentToolUseId?: string | null
+      }
+    }
+  | {
+      type: 'agent.permission_denied'
+      actor: 'agent'
+      payload: {
+        agentRunId: string
+        toolName: string
+        toolUseId: string
+        reason: string
+        /** Subagent id when the denied call originated inside a subagent. */
+        subagentId?: string | null
+      }
+    }
+  | {
+      type: 'agent.task'
+      actor: 'agent'
+      payload: {
+        agentRunId: string
+        taskId: string
+        phase: 'started' | 'progress' | 'completed' | 'failed' | 'stopped'
+        summary: string
+        subagentType?: string | null
+        toolUseId?: string | null
+      }
     }
   | {
       type: 'agent.usage'
