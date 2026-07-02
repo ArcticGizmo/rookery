@@ -11,6 +11,8 @@ import type {
   GateKind
 } from '@shared/domain'
 import { validateWorkflow } from '@shared/workflow-validation'
+import { KNOWN_MODELS } from '@shared/models'
+import { WORKFLOW_TEMPLATES, instantiateTemplate } from '@shared/workflow-templates'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useWorkflowsStore } from '@renderer/stores/workflows'
 
@@ -43,6 +45,8 @@ const stages = ref<Stage[]>([])
 const saving = ref(false)
 const error = ref<string | null>(null)
 const notFound = ref(false)
+// New workflows begin at a template chooser; editing an existing one skips it.
+const showTemplateChooser = ref(false)
 
 const validation = computed(() =>
   validateWorkflow({ name: name.value, description: description.value, stages: stages.value })
@@ -54,6 +58,18 @@ function issuesFor(prefix: string): string[] {
 
 function uid(): string {
   return crypto.randomUUID()
+}
+
+/** Seed the builder from a template (or start blank), then dismiss the chooser. */
+function useTemplate(templateId: string | null): void {
+  showTemplateChooser.value = false
+  if (!templateId) return // blank — leave the empty defaults in place
+  const template = WORKFLOW_TEMPLATES.find((t) => t.id === templateId)
+  if (!template) return
+  const body = instantiateTemplate(template, uid)
+  name.value = body.name
+  description.value = body.description
+  stages.value = body.stages
 }
 
 function addStage(): void {
@@ -151,6 +167,7 @@ const inputClass =
 
 onMounted(() => {
   if (props.id) void load(props.id)
+  else showTemplateChooser.value = true
 })
 
 watch(
@@ -176,7 +193,37 @@ watch(
       Workflow not found.
     </p>
 
+    <!-- Template chooser (new workflows only). -->
+    <section v-else-if="showTemplateChooser" class="flex flex-col gap-3">
+      <h2 class="text-sm font-medium">Start from a template</h2>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <button
+          type="button"
+          class="flex flex-col gap-1 rounded-md border border-border p-4 text-left hover:border-ring hover:bg-accent"
+          @click="useTemplate(null)"
+        >
+          <span class="text-sm font-medium">Blank</span>
+          <span class="text-xs text-muted-foreground">Start from scratch with no stages.</span>
+        </button>
+        <button
+          v-for="t in WORKFLOW_TEMPLATES"
+          :key="t.id"
+          type="button"
+          class="flex flex-col gap-1 rounded-md border border-border p-4 text-left hover:border-ring hover:bg-accent"
+          @click="useTemplate(t.id)"
+        >
+          <span class="text-sm font-medium">{{ t.label }}</span>
+          <span class="text-xs text-muted-foreground">{{ t.description }}</span>
+        </button>
+      </div>
+    </section>
+
     <template v-else>
+      <!-- Autocomplete source for persona model fields (free text still allowed). -->
+      <datalist id="model-list">
+        <option v-for="m in KNOWN_MODELS" :key="m" :value="m" />
+      </datalist>
+
       <div class="flex flex-col gap-2">
         <label class="text-sm font-medium" for="wf-name">Name</label>
         <input
@@ -303,6 +350,7 @@ watch(
                 <input
                   v-model="persona.model"
                   type="text"
+                  list="model-list"
                   placeholder="Model (optional)"
                   :class="[inputClass, 'w-40']"
                 />

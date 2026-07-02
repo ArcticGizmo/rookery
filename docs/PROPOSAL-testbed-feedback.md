@@ -224,8 +224,9 @@ so moving a proven flow onto sprig later is still just selecting the provider.
 4. ~~**A1–A4** (work-item authoring quality)~~ — ✅ **done**. `WorkspaceService` (folder picker,
    git probe, directory autocomplete), `normalizeRepoPath`, and inline non-blocking git hints +
    remote-URL inference in the work-item editor.
-5. **B1–B2** (templates + model autocomplete) — cuts workflow setup time. ← next
-6. **A5 + C2** (markdown + review-what-I-approve) — do together; C2 is the biggest quality
+5. ~~**B1–B2** (templates + model autocomplete)~~ — ✅ **done**. Built-in Vue/.NET templates +
+   Blank chooser on "New workflow"; `KNOWN_MODELS` datalist on the persona model field.
+6. **A5 + C2** (markdown + review-what-I-approve) — do together; C2 is the biggest quality ← next
    lift but depends on the markdown component and a new artifact event.
 7. **C1** (chain-of-thought activity) — polish once the above land.
 
