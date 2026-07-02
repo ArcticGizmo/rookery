@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import type { EventActor, ListEventsOptions, StoredEvent } from '@shared/events'
 import { rookery } from '@renderer/lib/rookery'
+
+const route = useRoute()
 
 const PAGE_SIZE = 100
 
@@ -94,7 +96,12 @@ watch([actor, type, runId, search, since, until], () => {
   timer = setTimeout(() => void query(), 250)
 })
 
-onMounted(() => void query())
+onMounted(() => {
+  // Deep links (e.g. a run's "View all activity") pre-seed filters via the query.
+  if (typeof route.query.runId === 'string') runId.value = route.query.runId
+  if (typeof route.query.type === 'string') type.value = route.query.type
+  void query()
+})
 </script>
 
 <template>

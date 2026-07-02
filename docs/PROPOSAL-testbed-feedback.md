@@ -226,9 +226,12 @@ so moving a proven flow onto sprig later is still just selecting the provider.
    remote-URL inference in the work-item editor.
 5. ~~**B1–B2** (templates + model autocomplete)~~ — ✅ **done**. Built-in Vue/.NET templates +
    Blank chooser on "New workflow"; `KNOWN_MODELS` datalist on the persona model field.
-6. **A5 + C2** (markdown + review-what-I-approve) — do together; C2 is the biggest quality ← next
-   lift but depends on the markdown component and a new artifact event.
-7. **C1** (chain-of-thought activity) — polish once the above land.
+6. **A5 + C2** (markdown + review-what-I-approve) — do together; C2 is the biggest quality
+   lift but depends on the markdown component and a new artifact event. ← next (needs the
+   markdown-library decision below)
+7. ~~**C1** (chain-of-thought activity)~~ — ✅ **done**. `buildChainOfThought` projection (last 5
+   meaningful items, tool calls paired with results), collapsible tool detail in the run view,
+   and a "View all activity →" deep link to History filtered by run id.
 
 ## Decisions
 

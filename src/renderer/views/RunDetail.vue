@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import type { GateDecision, LandingMethod, RunDetail, StageStatus } from '@shared/domain'
+import { type ChainTool, buildChainOfThought } from '@shared/chain-of-thought'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, RunInfra } from '@shared/infra'
 import type { LandingTargets } from '@shared/landing'
@@ -239,7 +240,30 @@ function activityLine(event: StoredEvent): string {
   }
 }
 
-const activity = computed(() => runEvents.value.filter((e) => activityLine(e) !== ''))
+// Compact chain-of-thought: the recent, meaningful moments (agent messages,
+// paired tool calls, transitions). The full log lives on the History page.
+const chain = computed(() => buildChainOfThought(runEvents.value, 5))
+const historyLink = computed(() => `/history?runId=${props.id}`)
+
+// Tool detail is collapsed by default; a new Set is assigned on toggle so Vue
+// reliably re-renders.
+const expandedTools = ref<Set<string>>(new Set())
+function toggleTool(key: string): void {
+  const next = new Set(expandedTools.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  expandedTools.value = next
+}
+
+function toolInput(tool: ChainTool): string {
+  if (tool.input == null) return ''
+  if (typeof tool.input === 'string') return tool.input
+  try {
+    return JSON.stringify(tool.input, null, 2)
+  } catch {
+    return String(tool.input)
+  }
+}
 
 function lineClass(type: string): string {
   // Verification failures loop back or escalate — attention, not terminal failure.
@@ -565,21 +589,62 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- Activity -->
+      <!-- Activity: compact chain of thought (full log on the History page) -->
       <section class="flex flex-col gap-2">
-        <h2 class="text-sm font-semibold">Activity</h2>
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold">Activity</h2>
+          <RouterLink :to="historyLink" class="text-xs text-muted-foreground hover:underline">
+            View all activity →
+          </RouterLink>
+        </div>
         <div class="rounded-md border border-border">
-          <p v-if="activity.length === 0" class="p-4 text-sm text-muted-foreground">
+          <p v-if="chain.length === 0" class="p-4 text-sm text-muted-foreground">
             No activity yet.
           </p>
           <ul v-else class="divide-y divide-border">
-            <li
-              v-for="event in activity"
-              :key="event.id"
-              class="whitespace-pre-wrap px-3 py-2 text-sm"
-              :class="lineClass(event.type)"
-            >
-              {{ activityLine(event) }}
+            <li v-for="item in chain" :key="item.key" class="px-3 py-2 text-sm">
+              <!-- Transitions & agent messages -->
+              <div
+                v-if="item.kind === 'event'"
+                class="whitespace-pre-wrap"
+                :class="lineClass(item.event.type)"
+              >
+                {{ activityLine(item.event) }}
+              </div>
+              <!-- Tool call: collapsed, expandable for input/result -->
+              <div v-else>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-2 text-left"
+                  @click="toggleTool(item.key)"
+                >
+                  <span class="text-blue-700">🔧 {{ item.tool.toolName }}</span>
+                  <span v-if="item.tool.subagentType" class="text-xs text-muted-foreground">
+                    [{{ item.tool.subagentType }}]
+                  </span>
+                  <span v-if="item.tool.isError" class="text-xs text-red-600">error</span>
+                  <span class="flex-1"></span>
+                  <span class="text-xs text-muted-foreground">
+                    {{ expandedTools.has(item.key) ? '▾' : '▸' }}
+                  </span>
+                </button>
+                <div
+                  v-if="expandedTools.has(item.key)"
+                  class="mt-1 flex flex-col gap-2 overflow-x-auto rounded bg-muted/30 p-2"
+                >
+                  <div v-if="toolInput(item.tool)">
+                    <span class="text-xs font-medium text-muted-foreground">input</span>
+                    <pre class="whitespace-pre-wrap text-xs">{{ toolInput(item.tool) }}</pre>
+                  </div>
+                  <div v-if="item.tool.result !== null">
+                    <span class="text-xs font-medium text-muted-foreground">result</span>
+                    <pre
+                      class="whitespace-pre-wrap text-xs"
+                      :class="item.tool.isError ? 'text-red-600' : ''"
+                      >{{ item.tool.result }}</pre>
+                  </div>
+                </div>
+              </div>
             </li>
           </ul>
         </div>
