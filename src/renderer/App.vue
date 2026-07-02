@@ -32,10 +32,21 @@ function isActive(to: string): boolean {
 function openNotification(n: NotificationItem): void {
   notifications.markRead(n.id)
   open.value = false
+  if (n.kind === 'update') {
+    // Quit and relaunch into the downloaded update (Phase 7.3).
+    void window.rookery.update.install()
+    return
+  }
   if (n.runId) {
     notifications.markRunRead(n.runId)
     void router.push(`/runs/${n.runId}`)
   }
+}
+
+function notificationIcon(kind: NotificationItem['kind']): string {
+  if (kind === 'gate') return '⏸'
+  if (kind === 'update') return '⬆'
+  return '⚠'
 }
 
 async function toggleOs(): Promise<void> {
@@ -115,7 +126,7 @@ onMounted(() => {
                   @click="openNotification(n)"
                 >
                   <span class="flex items-center gap-2 text-sm">
-                    <span>{{ n.kind === 'gate' ? '⏸' : '⚠' }}</span>
+                    <span>{{ notificationIcon(n.kind) }}</span>
                     <span :class="notifications.isRead(n.id) ? '' : 'font-semibold'">{{
                       n.title
                     }}</span>
@@ -136,12 +147,7 @@ onMounted(() => {
             <label
               class="flex items-center gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground"
             >
-              <input
-                type="checkbox"
-                class="size-3.5"
-                :checked="osEnabled"
-                @change="toggleOs"
-              />
+              <input type="checkbox" class="size-3.5" :checked="osEnabled" @change="toggleOs" />
               Also show OS notifications
             </label>
           </div>

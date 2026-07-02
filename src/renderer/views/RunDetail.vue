@@ -55,7 +55,12 @@ async function landRepo(repo: string, method: LandingMethod): Promise<void> {
   landingError.value = null
   landingAction.value = `${repo}:${method}`
   try {
-    await window.rookery.runs.land({ runId: props.id, repo, method, by: by.value.trim() || 'human' })
+    await window.rookery.runs.land({
+      runId: props.id,
+      repo,
+      method,
+      by: by.value.trim() || 'human'
+    })
     await refresh()
   } catch (e) {
     landingError.value = e instanceof Error ? e.message : String(e)
@@ -426,7 +431,9 @@ onMounted(() => {
               class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-card px-3 py-2 text-sm"
             >
               <span class="font-medium">{{ t.repo }}</span>
-              <span class="font-mono text-xs text-muted-foreground">{{ t.branch }} → {{ t.base }}</span>
+              <span class="font-mono text-xs text-muted-foreground"
+                >{{ t.branch }} → {{ t.base }}</span
+              >
               <span v-if="!t.remoteUrl" class="text-xs text-amber-700">no remote</span>
               <span
                 v-if="t.landed"

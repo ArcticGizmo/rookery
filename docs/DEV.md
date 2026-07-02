@@ -33,6 +33,7 @@ This also runs a `postinstall` step that downloads the Electron runtime binary.
 | `pnpm test` / `pnpm test:watch` | Vitest unit tests. |
 | `pnpm test:e2e` | Build, then run the Playwright + Electron smoke test. |
 | `pnpm package` | Build and produce an unpacked app in `release/` (electron-builder `--dir`). |
+| `pnpm release` | Build and publish a Windows installer to GitHub Releases (used by CI). |
 | `pnpm db:generate` | Generate SQL migrations from the Drizzle schema into `drizzle/`. |
 
 ## Project layout
@@ -85,6 +86,26 @@ Path aliases: `@shared/*` (all processes), `@renderer/*` (renderer).
   against the work item's own checkout.
 - Every infra step is audited (`infra.provisioning` / `infra.up` / `infra.down` / `infra.failed`)
   and the run view shows live status (`runs:infra`), falling back to the last `infra.up` event.
+
+## Releasing & auto-update (Phase 7.3)
+
+- **Target:** Windows only. `electron-builder` produces an NSIS installer and publishes it to
+  **GitHub Releases** (`electron-builder.yml` → `publish: github` → `ArcticGizmo/rookery`).
+- **Cutting a release:** bump `version` in `package.json`, commit, then push a matching tag:
+  ```sh
+  git tag v0.1.0 && git push --tags
+  ```
+  The `Release` workflow (`.github/workflows/release.yml`) runs `pnpm release` on a Windows
+  runner and publishes the installer + `latest.yml` to the GitHub Release. It authenticates
+  with the workflow's `GITHUB_TOKEN`.
+- **Auto-update:** at boot (and every 6h) a packaged app checks GitHub Releases via
+  `electron-updater` (`src/main/services/update-service.ts`). Updates auto-download; when one is
+  ready the app records `app.update_downloaded`, which surfaces as an "Update ready" notification
+  — clicking it quits and installs. Update state (`app.update_available` / `_downloaded` /
+  `_error`) is audited like everything else. Checks only run in a packaged build.
+- **Signing is NOT configured** — builds are unsigned, so Windows SmartScreen will warn on first
+  install. Add a code-signing certificate (`win.certificateFile` + `certificatePassword`, or an
+  Azure Trusted Signing block) in `electron-builder.yml` when one is available.
 
 ## Notes
 

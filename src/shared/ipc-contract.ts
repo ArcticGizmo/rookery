@@ -54,7 +54,10 @@ export const IPC = {
   runsInfra: 'runs:infra',
   runsLandTargets: 'runs:land-targets',
   runsLand: 'runs:land',
-  runsTeardown: 'runs:teardown'
+  runsTeardown: 'runs:teardown',
+  // Auto-update
+  updateCheck: 'update:check',
+  updateInstall: 'update:install'
 } as const
 
 /** Request/response channels: renderer invokes, main handles. */
@@ -93,6 +96,9 @@ export interface IpcInvokeMap {
   'runs:land-targets': { args: [runId: string]; result: LandingTargets }
   'runs:land': { args: [input: LandRunInput]; result: LandingResult }
   'runs:teardown': { args: [runId: string]; result: void }
+
+  'update:check': { args: []; result: void }
+  'update:install': { args: []; result: void }
 }
 
 /** Push channels: main sends, renderer listens. */

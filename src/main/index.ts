@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
+import electronUpdater from 'electron-updater'
 import { closeDb, configureConnection, initDb } from './db'
 import { runMigrations } from './db/migrate'
 import { query } from '@anthropic-ai/claude-agent-sdk'
@@ -14,11 +15,16 @@ import { LandingService } from './services/landing-service'
 import { RunStore } from './services/run-store'
 import { SpecService } from './services/spec-service'
 import { SqliteEventStore } from './services/sqlite-event-store'
+import { UpdateService } from './services/update-service'
 import { WorkItemService } from './services/work-item-service'
 import { WorkflowService } from './services/workflow-service'
 
+/** Re-check for updates on this cadence while the app stays open (6 hours). */
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
+
 let auditLog: AuditLog | null = null
 let shuttingDown = false
+let updateTimer: ReturnType<typeof setInterval> | null = null
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -72,7 +78,14 @@ async function bootstrap(): Promise<void> {
   const infra = new InfraService(createInfraProvider(), auditLog)
   const engine = new RunEngine(runs, auditLog, agent, workItems, workflows, infra)
   const landing = new LandingService(createLandingProvider(), auditLog, infra, workItems, runs)
-  registerIpc({ auditLog, workItems, specs, workflows, agent, runs, engine, landing })
+
+  // Auto-update (Phase 7.3): project updater lifecycle into the audit log so it
+  // surfaces through the normal notification pipeline. Checks only run in a
+  // packaged app — electron-updater rejects in an unpackaged dev build.
+  const update = new UpdateService(electronUpdater.autoUpdater, auditLog)
+  update.start()
+
+  registerIpc({ auditLog, workItems, specs, workflows, agent, runs, engine, landing, update })
 
   await auditLog.append({
     type: 'app.booted',
@@ -85,6 +98,12 @@ async function bootstrap(): Promise<void> {
   await engine
     .recoverInterruptedRuns()
     .catch((error) => console.error('Failed to recover interrupted runs:', error))
+
+  // Check for updates on boot, then periodically. Packaged only.
+  if (app.isPackaged) {
+    void update.check()
+    updateTimer = setInterval(() => void update.check(), UPDATE_CHECK_INTERVAL_MS)
+  }
 
   createWindow()
 
@@ -129,6 +148,10 @@ app.on('window-all-closed', () => {
 
 // Record a shutdown event before quitting, then close the database.
 app.on('before-quit', (event) => {
+  if (updateTimer) {
+    clearInterval(updateTimer)
+    updateTimer = null
+  }
   if (shuttingDown || !auditLog) {
     closeDb()
     return

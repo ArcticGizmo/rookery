@@ -21,19 +21,22 @@ const GH_HINT = 'gh CLI not found on PATH. Install and authenticate it: https://
 /** Default runner: spawns the real `git`/`gh` binaries. */
 const defaultCli: LandingCli = (cmd, args, cwd) =>
   new Promise((resolve, reject) => {
-    execFile(cmd, args, { cwd, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }, (error, out, err) => {
-      const e = error as (NodeJS.ErrnoException & { code?: number | string }) | null
-      if (e && e.code === 'ENOENT') {
-        reject(
-          new LandingToolingMissingError(
-            cmd === 'gh' ? GH_HINT : `${cmd} CLI not found on PATH.`
+    execFile(
+      cmd,
+      args,
+      { cwd, windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
+      (error, out, err) => {
+        const e = error as (NodeJS.ErrnoException & { code?: number | string }) | null
+        if (e && e.code === 'ENOENT') {
+          reject(
+            new LandingToolingMissingError(cmd === 'gh' ? GH_HINT : `${cmd} CLI not found on PATH.`)
           )
-        )
-        return
+          return
+        }
+        const code = e ? (typeof e.code === 'number' ? e.code : 1) : 0
+        resolve({ code, stdout: out ?? '', stderr: err ?? '' })
       }
-      const code = e ? (typeof e.code === 'number' ? e.code : 1) : 0
-      resolve({ code, stdout: out ?? '', stderr: err ?? '' })
-    })
+    )
   })
 
 /** First URL found in text (gh prints the PR URL on success). */

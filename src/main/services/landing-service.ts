@@ -56,7 +56,9 @@ export class LandingService {
 
     const rc = await this.runs.getContext(runId)
     if (!rc?.infraTemplate) {
-      return unavailable('This run provisioned no infrastructure, so there are no worktrees to land.')
+      return unavailable(
+        'This run provisioned no infrastructure, so there are no worktrees to land.'
+      )
     }
     if (!this.infra.isConfigured()) return unavailable('No infrastructure provider is configured.')
 
@@ -130,7 +132,8 @@ export class LandingService {
     })
 
     try {
-      const result = input.method === 'pr' ? await provider.openPr(spec) : await provider.merge(spec)
+      const result =
+        input.method === 'pr' ? await provider.openPr(spec) : await provider.merge(spec)
       await this.emit({
         type: 'run.landed',
         actor: 'human',

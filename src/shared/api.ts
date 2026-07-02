@@ -75,4 +75,10 @@ export interface RookeryApi {
     /** Tear down a run's infrastructure on demand (after landing/dismissal). */
     teardown: (runId: string) => Promise<void>
   }
+  update: {
+    /** Ask the update server whether a newer release is available. */
+    check: () => Promise<void>
+    /** Quit and install a downloaded update (the "restart to update" action). */
+    install: () => Promise<void>
+  }
 }

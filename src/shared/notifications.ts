@@ -9,7 +9,7 @@
 import type { PressureLevel } from './context-pressure'
 import type { StoredEvent } from './events'
 
-export type NotificationKind = 'gate' | 'pressure'
+export type NotificationKind = 'gate' | 'pressure' | 'update'
 
 export interface NotificationItem {
   /** The triggering event's id — stable + unique, so read-state dedupes cleanly. */
@@ -30,7 +30,8 @@ function payloadOf(event: StoredEvent): Record<string, unknown> {
  * `run.gate_awaiting` is a distinct wait, so it maps 1:1. High context pressure
  * fires only on the *rising edge* — a turn that first crosses into `high` for an
  * agent — so a long run doesn't emit one per turn; a later turn back under high
- * re-arms it.
+ * re-arms it. A downloaded update (Phase 7.3) is the actionable "restart to
+ * install" moment.
  */
 export function computeNotifications(events: StoredEvent[]): NotificationItem[] {
   const items: NotificationItem[] = []
@@ -38,6 +39,18 @@ export function computeNotifications(events: StoredEvent[]): NotificationItem[] 
 
   for (const event of events) {
     const p = payloadOf(event)
+
+    if (event.type === 'app.update_downloaded') {
+      items.push({
+        id: event.id,
+        kind: 'update',
+        runId: null,
+        title: 'Update ready',
+        body: `Version ${String(p.version ?? '')} has been downloaded. Restart Rookery to install it.`,
+        ts: event.ts
+      })
+      continue
+    }
 
     if (event.type === 'run.gate_awaiting') {
       items.push({

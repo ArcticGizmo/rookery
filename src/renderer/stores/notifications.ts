@@ -96,8 +96,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         seenMaxId = maxId
         return
       }
-      const canToast =
-        osEnabled.value && osSupported() && Notification.permission === 'granted'
+      const canToast = osEnabled.value && osSupported() && Notification.permission === 'granted'
       if (canToast) {
         for (const n of all) {
           if (n.id > seenMaxId) new Notification(n.title, { body: n.body })

@@ -49,6 +49,10 @@ const api: RookeryApi = {
     landTargets: (runId) => ipcRenderer.invoke(IPC.runsLandTargets, runId),
     land: (input) => ipcRenderer.invoke(IPC.runsLand, input),
     teardown: (runId) => ipcRenderer.invoke(IPC.runsTeardown, runId)
+  },
+  update: {
+    check: () => ipcRenderer.invoke(IPC.updateCheck),
+    install: () => ipcRenderer.invoke(IPC.updateInstall)
   }
 }
 

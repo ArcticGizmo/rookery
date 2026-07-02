@@ -501,7 +501,10 @@ export class RunEngine {
 
           if (!escalate) {
             ctx.verificationCycles += 1
-            snapshot = await this.apply(runId, snapshot, { type: 'REQUEST_CHANGES', targetIndex: 0 })
+            snapshot = await this.apply(runId, snapshot, {
+              type: 'REQUEST_CHANGES',
+              targetIndex: 0
+            })
             continue
           }
 

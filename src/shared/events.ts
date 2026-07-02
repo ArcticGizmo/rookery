@@ -8,6 +8,11 @@ export type EventActor = 'system' | 'human' | 'agent'
 export type AppEvent =
   | { type: 'app.booted'; actor: 'system'; payload: { version: string; platform: string } }
   | { type: 'app.shutdown'; actor: 'system'; payload: Record<string, never> }
+  // Phase 7.3 — auto-update (electron-updater against GitHub Releases). Only the
+  // meaningful, attention-worthy states are logged; routine checks are not.
+  | { type: 'app.update_available'; actor: 'system'; payload: { version: string } }
+  | { type: 'app.update_downloaded'; actor: 'system'; payload: { version: string } }
+  | { type: 'app.update_error'; actor: 'system'; payload: { message: string } }
   // Phase 2 — work items, spec versioning, workflow definitions.
   | { type: 'workitem.created'; actor: 'human'; payload: { workItemId: string; title: string } }
   | { type: 'workitem.updated'; actor: 'human'; payload: { workItemId: string; title: string } }

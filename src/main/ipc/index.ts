@@ -16,6 +16,7 @@ import type { AuditLog } from '../services/audit-log'
 import type { LandingService } from '../services/landing-service'
 import type { RunStore } from '../services/run-store'
 import type { SpecService } from '../services/spec-service'
+import type { UpdateService } from '../services/update-service'
 import type { WorkItemService } from '../services/work-item-service'
 import type { WorkflowService } from '../services/workflow-service'
 
@@ -28,11 +29,13 @@ export interface IpcServices {
   runs: RunStore
   engine: RunEngine
   landing: LandingService
+  /** Optional: absent in contexts without auto-update (e.g. some tests). */
+  update?: UpdateService
 }
 
 /** Register request/response handlers and wire event-log push to all windows. */
 export function registerIpc(services: IpcServices): void {
-  const { auditLog, workItems, specs, workflows, agent, runs, engine, landing } = services
+  const { auditLog, workItems, specs, workflows, agent, runs, engine, landing, update } = services
 
   ipcMain.handle(IPC.appPing, () => 'pong')
 
@@ -85,6 +88,10 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.runsLandTargets, (_event, runId: string) => landing.targets(runId))
   ipcMain.handle(IPC.runsLand, (_event, input: LandRunInput) => landing.land(input))
   ipcMain.handle(IPC.runsTeardown, (_event, runId: string) => engine.teardownInfra(runId))
+
+  // Auto-update: no-op when the service isn't wired (e.g. unpackaged dev).
+  ipcMain.handle(IPC.updateCheck, () => update?.check())
+  ipcMain.handle(IPC.updateInstall, () => update?.install())
 
   auditLog.onAppend((event) => {
     for (const window of BrowserWindow.getAllWindows()) {

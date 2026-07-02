@@ -77,6 +77,22 @@ describe('computeNotifications', () => {
     expect(items.every((n) => n.kind === 'pressure')).toBe(true)
   })
 
+  it('surfaces a downloaded update as an actionable notification', () => {
+    const l = log()
+    l.add('app.update_downloaded', { version: '1.2.3' })
+
+    const items = computeNotifications(l.events)
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({ id: 1, kind: 'update', runId: null, title: 'Update ready' })
+    expect(items[0]!.body).toContain('1.2.3')
+  })
+
+  it('ignores an available-but-not-downloaded update (not yet actionable)', () => {
+    const l = log()
+    l.add('app.update_available', { version: '1.2.3' })
+    expect(computeNotifications(l.events)).toHaveLength(0)
+  })
+
   it('ignores unrelated events and preserves chronological order', () => {
     const l = log()
     l.add('app.booted', { version: '0', platform: 'win32' })
