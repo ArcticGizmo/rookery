@@ -19,6 +19,7 @@ import { SqliteEventStore } from './services/sqlite-event-store'
 import { UpdateService } from './services/update-service'
 import { WorkItemService } from './services/work-item-service'
 import { WorkflowService } from './services/workflow-service'
+import { WorkspaceService } from './services/workspace-service'
 
 /** Re-check for updates on this cadence while the app stays open (6 hours). */
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
@@ -80,6 +81,7 @@ async function bootstrap(): Promise<void> {
   const localBranch = new LocalBranchService(auditLog)
   const engine = new RunEngine(runs, auditLog, agent, workItems, workflows, infra, localBranch)
   const landing = new LandingService(createLandingProvider(), auditLog, infra, workItems, runs)
+  const workspace = new WorkspaceService()
 
   // Auto-update (Phase 7.3): project updater lifecycle into the audit log so it
   // surfaces through the normal notification pipeline. Checks only run in a
@@ -87,7 +89,18 @@ async function bootstrap(): Promise<void> {
   const update = new UpdateService(electronUpdater.autoUpdater, auditLog)
   update.start()
 
-  registerIpc({ auditLog, workItems, specs, workflows, agent, runs, engine, landing, update })
+  registerIpc({
+    auditLog,
+    workItems,
+    specs,
+    workflows,
+    agent,
+    runs,
+    engine,
+    landing,
+    workspace,
+    update
+  })
 
   await auditLog.append({
     type: 'app.booted',

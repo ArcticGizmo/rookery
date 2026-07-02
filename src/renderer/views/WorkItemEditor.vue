@@ -2,7 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { SpecDiff, SpecVersion } from '@shared/domain'
+import { type RepoProbe, normalizeRepoPath } from '@shared/workspace'
 import Button from '@renderer/components/ui/button/Button.vue'
+import { rookery } from '@renderer/lib/rookery'
 import { useWorkItemsStore } from '@renderer/stores/work-items'
 
 const props = defineProps<{ id?: string }>()
@@ -13,6 +15,10 @@ interface RepoRow {
   name: string
   localPath: string
   remoteUrl: string
+  /** Last probe of `localPath` (transient UI state; not persisted). */
+  probe: RepoProbe | null
+  /** Directory autocomplete candidates for the current `localPath`. */
+  suggestions: string[]
 }
 
 const isEdit = computed(() => Boolean(props.id))
@@ -31,11 +37,45 @@ const error = ref<string | null>(null)
 const notFound = ref(false)
 
 function addRepo(): void {
-  repos.value.push({ name: '', localPath: '', remoteUrl: '' })
+  repos.value.push({ name: '', localPath: '', remoteUrl: '', probe: null, suggestions: [] })
 }
 
 function removeRepo(index: number): void {
   repos.value.splice(index, 1)
+}
+
+// Autocomplete: fetch directory candidates as the user types, converting Windows
+// backslashes live. A request id guards against out-of-order responses.
+let listRequestId = 0
+async function onPathInput(repo: RepoRow): Promise<void> {
+  repo.localPath = repo.localPath.replace(/\\/g, '/')
+  repo.probe = null // stale until re-probed on blur
+  const id = ++listRequestId
+  const suggestions = await rookery().workspace.listDirs(repo.localPath)
+  if (id === listRequestId) repo.suggestions = suggestions
+}
+
+// Probe the path for git-ness + remote URL (on blur or after picking a folder).
+async function probeRepoRow(repo: RepoRow): Promise<void> {
+  repo.localPath = normalizeRepoPath(repo.localPath)
+  if (repo.localPath === '') {
+    repo.probe = null
+    return
+  }
+  const probe = await rookery().workspace.probeRepo(repo.localPath)
+  repo.probe = probe
+  // Infer the remote URL from the checkout when the user hasn't supplied one.
+  if (probe.isGitRepo && probe.remoteUrl && repo.remoteUrl.trim() === '') {
+    repo.remoteUrl = probe.remoteUrl
+  }
+}
+
+async function browseRepo(repo: RepoRow): Promise<void> {
+  const picked = await rookery().workspace.pickDirectory(repo.localPath || undefined)
+  if (picked) {
+    repo.localPath = picked
+    await probeRepoRow(repo)
+  }
 }
 
 async function loadHistory(id: string): Promise<void> {
@@ -61,8 +101,12 @@ async function loadDetail(id: string): Promise<void> {
   repos.value = detail.repos.map((r) => ({
     name: r.name,
     localPath: r.localPath,
-    remoteUrl: r.remoteUrl ?? ''
+    remoteUrl: r.remoteUrl ?? '',
+    probe: null,
+    suggestions: []
   }))
+  // Surface any git warnings for already-attached repos without blocking the load.
+  for (const repo of repos.value) void probeRepoRow(repo)
   await loadHistory(id)
 }
 
@@ -163,30 +207,53 @@ watch(
           <Button variant="outline" size="sm" @click="addRepo">Add repo</Button>
         </div>
         <p v-if="repos.length === 0" class="text-sm text-muted-foreground">No repos attached.</p>
-        <div
-          v-for="(repo, index) in repos"
-          :key="index"
-          class="grid grid-cols-[1fr_1.5fr_1.5fr_auto] items-center gap-2"
-        >
-          <input
-            v-model="repo.name"
-            type="text"
-            placeholder="name (api)"
-            class="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <input
-            v-model="repo.localPath"
-            type="text"
-            placeholder="local path (C:/git/api)"
-            class="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <input
-            v-model="repo.remoteUrl"
-            type="text"
-            placeholder="remote URL (optional)"
-            class="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <Button variant="ghost" size="sm" @click="removeRepo(index)">Remove</Button>
+        <div v-for="(repo, index) in repos" :key="index" class="flex flex-col gap-1">
+          <div class="grid grid-cols-[1fr_1.5fr_1.5fr_auto] items-center gap-2">
+            <input
+              v-model="repo.name"
+              type="text"
+              placeholder="name (api)"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            <div class="flex items-center gap-1">
+              <input
+                v-model="repo.localPath"
+                type="text"
+                :list="`dirs-${index}`"
+                placeholder="local path (C:/git/api)"
+                class="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                @input="onPathInput(repo)"
+                @blur="probeRepoRow(repo)"
+              />
+              <datalist :id="`dirs-${index}`">
+                <option v-for="s in repo.suggestions" :key="s" :value="s" />
+              </datalist>
+              <Button variant="outline" size="sm" @click="browseRepo(repo)">Browse…</Button>
+            </div>
+            <input
+              v-model="repo.remoteUrl"
+              type="text"
+              placeholder="remote URL (optional)"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            <Button variant="ghost" size="sm" @click="removeRepo(index)">Remove</Button>
+          </div>
+          <!-- Non-blocking git hints for the path. -->
+          <p
+            v-if="repo.probe && repo.localPath && !repo.probe.exists"
+            class="text-xs text-amber-700"
+          >
+            Path not found on disk.
+          </p>
+          <p v-else-if="repo.probe && !repo.probe.isGitRepo" class="text-xs text-amber-700">
+            No <span class="font-mono">.git</span> folder here — you can still attach it, but it
+            doesn't look like a git repo.
+          </p>
+          <p v-else-if="repo.probe && repo.probe.isGitRepo" class="text-xs text-muted-foreground">
+            ✓ git repo<template v-if="repo.probe.defaultBranch">
+              · {{ repo.probe.defaultBranch }}</template
+            ><template v-if="repo.probe.remoteUrl"> · {{ repo.probe.remoteUrl }}</template>
+          </p>
         </div>
       </section>
 

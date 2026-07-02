@@ -1,5 +1,6 @@
 import type { ListEventsOptions, StoredEvent } from './events'
 import type { RunInfra } from './infra'
+import type { RepoProbe } from './workspace'
 import type { LandingResult, LandingTargets } from './landing'
 import type {
   AgentRunConfig,
@@ -27,6 +28,10 @@ export const IPC = {
   appPing: 'app:ping',
   eventsList: 'events:list',
   eventsAppend: 'events:append',
+  // Workspace: folder picker, repo probe, directory autocomplete
+  dialogPickDirectory: 'dialog:pick-directory',
+  repoProbe: 'repo:probe',
+  fsListDirs: 'fs:list-dirs',
   // Work items + spec versioning
   workItemsList: 'work-items:list',
   workItemsGet: 'work-items:get',
@@ -65,6 +70,10 @@ export const IPC = {
 export interface IpcInvokeMap {
   'app:ping': { args: []; result: string }
   'events:list': { args: [options: ListEventsOptions | undefined]; result: StoredEvent[] }
+
+  'dialog:pick-directory': { args: [defaultPath: string | undefined]; result: string | null }
+  'repo:probe': { args: [localPath: string]; result: RepoProbe }
+  'fs:list-dirs': { args: [input: string]; result: string[] }
 
   'work-items:list': { args: []; result: WorkItem[] }
   'work-items:get': { args: [id: string]; result: WorkItemDetail | null }

@@ -221,8 +221,10 @@ so moving a proven flow onto sprig later is still just selecting the provider.
 2. ~~**C3** (terminate a run)~~ — ✅ **done**. `RunEngine.cancel` + `run.cancelled` event + UI.
 3. ~~**E** (local-branch mode)~~ — ✅ **done**. `executionMode` (`read_only`/`local_branch`/`infra`),
    `LocalBranchService`, setup-stage branch prep, Runs start-form selector.
-4. **A1–A4** (work-item authoring quality) — mostly small, independent, parallel-safe. ← next
-5. **B1–B2** (templates + model autocomplete) — cuts workflow setup time.
+4. ~~**A1–A4** (work-item authoring quality)~~ — ✅ **done**. `WorkspaceService` (folder picker,
+   git probe, directory autocomplete), `normalizeRepoPath`, and inline non-blocking git hints +
+   remote-URL inference in the work-item editor.
+5. **B1–B2** (templates + model autocomplete) — cuts workflow setup time. ← next
 6. **A5 + C2** (markdown + review-what-I-approve) — do together; C2 is the biggest quality
    lift but depends on the markdown component and a new artifact event.
 7. **C1** (chain-of-thought activity) — polish once the above land.

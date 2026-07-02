@@ -15,6 +15,11 @@ const api: RookeryApi = {
       }
     }
   },
+  workspace: {
+    pickDirectory: (defaultPath) => ipcRenderer.invoke(IPC.dialogPickDirectory, defaultPath),
+    probeRepo: (localPath) => ipcRenderer.invoke(IPC.repoProbe, localPath),
+    listDirs: (input) => ipcRenderer.invoke(IPC.fsListDirs, input)
+  },
   workItems: {
     list: () => ipcRenderer.invoke(IPC.workItemsList),
     get: (id) => ipcRenderer.invoke(IPC.workItemsGet, id),

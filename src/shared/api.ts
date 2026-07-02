@@ -1,5 +1,6 @@
 import type { ListEventsOptions, StoredEvent } from './events'
 import type { RunInfra } from './infra'
+import type { RepoProbe } from './workspace'
 import type { LandingResult, LandingTargets } from './landing'
 import type {
   AgentRunConfig,
@@ -31,6 +32,15 @@ export interface RookeryApi {
     list: (options?: ListEventsOptions) => Promise<StoredEvent[]>
     /** Subscribe to events as they are appended. Returns an unsubscribe fn. */
     onAppend: (listener: (event: StoredEvent) => void) => () => void
+  }
+  /** Filesystem/git helpers for attaching repos to a work item. */
+  workspace: {
+    /** Open the OS folder picker; resolves to the chosen path or null if cancelled. */
+    pickDirectory: (defaultPath?: string) => Promise<string | null>
+    /** Probe a candidate repo path (existence, git-ness, remote URL, default branch). */
+    probeRepo: (localPath: string) => Promise<RepoProbe>
+    /** Directory-path autocomplete candidates for a partial path. */
+    listDirs: (input: string) => Promise<string[]>
   }
   workItems: {
     list: () => Promise<WorkItem[]>

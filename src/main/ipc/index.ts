@@ -19,6 +19,7 @@ import type { SpecService } from '../services/spec-service'
 import type { UpdateService } from '../services/update-service'
 import type { WorkItemService } from '../services/work-item-service'
 import type { WorkflowService } from '../services/workflow-service'
+import type { WorkspaceService } from '../services/workspace-service'
 
 export interface IpcServices {
   auditLog: AuditLog
@@ -29,19 +30,28 @@ export interface IpcServices {
   runs: RunStore
   engine: RunEngine
   landing: LandingService
+  workspace: WorkspaceService
   /** Optional: absent in contexts without auto-update (e.g. some tests). */
   update?: UpdateService
 }
 
 /** Register request/response handlers and wire event-log push to all windows. */
 export function registerIpc(services: IpcServices): void {
-  const { auditLog, workItems, specs, workflows, agent, runs, engine, landing, update } = services
+  const { auditLog, workItems, specs, workflows, agent, runs, engine, landing, workspace, update } =
+    services
 
   ipcMain.handle(IPC.appPing, () => 'pong')
 
   ipcMain.handle(IPC.eventsList, (_event, options: ListEventsOptions | undefined) =>
     auditLog.list(options)
   )
+
+  // Workspace: folder picker, repo probe, directory autocomplete
+  ipcMain.handle(IPC.dialogPickDirectory, (event, defaultPath: string | undefined) =>
+    workspace.pickDirectory(BrowserWindow.fromWebContents(event.sender), defaultPath)
+  )
+  ipcMain.handle(IPC.repoProbe, (_event, localPath: string) => workspace.probeRepo(localPath))
+  ipcMain.handle(IPC.fsListDirs, (_event, input: string) => workspace.listDirs(input))
 
   // Work items
   ipcMain.handle(IPC.workItemsList, () => workItems.list())
