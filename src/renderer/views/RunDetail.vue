@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
 import type { GateDecision, LandingMethod, RunDetail, StageStatus } from '@shared/domain'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, RunInfra } from '@shared/infra'
 import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
-import { useEventsStore } from '@renderer/stores/events'
+import { useScopedEvents } from '@renderer/composables/use-scoped-events'
 import { useRunsStore } from '@renderer/stores/runs'
 
 const props = defineProps<{ id: string }>()
 const runsStore = useRunsStore()
-const eventsStore = useEventsStore()
-const { events } = storeToRefs(eventsStore)
+
+// Load this run's events straight from the backend (paginated) and live-tail
+// them, so a run's full history is shown even after a restart — the shared
+// events store's buffer may not hold an older run's events.
+const { events: runEvents, reload: reloadEvents } = useScopedEvents(
+  () => ({ runId: props.id }),
+  (event) => event.runId === props.id
+)
 
 const detail = ref<RunDetail | null>(null)
 const infra = ref<RunInfra | null>(null)
@@ -82,8 +87,6 @@ async function teardownInfra(): Promise<void> {
   }
 }
 
-const runEvents = computed<StoredEvent[]>(() => events.value.filter((e) => e.runId === props.id))
-
 // Re-fetch the run projection whenever new events for this run arrive.
 watch(
   () => runEvents.value.length,
@@ -96,6 +99,7 @@ watch(
   () => {
     detail.value = null
     notFound.value = false
+    void reloadEvents()
     void refresh()
   }
 )
@@ -300,7 +304,6 @@ async function act(decision: GateDecision): Promise<void> {
 }
 
 onMounted(() => {
-  void eventsStore.init()
   void refresh()
 })
 </script>

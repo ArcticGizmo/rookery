@@ -114,3 +114,11 @@ Path aliases: `@shared/*` (all processes), `@renderer/*` (renderer).
   `window.rookery`.
 - UI components live under `src/renderer/components/ui` and follow shadcn-vue conventions;
   add more with the shadcn-vue CLI (config in `components.json`).
+- **Two ways to read the event log in the renderer.** The **events store**
+  (`stores/events.ts`) is a live buffer seeded with a slice of the log and grown from streamed
+  appends (coalesced per animation frame) — use it for whole-log projections like the Activity
+  dashboard and notifications. For a view that must show **one scope's full history** (e.g.
+  `RunDetail` for a specific run, even after a restart), use the **`useScopedEvents`** composable
+  (`composables/use-scoped-events.ts`): it pages that scope's events straight from the backend by
+  filter and live-tails matching appends, so it doesn't depend on what happens to be in the
+  shared buffer.
