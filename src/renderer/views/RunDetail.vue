@@ -6,6 +6,7 @@ import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, RunInfra } from '@shared/infra'
 import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
+import MarkdownView from '@renderer/components/MarkdownView.vue'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
 import { useRunsStore } from '@renderer/stores/runs'
 import { rookery } from '@renderer/lib/rookery'
@@ -161,6 +162,28 @@ const verificationEscalation = computed<string | null>(() => {
   return null
 })
 
+// The artifacts the current stage's personas produced (latest iteration each),
+// shown at the gate so a human sees exactly what they're approving.
+const gateArtifacts = computed<{ personaName: string; role: string; artifact: string }[]>(() => {
+  const d = detail.value
+  if (!d || !awaitingGate.value) return []
+  const idx = d.run.currentStageIndex
+  const byPersona = new Map<string, { personaName: string; role: string; artifact: string }>()
+  for (const e of runEvents.value) {
+    if (e.type !== 'run.stage_output') continue
+    const p = e.payload as {
+      stageIndex: number
+      personaId: string
+      personaName: string
+      role: string
+      artifact: string
+    }
+    if (p.stageIndex !== idx) continue
+    byPersona.set(p.personaId, { personaName: p.personaName, role: p.role, artifact: p.artifact })
+  }
+  return [...byPersona.values()]
+})
+
 // Stages we can route back to on request-changes (0..current).
 const backTargets = computed(() => {
   const d = detail.value
@@ -187,6 +210,8 @@ function activityLine(event: StoredEvent): string {
       return `✗ Stage failed: ${p.reason}`
     case 'run.criterion_evaluated':
       return `${p.passed ? '✓' : '✗'} criterion ${p.criterionType}: ${p.detail}`
+    case 'run.stage_output':
+      return `📄 ${p.personaName} (${p.role}) produced output`
     case 'run.gate_awaiting':
       return `⏸ Awaiting human gate: ${p.description}`
     case 'run.gate_resolved':
@@ -425,6 +450,22 @@ onMounted(() => {
         >
           Verification issues: {{ verificationEscalation }}
         </p>
+
+        <!-- What you're approving: the artifacts this stage produced. -->
+        <div v-if="gateArtifacts.length" class="flex flex-col gap-2">
+          <p class="text-xs font-medium text-amber-800">For your review:</p>
+          <div
+            v-for="artifact in gateArtifacts"
+            :key="artifact.personaName"
+            class="rounded-md border border-amber-500/40 bg-background p-3"
+          >
+            <p class="mb-1 text-xs font-medium text-muted-foreground">
+              {{ artifact.personaName }} · {{ artifact.role }}
+            </p>
+            <MarkdownView :source="artifact.artifact" />
+          </div>
+        </div>
+
         <div class="flex flex-wrap items-end gap-2">
           <div class="flex flex-col gap-1">
             <label class="text-xs font-medium" for="by">By</label>

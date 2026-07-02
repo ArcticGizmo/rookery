@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import type { SpecDiff, SpecVersion } from '@shared/domain'
 import { type RepoProbe, normalizeRepoPath } from '@shared/workspace'
 import Button from '@renderer/components/ui/button/Button.vue'
+import MarkdownView from '@renderer/components/MarkdownView.vue'
 import { rookery } from '@renderer/lib/rookery'
 import { useWorkItemsStore } from '@renderer/stores/work-items'
 
@@ -35,6 +36,7 @@ const diff = ref<SpecDiff | null>(null)
 const saving = ref(false)
 const error = ref<string | null>(null)
 const notFound = ref(false)
+const specPreview = ref(false)
 
 function addRepo(): void {
   repos.value.push({ name: '', localPath: '', remoteUrl: '', probe: null, suggestions: [] })
@@ -259,14 +261,41 @@ watch(
 
       <!-- Spec -->
       <section class="flex flex-col gap-2">
-        <label class="text-sm font-medium" for="spec">Spec (markdown)</label>
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium" for="spec">Spec (markdown)</label>
+          <div class="flex overflow-hidden rounded-md border border-input text-xs">
+            <button
+              type="button"
+              class="px-2 py-1"
+              :class="!specPreview ? 'bg-accent font-medium' : 'text-muted-foreground'"
+              @click="specPreview = false"
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              class="border-l border-input px-2 py-1"
+              :class="specPreview ? 'bg-accent font-medium' : 'text-muted-foreground'"
+              @click="specPreview = true"
+            >
+              Preview
+            </button>
+          </div>
+        </div>
         <textarea
+          v-show="!specPreview"
           id="spec"
           v-model="spec"
           rows="14"
           placeholder="# Feature&#10;Describe the work…"
           class="rounded-md border border-input bg-background p-3 font-mono text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
         ></textarea>
+        <div
+          v-if="specPreview"
+          class="min-h-[8rem] rounded-md border border-input bg-background p-3"
+        >
+          <MarkdownView :source="spec" />
+        </div>
         <p class="text-xs text-muted-foreground">
           Saving creates a new spec version only when the content changes.
         </p>

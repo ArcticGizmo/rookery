@@ -188,6 +188,18 @@ describe('RunEngine', () => {
     expect(detail!.stages.every((s) => s.status === 'passed')).toBe(true)
   })
 
+  it("records each stage persona's artifact for gate review", async () => {
+    const input = await setup('APPROVE — satisfies the spec')
+    await engine.start(input)
+
+    const events = await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
+    const outputs = events.filter((e) => e.type === 'run.stage_output')
+    expect(outputs.length).toBeGreaterThanOrEqual(1)
+    const payload = outputs[0]!.payload as { personaName: string; artifact: string }
+    expect(payload.personaName).toBe('Lead')
+    expect(payload.artifact).toContain('APPROVE')
+  })
+
   it('loops then fails the run when the reviewer keeps rejecting', async () => {
     const input = await setup('REJECT — missing error handling', 2)
     const run = await engine.start(input)

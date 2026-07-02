@@ -174,6 +174,22 @@ export type AppEvent =
         detail: string
       }
     }
+  // The consolidated artifact a stage's persona produced this iteration — what a
+  // human reviews at the stage's gate (rendered as markdown in the run view).
+  | {
+      type: 'run.stage_output'
+      actor: 'agent'
+      payload: {
+        runId: string
+        stageId: string
+        stageIndex: number
+        personaId: string
+        personaName: string
+        role: string
+        iteration: number
+        artifact: string
+      }
+    }
   | {
       type: 'run.gate_awaiting'
       actor: 'system'

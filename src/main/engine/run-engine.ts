@@ -704,6 +704,32 @@ export class RunEngine {
       if (this.cancelled.has(runId))
         return { snapshot: current, passed: false, reason: 'cancelled' }
 
+      // Record each persona's artifact so a human can actually see what they're
+      // approving at the stage's gate (rendered as markdown in the run view).
+      for (let i = 0; i < stage.personas.length; i++) {
+        const persona = stage.personas[i]
+        const result = agentResults[i]
+        if (!persona || !result) continue
+        await this.emit(
+          runId,
+          {
+            type: 'run.stage_output',
+            actor: 'agent',
+            payload: {
+              runId,
+              stageId: stage.id,
+              stageIndex: index,
+              personaId: persona.id,
+              personaName: persona.name,
+              role: persona.role,
+              iteration,
+              artifact: result.resultText || result.text
+            }
+          },
+          stage.id
+        )
+      }
+
       const outcomes = await evaluateCriteria(stage, {
         spec: ctx.spec,
         cwd: ctx.cwd,
