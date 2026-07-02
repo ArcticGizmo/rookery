@@ -4,6 +4,7 @@ import type { StoredEvent } from '../../src/shared/events'
 import { AgentService } from '../../src/main/services/agent-service'
 import { AuditLog } from '../../src/main/services/audit-log'
 import { InfraService } from '../../src/main/services/infra-service'
+import { type GitCli, LocalBranchService } from '../../src/main/services/local-branch-service'
 import { RunStore } from '../../src/main/services/run-store'
 import { SpecService } from '../../src/main/services/spec-service'
 import { WorkItemService } from '../../src/main/services/work-item-service'
@@ -140,7 +141,15 @@ describe('RunEngine', () => {
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, verdictQuery(verdict))
     const infra = new InfraService(null, audit)
-    engine = new RunEngine(runs, audit, agents, workItems, workflows, infra)
+    engine = new RunEngine(
+      runs,
+      audit,
+      agents,
+      workItems,
+      workflows,
+      infra,
+      new LocalBranchService(audit)
+    )
 
     const wi = await workItems.create({
       title: 'Feature',
@@ -232,7 +241,15 @@ describe('RunEngine', () => {
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, verificationQuery(checkerVerdicts))
     const infra = new InfraService(null, audit)
-    engine = new RunEngine(runs, audit, agents, workItems, workflows, infra)
+    engine = new RunEngine(
+      runs,
+      audit,
+      agents,
+      workItems,
+      workflows,
+      infra,
+      new LocalBranchService(audit)
+    )
 
     const wi = await workItems.create({
       title: 'Feature',
@@ -348,7 +365,15 @@ describe('RunEngine', () => {
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, hangingQuery())
     const infra = new InfraService(null, audit)
-    engine = new RunEngine(runs, audit, agents, workItems, workflows, infra)
+    engine = new RunEngine(
+      runs,
+      audit,
+      agents,
+      workItems,
+      workflows,
+      infra,
+      new LocalBranchService(audit)
+    )
 
     const wi = await workItems.create({
       title: 'Feature',
@@ -377,6 +402,86 @@ describe('RunEngine', () => {
       'run should finalize exactly once (no double finalize)'
     ).toBe(1)
     expect((await runs.get(run.id))!.status).toBe('cancelled')
+  })
+
+  // --- Local-branch execution mode ---
+
+  /** A `git` that reports a clean checkout on `main` where the branch is new. */
+  function successGit(): GitCli {
+    return async (args) => {
+      const sub = args.join(' ')
+      if (sub === 'rev-parse --is-inside-work-tree') return { code: 0, stdout: 'true', stderr: '' }
+      if (sub === 'rev-parse --abbrev-ref HEAD') return { code: 0, stdout: 'main', stderr: '' }
+      if (sub === 'status --porcelain') return { code: 0, stdout: '', stderr: '' }
+      if (args[0] === 'rev-parse' && args.includes('--verify'))
+        return { code: 1, stdout: '', stderr: '' } // branch doesn't exist yet
+      return { code: 0, stdout: '', stderr: '' }
+    }
+  }
+
+  function localBranchWorkflow(): WorkflowDefBody {
+    return {
+      name: 'Local edit',
+      description: '',
+      stages: [
+        { id: 'setup', name: 'Setup', type: 'setup', personas: [], passCriteria: [], gates: [] },
+        {
+          id: 'impl',
+          name: 'Implement',
+          type: 'implementation',
+          personas: [{ id: 'p', name: 'Dev', role: 'Implementer', systemPrompt: 'Build it.' }],
+          passCriteria: [{ id: 'c', type: 'reviewer_approves', description: '' }],
+          gates: []
+        }
+      ]
+    }
+  }
+
+  it('prepares a branch at the setup stage in local-branch mode, then completes', async () => {
+    const specs = new SpecService(test.db, audit)
+    workItems = new WorkItemService(test.db, audit, specs)
+    workflows = new WorkflowService(test.db, audit)
+    runs = new RunStore(test.db)
+    const agents = new AgentService(audit, verdictQuery('APPROVE — looks good'))
+    const infra = new InfraService(null, audit)
+    engine = new RunEngine(
+      runs,
+      audit,
+      agents,
+      workItems,
+      workflows,
+      infra,
+      new LocalBranchService(audit, successGit())
+    )
+
+    const wi = await workItems.create({
+      title: 'F',
+      spec: 'do X',
+      repos: [{ name: 'api', localPath: 'C:/git/api' }]
+    })
+    const wf = await workflows.create(localBranchWorkflow())
+    const run = await engine.start({
+      workItemId: wi.workItem.id,
+      workflowId: wf.id,
+      executionMode: 'local_branch',
+      workBranch: 'rookery/x'
+    })
+
+    const events = await waitFor(audit, (e) =>
+      e.some(
+        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+      )
+    )
+    expect(has(events, 'run.branch_ready')).toBe(true)
+    expect(has(events, 'run.branch_failed')).toBe(false)
+    expect((await runs.get(run.id))!.status).toBe('passed')
+  })
+
+  it('rejects local-branch mode without a work branch', async () => {
+    const input = await setup('APPROVE')
+    await expect(engine.start({ ...input, executionMode: 'local_branch' })).rejects.toThrow(
+      /work branch/i
+    )
   })
 
   // --- Phase 7.1: crash recovery ---

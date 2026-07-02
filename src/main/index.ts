@@ -12,6 +12,7 @@ import { createInfraProvider } from './services/infra'
 import { InfraService } from './services/infra-service'
 import { createLandingProvider } from './services/landing'
 import { LandingService } from './services/landing-service'
+import { LocalBranchService } from './services/local-branch-service'
 import { RunStore } from './services/run-store'
 import { SpecService } from './services/spec-service'
 import { SqliteEventStore } from './services/sqlite-event-store'
@@ -76,7 +77,8 @@ async function bootstrap(): Promise<void> {
   const agent = new AgentService(auditLog, query)
   const runs = new RunStore(db)
   const infra = new InfraService(createInfraProvider(), auditLog)
-  const engine = new RunEngine(runs, auditLog, agent, workItems, workflows, infra)
+  const localBranch = new LocalBranchService(auditLog)
+  const engine = new RunEngine(runs, auditLog, agent, workItems, workflows, infra, localBranch)
   const landing = new LandingService(createLandingProvider(), auditLog, infra, workItems, runs)
 
   // Auto-update (Phase 7.3): project updater lifecycle into the audit log so it

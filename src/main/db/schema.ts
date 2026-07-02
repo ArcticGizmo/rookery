@@ -115,6 +115,15 @@ export const runs = sqliteTable(
     infraTemplate: text('infra_template'),
     /** Whether to tear infra down when the run reaches a terminal state. */
     infraTeardown: integer('infra_teardown', { mode: 'boolean' }).notNull().default(true),
+    /**
+     * How stage agents get write access: 'read_only' (plan, no edits),
+     * 'local_branch' (edit on a branch of the real checkout — no sprig/docker),
+     * or 'infra' (isolated worktree via a provider). Null on legacy rows, which
+     * are read as 'infra' when an infra template is set, else 'read_only'.
+     */
+    executionMode: text('execution_mode'),
+    /** Branch created/checked out on the repo for 'local_branch' mode. */
+    workBranch: text('work_branch'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull()
   },

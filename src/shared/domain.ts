@@ -268,6 +268,20 @@ export interface RunDetail {
 export const gateDecisionSchema = z.enum(['approve', 'reject', 'request_changes'])
 export type GateDecision = z.infer<typeof gateDecisionSchema>
 
+/**
+ * How stage agents get write access during a run:
+ * - `read_only` — agents run in `plan` mode; no edits. Safe default.
+ * - `local_branch` — the setup stage creates/checks out `workBranch` on the work
+ *   item's own repo checkout and agents run with `acceptEdits`. Needs neither
+ *   sprig nor Docker; changes stay in that repo's working tree for the user to
+ *   review and land manually (network/push still blocked by the security backstop).
+ * - `infra` — the setup stage provisions an isolated worktree + Docker infra via
+ *   the configured provider (`infraTemplate`), and agents run with `acceptEdits`
+ *   inside it.
+ */
+export const runExecutionModeSchema = z.enum(['read_only', 'local_branch', 'infra'])
+export type RunExecutionMode = z.infer<typeof runExecutionModeSchema>
+
 export const startRunInputSchema = z.object({
   workItemId: z.string().min(1),
   workflowId: z.string().min(1),
@@ -291,9 +305,25 @@ export const startRunInputSchema = z.object({
     z.string().optional()
   ),
   /** Tear the run's infra down when the run reaches a terminal state (default true). */
-  teardownOnComplete: z.boolean().default(true)
+  teardownOnComplete: z.boolean().default(true),
+  /**
+   * Execution mode (see {@link runExecutionModeSchema}). Omitted ⇒ resolved by the
+   * engine for backward compatibility: `infra` when an `infraTemplate` is set,
+   * otherwise `read_only`.
+   */
+  executionMode: runExecutionModeSchema.optional(),
+  /** Branch to create/checkout on the repo for `local_branch` mode (required then). */
+  workBranch: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.string().optional())
 })
 export type StartRunInput = z.infer<typeof startRunInputSchema>
+
+/** Resolve the effective execution mode, honoring the legacy infra-template default. */
+export function resolveExecutionMode(input: {
+  executionMode?: RunExecutionMode
+  infraTemplate?: string | null
+}): RunExecutionMode {
+  return input.executionMode ?? (input.infraTemplate ? 'infra' : 'read_only')
+}
 
 export const gateActionInputSchema = z.object({
   runId: z.string().min(1),

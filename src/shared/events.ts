@@ -215,6 +215,18 @@ export type AppEvent =
       actor: 'human'
       payload: { runId: string; previousStatus: string }
     }
+  // Local-branch execution mode: the setup stage checked out a branch on the
+  // work item's own repo checkout so agents can edit without sprig/Docker.
+  | {
+      type: 'run.branch_ready'
+      actor: 'system'
+      payload: { runId: string; repo: string; branch: string; path: string }
+    }
+  | {
+      type: 'run.branch_failed'
+      actor: 'system'
+      payload: { runId: string; repo: string; branch: string; message: string }
+    }
   // Phase 7.1 — a run left mid-flight by a crash/unclean shutdown, reconciled on boot.
   | {
       type: 'run.interrupted'

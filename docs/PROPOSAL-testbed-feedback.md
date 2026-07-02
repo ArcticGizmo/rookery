@@ -217,19 +217,36 @@ so moving a proven flow onto sprig later is still just selecting the provider.
 
 ## Recommended sequencing
 
-1. **D** (blank active-agents) — real bug, ~S, unblocks observing runs.
-2. **C3** (terminate a run) — safety/usability, machinery already exists.
-3. **E** (local-branch mode) — unlocks the whole write path without sprig; high value.
-4. **A1–A4** (work-item authoring quality) — mostly small, independent, parallel-safe.
+1. ~~**D** (blank active-agents)~~ — ✅ **done**. Minimal reverse-order load in the events store.
+2. ~~**C3** (terminate a run)~~ — ✅ **done**. `RunEngine.cancel` + `run.cancelled` event + UI.
+3. ~~**E** (local-branch mode)~~ — ✅ **done**. `executionMode` (`read_only`/`local_branch`/`infra`),
+   `LocalBranchService`, setup-stage branch prep, Runs start-form selector.
+4. **A1–A4** (work-item authoring quality) — mostly small, independent, parallel-safe. ← next
 5. **B1–B2** (templates + model autocomplete) — cuts workflow setup time.
 6. **A5 + C2** (markdown + review-what-I-approve) — do together; C2 is the biggest quality
    lift but depends on the markdown component and a new artifact event.
 7. **C1** (chain-of-thought activity) — polish once the above land.
 
-## Decisions to confirm
+## Decisions
+
+- **Local-branch safety** (E): **resolved → hard-refuse on a dirty working tree.** `prepare()`
+  aborts the run's setup stage if `git status --porcelain` is non-empty when switching branches;
+  it's idempotent (no clean-check) once already on the run's branch, so fix-loops don't trip.
+- **Activity fix depth** (D): shipped the minimal reverse-order load; the server-side projection
+  remains a possible fast-follow if log size ever makes the 500-event window too small.
+
+## Decisions still to confirm
 
 - **Markdown library** for A5/C2: `markdown-it` (my lean) vs `marked` + `dompurify`.
-- **Local-branch safety** (E): hard-refuse on a dirty working tree (my lean) vs auto-stash.
-- **Activity fix depth** (D): ship the minimal reverse-order load now and the server-side
-  projection as a fast-follow — agree?
 - **Template set** (B1): Blank + Vue + .NET to start — any others you want seeded now?
+
+## Notes / follow-ups surfaced while building E
+
+- Local-branch mode unlocks edits only once a **`setup` stage** runs (isolation triggers there,
+  same as infra). A workflow that's purely `review`/`plan` stays read-only even in this mode —
+  the Runs form hints at this.
+- It operates on `repos[0]` (single-repo), matching the existing infra path. Multi-repo
+  local-branch is future work.
+- Changes are left in the working tree on the branch; there's no auto-commit and the landing
+  panel (PR/merge) still keys off infra worktrees, so landing a local-branch run is manual for
+  now. Worth revisiting if you want one-click landing for this mode.

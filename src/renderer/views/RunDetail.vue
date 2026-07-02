@@ -200,6 +200,10 @@ function activityLine(event: StoredEvent): string {
       return `■ Run ${p.status}`
     case 'run.cancelled':
       return `⏹ Run terminated by human (was ${p.previousStatus})`
+    case 'run.branch_ready':
+      return `🌿 Branch ready: ${p.repo} on ${p.branch}`
+    case 'run.branch_failed':
+      return `✖ Branch prep failed (${p.repo}): ${p.message}`
     case 'run.landing_started':
       return `⚑ Landing ${p.repo} via ${p.method} (by ${p.by})`
     case 'run.landed':
@@ -248,6 +252,7 @@ function lineClass(type: string): string {
     type === 'run.finished' ||
     type === 'run.stage_passed' ||
     type === 'run.landed' ||
+    type === 'run.branch_ready' ||
     type === 'infra.up'
   )
     return 'text-green-700'

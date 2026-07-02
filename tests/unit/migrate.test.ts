@@ -28,8 +28,8 @@ describe('migration guardrails (Phase 7.2)', () => {
   })
 
   it('bundledMigrationCount matches the committed migrations', () => {
-    // The repo ships 5 migrations (drizzle/meta/_journal.json).
-    expect(bundledMigrationCount('drizzle')).toBe(5)
+    // The repo ships 6 migrations (drizzle/meta/_journal.json).
+    expect(bundledMigrationCount('drizzle')).toBe(6)
   })
 
   it('appliedMigrationCount reflects a freshly-migrated database', async () => {

@@ -4,6 +4,7 @@ import type { StoredEvent } from '../../src/shared/events'
 import { AgentService } from '../../src/main/services/agent-service'
 import { AuditLog } from '../../src/main/services/audit-log'
 import { InfraService } from '../../src/main/services/infra-service'
+import { LocalBranchService } from '../../src/main/services/local-branch-service'
 import { instanceNameForRun } from '../../src/main/services/infra'
 import { StubProvider } from '../../src/main/services/infra/stub-provider'
 import { RunStore } from '../../src/main/services/run-store'
@@ -78,7 +79,7 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, approveQuery())
     const infra = new InfraService(provider, audit)
-    engine = new RunEngine(runs, audit, agents, workItems, workflows, infra)
+    engine = new RunEngine(runs, audit, agents, workItems, workflows, infra, new LocalBranchService(audit))
 
     const wi = await workItems.create({
       title: 'Feature',

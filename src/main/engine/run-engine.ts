@@ -3,10 +3,12 @@ import {
   type GateActionInput,
   type PermissionMode,
   type Run,
+  type RunExecutionMode,
   type Stage,
   type StartRunInput,
   type WorkflowDefBody,
   gateActionInputSchema,
+  resolveExecutionMode,
   startRunInputSchema
 } from '@shared/domain'
 import type { AppEvent } from '@shared/events'
@@ -22,6 +24,7 @@ import type { AgentResult } from '../agent/types'
 import type { AgentService } from '../services/agent-service'
 import type { AuditLog } from '../services/audit-log'
 import type { InfraService } from '../services/infra-service'
+import type { LocalBranchService } from '../services/local-branch-service'
 import { instanceNameForRun } from '../services/infra'
 import type { RunStore } from '../services/run-store'
 import type { WorkItemService } from '../services/work-item-service'
@@ -44,6 +47,10 @@ interface RunCtx {
   infraTemplate: string | null
   /** Tear infra down when the run finishes. */
   teardownOnComplete: boolean
+  /** How stage agents get write access (drives what the setup stage provisions). */
+  executionMode: RunExecutionMode
+  /** Branch to create/checkout on the repo for `local_branch` mode. */
+  workBranch: string | null
   /** Deterministic infra instance name for this run. */
   instanceName: string
   /** Impacted repo aliases (passed to providers that build worktrees explicitly). */
@@ -99,7 +106,8 @@ export class RunEngine {
     private readonly agents: AgentService,
     private readonly workItems: WorkItemService,
     private readonly workflows: WorkflowService,
-    private readonly infra: InfraService
+    private readonly infra: InfraService,
+    private readonly localBranch: LocalBranchService
   ) {}
 
   async start(rawInput: StartRunInput): Promise<Run> {
@@ -108,6 +116,16 @@ export class RunEngine {
     if (!wf) throw new Error(`Workflow ${input.workflowId} not found`)
     const detail = await this.workItems.get(input.workItemId)
     if (!detail) throw new Error(`Work item ${input.workItemId} not found`)
+
+    const executionMode = resolveExecutionMode(input)
+    if (executionMode === 'local_branch') {
+      if (!input.workBranch?.trim()) {
+        throw new Error('A work branch is required for local-branch execution mode.')
+      }
+      if (!detail.repos[0]?.localPath) {
+        throw new Error('Local-branch execution mode needs the work item to have a repo attached.')
+      }
+    }
 
     const body: WorkflowDefBody = { name: wf.name, description: wf.description, stages: wf.stages }
     const run = await this.runs.create({
@@ -118,7 +136,9 @@ export class RunEngine {
       maxIterations: input.maxIterations,
       maxVerificationCycles: input.maxVerificationCycles,
       infraTemplate: input.infraTemplate ?? null,
-      teardownOnComplete: input.teardownOnComplete
+      teardownOnComplete: input.teardownOnComplete,
+      executionMode: input.executionMode ?? null,
+      workBranch: input.workBranch?.trim() ?? null
     })
     await this.emit(run.id, {
       type: 'run.created',
@@ -324,6 +344,11 @@ export class RunEngine {
       cwd: detail?.repos[0]?.localPath ?? null,
       infraTemplate: rc.infraTemplate,
       teardownOnComplete: rc.teardownOnComplete,
+      executionMode: resolveExecutionMode({
+        executionMode: rc.executionMode ?? undefined,
+        infraTemplate: rc.infraTemplate
+      }),
+      workBranch: rc.workBranch,
       instanceName,
       repos: detail?.repos.map((r) => r.name) ?? [],
       isolated: false,
@@ -348,13 +373,19 @@ export class RunEngine {
       if (p.routedBack && e.id > baselineId) ctx.verificationCycles += 1
     }
 
-    // Recover the worktree cwd after a pause (e.g. a human gate) rebuilds the
-    // context: if this run already has a live instance, point agents back at it.
-    if (rc.infraTemplate && this.infra.isConfigured()) {
+    // Recover isolation after a pause (e.g. a human gate) rebuilds the context.
+    if (ctx.executionMode === 'infra' && rc.infraTemplate && this.infra.isConfigured()) {
+      // Infra: point agents back at the live worktree if one exists.
       const instance = await this.infra.info(instanceName).catch(() => null)
       const worktree = instance?.worktrees[0]
       if (worktree) {
         ctx.cwd = worktree.path
+        ctx.isolated = true
+      }
+    } else if (ctx.executionMode === 'local_branch' && ctx.workBranch && ctx.cwd) {
+      // Local branch: agents already edit in-place on the repo checkout, so it's
+      // isolated once the repo is on the run's branch (setup stage did the switch).
+      if ((await this.localBranch.currentBranch(ctx.cwd)) === ctx.workBranch) {
         ctx.isolated = true
       }
     }
@@ -390,6 +421,32 @@ export class RunEngine {
       // provision() has already emitted infra.failed.
       return false
     }
+  }
+
+  /**
+   * Prepare a `local_branch` run's write path before its `setup` stage runs:
+   * check out the run's branch on the work item's own repo checkout so implementer
+   * agents can edit in place — no sprig or Docker. On success, isolation is on and
+   * agents edit the real checkout on that branch; returns false (failing the
+   * stage) if the branch couldn't be prepared (e.g. dirty tree, missing git).
+   */
+  private async ensureLocalBranch(runId: string, ctx: RunCtx): Promise<boolean> {
+    if (!ctx.workBranch || !ctx.cwd) return false
+    const repo = ctx.repos[0] ?? 'repo'
+    const ok = await this.localBranch.prepare(runId, repo, ctx.cwd, ctx.workBranch)
+    if (ok) ctx.isolated = true
+    return ok
+  }
+
+  /**
+   * Provision whatever a `setup` stage needs for the run's execution mode: an
+   * isolated worktree (`infra`), a branch on the real checkout (`local_branch`),
+   * or nothing (`read_only`). Returns false if provisioning failed.
+   */
+  private ensureSetup(runId: string, ctx: RunCtx): Promise<boolean> {
+    if (ctx.executionMode === 'infra') return this.ensureInfra(runId, ctx)
+    if (ctx.executionMode === 'local_branch') return this.ensureLocalBranch(runId, ctx)
+    return Promise.resolve(true)
   }
 
   /**
@@ -462,8 +519,10 @@ export class RunEngine {
           stage.id
         )
 
-        // A setup stage provisions the run's isolated worktrees + infra first.
-        if (stage.type === 'setup' && !(await this.ensureInfra(runId, ctx))) {
+        // A setup stage provisions the run's write path first: an isolated
+        // worktree (infra), a branch on the real checkout (local_branch), or
+        // nothing (read_only).
+        if (stage.type === 'setup' && !(await this.ensureSetup(runId, ctx))) {
           snapshot = await this.apply(runId, snapshot, { type: 'STAGE_FAILED' })
           await this.emit(
             runId,
@@ -474,7 +533,10 @@ export class RunEngine {
                 runId,
                 stageId: stage.id,
                 stageIndex: index,
-                reason: 'Infrastructure provisioning failed'
+                reason:
+                  ctx.executionMode === 'local_branch'
+                    ? 'Local branch preparation failed'
+                    : 'Infrastructure provisioning failed'
               }
             },
             stage.id

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRouter } from 'vue-router'
+import type { RunExecutionMode } from '@shared/domain'
 import { validateWorkflow } from '@shared/workflow-validation'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useRunsStore } from '@renderer/stores/runs'
@@ -21,6 +22,8 @@ const workItemId = ref('')
 const workflowId = ref('')
 const maxIterations = ref(3)
 const maxVerificationCycles = ref(2)
+const executionMode = ref<RunExecutionMode>('read_only')
+const workBranch = ref('')
 const infraTemplate = ref('')
 const teardownOnComplete = ref(true)
 const error = ref<string | null>(null)
@@ -38,7 +41,8 @@ const canStart = computed(
     !starting.value &&
     workItemId.value !== '' &&
     workflowId.value !== '' &&
-    selectedWorkflowValid.value
+    selectedWorkflowValid.value &&
+    (executionMode.value !== 'local_branch' || workBranch.value.trim() !== '')
 )
 
 const STATUS_CLASS: Record<string, string> = {
@@ -67,7 +71,11 @@ async function start(): Promise<void> {
       workflowId: workflowId.value,
       maxIterations: maxIterations.value,
       maxVerificationCycles: maxVerificationCycles.value,
-      infraTemplate: infraTemplate.value.trim() || undefined,
+      executionMode: executionMode.value,
+      infraTemplate:
+        executionMode.value === 'infra' ? infraTemplate.value.trim() || undefined : undefined,
+      workBranch:
+        executionMode.value === 'local_branch' ? workBranch.value.trim() || undefined : undefined,
       teardownOnComplete: teardownOnComplete.value
     })
     await router.push(`/runs/${run.id}`)
@@ -144,21 +152,58 @@ onMounted(() => {
             class="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
-        <div class="flex flex-col gap-1 sm:col-span-2">
-          <label class="text-sm font-medium" for="infra">Infra template (optional)</label>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-medium" for="mode">Execution mode</label>
+          <select
+            id="mode"
+            v-model="executionMode"
+            class="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            <option value="read_only">Read-only (plan)</option>
+            <option value="local_branch">Local branch (edit checkout)</option>
+            <option value="infra">Isolated infra (sprig)</option>
+          </select>
+        </div>
+
+        <!-- Local branch: name a branch on the work item's own repo checkout. -->
+        <div v-if="executionMode === 'local_branch'" class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-sm font-medium" for="branch">Work branch</label>
           <input
-            id="infra"
-            v-model="infraTemplate"
+            id="branch"
+            v-model="workBranch"
             type="text"
-            placeholder="e.g. api-web — a sprig template; leave blank to skip provisioning"
+            placeholder="e.g. rookery/reset-button"
             class="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
-        <label class="flex items-center gap-2 self-end pb-1 text-sm" for="teardown">
-          <input id="teardown" v-model="teardownOnComplete" type="checkbox" class="size-4" />
-          Tear down infra on completion
-        </label>
+
+        <!-- Isolated infra: sprig template + teardown. -->
+        <template v-else-if="executionMode === 'infra'">
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium" for="infra">Infra template</label>
+            <input
+              id="infra"
+              v-model="infraTemplate"
+              type="text"
+              placeholder="e.g. api-web — a sprig template"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+          <label class="flex items-center gap-2 self-end pb-1 text-sm" for="teardown">
+            <input id="teardown" v-model="teardownOnComplete" type="checkbox" class="size-4" />
+            Tear down infra on completion
+          </label>
+        </template>
       </div>
+
+      <p v-if="executionMode === 'local_branch'" class="text-xs text-muted-foreground">
+        Runs on the work item's own repo checkout — no sprig or Docker. Edits unlock once a
+        <span class="font-mono">setup</span> stage runs, and the working tree must be clean to
+        start. Changes are left on the branch for you to review and land manually.
+      </p>
+      <p v-else-if="executionMode === 'read_only'" class="text-xs text-muted-foreground">
+        Agents run read-only (plan mode) — they can review and propose but not edit files.
+      </p>
       <p v-if="workflowId && !selectedWorkflowValid" class="text-xs text-amber-700">
         This workflow has validation issues — fix it in the Workflows builder before running.
       </p>

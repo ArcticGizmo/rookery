@@ -3,6 +3,7 @@ import { asc, desc, eq } from 'drizzle-orm'
 import {
   type Run,
   type RunDetail,
+  type RunExecutionMode,
   type StageExecution,
   type WorkflowDefBody,
   workflowDefBodySchema
@@ -49,6 +50,10 @@ export interface CreateRunParams {
   infraTemplate: string | null
   /** Tear infra down when the run finishes. */
   teardownOnComplete: boolean
+  /** How stage agents get write access (null ⇒ derived from infraTemplate). */
+  executionMode: RunExecutionMode | null
+  /** Branch for `local_branch` mode (null otherwise). */
+  workBranch: string | null
 }
 
 /** Context the engine needs to drive a run. */
@@ -59,6 +64,8 @@ export interface RunContext {
   maxVerificationCycles: number
   infraTemplate: string | null
   teardownOnComplete: boolean
+  executionMode: RunExecutionMode | null
+  workBranch: string | null
 }
 
 /** Persistence for runs and their stage executions (Phase 4.1). */
@@ -81,6 +88,8 @@ export class RunStore {
         maxVerificationCycles: params.maxVerificationCycles,
         infraTemplate: params.infraTemplate,
         infraTeardown: params.teardownOnComplete,
+        executionMode: params.executionMode,
+        workBranch: params.workBranch,
         createdAt: now,
         updatedAt: now
       })
@@ -121,7 +130,9 @@ export class RunStore {
       maxIterations: row.maxIterations,
       maxVerificationCycles: row.maxVerificationCycles,
       infraTemplate: row.infraTemplate ?? null,
-      teardownOnComplete: row.infraTeardown
+      teardownOnComplete: row.infraTeardown,
+      executionMode: (row.executionMode as RunExecutionMode | null) ?? null,
+      workBranch: row.workBranch ?? null
     }
   }
 
