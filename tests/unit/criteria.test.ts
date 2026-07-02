@@ -54,6 +54,29 @@ describe('evaluateCriteria', () => {
     expect(outcome!.passed).toBe(false)
   })
 
+  it('reads the verdict from a later line when the agent leads with reasoning', async () => {
+    const [outcome] = await evaluateCriteria(
+      stageWith('reviewer_approves'),
+      ctx(
+        fakeAgent(
+          'I have enough to judge. The source file confirms the state.\n\nREJECT\n\nThe stub is unimplemented.'
+        )
+      )
+    )
+    expect(outcome!.passed).toBe(false)
+    // Detail is the verdict line, not the reasoning preamble (audit clarity).
+    expect(outcome!.detail).toBe('REJECT')
+  })
+
+  it('does not flip a genuine APPROVE because prose later mentions the reject token', async () => {
+    const [outcome] = await evaluateCriteria(
+      stageWith('reviewer_approves'),
+      ctx(fakeAgent('APPROVE\n\nNo changes needed; I considered whether to reject over naming but it is fine.'))
+    )
+    expect(outcome!.passed).toBe(true)
+    expect(outcome!.detail).toBe('APPROVE')
+  })
+
   it('passes tests_pass on PASS', async () => {
     const [outcome] = await evaluateCriteria(stageWith('tests_pass'), ctx(fakeAgent('PASS — 42 tests green')))
     expect(outcome!.passed).toBe(true)

@@ -29,7 +29,18 @@ function firstLine(text: string): string {
   return (line ?? '').slice(0, 200)
 }
 
-/** Decide pass/fail from a checker agent's verdict. Conservative: unclear = fail. */
+/**
+ * Decide pass/fail from a checker agent's verdict. The checker is asked to put
+ * its verdict token on the first line, but agents routinely lead with a line or
+ * two of reasoning, so we scan for the first *line* that actually carries a
+ * verdict token rather than matching across the whole blob. Whole-blob matching
+ * was doubly wrong: the token often appears in explanatory prose ("I won't
+ * reject this…"), flipping a genuine pass to a fail; and the recorded detail was
+ * the preamble line, not the verdict, which made failures hard to diagnose.
+ *
+ * The deciding line is the recorded detail, so the audit shows the real verdict.
+ * Conservative: no token anywhere, or both tokens on the deciding line, is a fail.
+ */
 function verdict(
   result: AgentResult,
   positive: string,
@@ -37,9 +48,17 @@ function verdict(
 ): { passed: boolean; detail: string } {
   const text = result.resultText || result.text
   if (result.isError) return { passed: false, detail: `Checker errored: ${firstLine(text)}` }
-  const upper = text.toUpperCase()
-  if (upper.includes(negative)) return { passed: false, detail: firstLine(text) }
-  if (upper.includes(positive)) return { passed: true, detail: firstLine(text) }
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    const upper = line.toUpperCase()
+    const hasNegative = upper.includes(negative)
+    const hasPositive = upper.includes(positive)
+    // Both tokens on one line is ambiguous — fail conservatively. Negative wins
+    // over positive so an approval hedged with the reject token never passes.
+    if (hasNegative) return { passed: false, detail: line.slice(0, 200) }
+    if (hasPositive) return { passed: true, detail: line.slice(0, 200) }
+  }
   return { passed: false, detail: `Unclear verdict: ${firstLine(text)}` }
 }
 

@@ -59,7 +59,11 @@ function standardStages(opts: {
           allowedTools: ['Read', 'Grep', 'Glob']
         }
       ],
-      passCriteria: [{ type: 'reviewer_approves' }],
+      // A `review` stage runs read-only, before setup/implement — no code exists
+      // yet, so a `reviewer_approves` check (which asks "does this fully satisfy
+      // the spec?") can only ever reject and would fail the run at stage one.
+      // Defer the call to the human gate instead, exactly as the Plan stage does.
+      passCriteria: [{ type: 'manual' }],
       gates: [{ kind: 'human', description: 'Approve the review before planning' }]
     },
     {

@@ -43,6 +43,23 @@ describe('workflow templates', () => {
         }
       })
 
+      it('never judges produced code before an implementation stage exists', () => {
+        // `reviewer_approves`/`tests_pass` ask "does this satisfy the spec?" — only
+        // answerable once code has been written. A pre-implementation stage using
+        // them can only reject and fails the run at stage one (see criteria.ts).
+        const body = instantiateTemplate(template, counterUid())
+        const firstImpl = body.stages.findIndex((s) => s.type === 'implementation')
+        const codeJudging = new Set(['reviewer_approves', 'tests_pass'])
+        body.stages.forEach((stage, i) => {
+          if (firstImpl !== -1 && i >= firstImpl) return
+          for (const c of stage.passCriteria) {
+            expect(codeJudging.has(c.type), `${stage.name} uses ${c.type} before any code exists`).toBe(
+              false
+            )
+          }
+        })
+      })
+
       it('produces a fresh copy each time (no shared references)', () => {
         const a = instantiateTemplate(template, counterUid())
         const b = instantiateTemplate(template, counterUid())

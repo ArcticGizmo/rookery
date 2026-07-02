@@ -93,6 +93,13 @@ Verdicts are read **conservatively**: an errored checker or an unclear reply cou
 **fail**, and the detail is recorded. Failure detail is fed back to the stage's agents on the
 next iteration.
 
+> **Only judge produced code after it exists.** `reviewer_approves` and `tests_pass` ask
+> "does this satisfy the spec?" — a question that can only be answered once code has been
+> written (i.e. after a `setup` stage, in an `implementation` or `verification` stage). Putting
+> either on a `review` or `plan` stage means the checker sees an unimplemented spec, rejects
+> every iteration, and **fails the run at that stage** before it ever reaches setup. For
+> pre-implementation stages use **`manual`** and let a **human gate** make the call.
+
 ---
 
 ## Gates
@@ -178,7 +185,7 @@ A workflow must satisfy all of these before it can run (the builder shows violat
 A typical "spec → build → verify → ship" workflow:
 
 1. **Review spec** (`review`) — a Tech Lead persona reviews the spec.
-   - Criterion: `reviewer_approves`. Gate: `human` (you sign off the plan).
+   - Criterion: `manual` (no code exists yet). Gate: `human` (you sign off the plan).
 2. **Setup** (`setup`) — provisions worktrees from the chosen infra template. No personas.
 3. **Implement** (`implementation`) — an Implementer persona (with `Bash`, `Read`, `Edit`, …)
    writes the code inside the worktree.
