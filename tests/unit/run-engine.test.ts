@@ -42,6 +42,26 @@ function verdictQuery(verdict: string) {
   ])
 }
 
+/**
+ * A query that hangs after emitting its first messages until the stream is
+ * `close()`d (which `startAgentRun` calls on cancel). Lets a test observe a run
+ * mid-flight — an agent actively working — and then terminate it.
+ */
+function hangingQuery(): QueryFn {
+  return (() => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((r) => (release = r))
+    async function* gen(): AsyncGenerator<unknown> {
+      yield msg.init('claude-opus-4-8')
+      yield msg.assistant([{ type: 'text', text: 'thinking' }], { input_tokens: 10 })
+      await gate // hang until the run is cancelled (abort → close)
+    }
+    const iterator = gen()
+    ;(iterator as unknown as { close: () => void }).close = () => release()
+    return iterator
+  }) as unknown as QueryFn
+}
+
 /** Review → verification workflow: stage 0 always passes, verification gates on tests. */
 function verificationWorkflow(): WorkflowDefBody {
   return {
@@ -76,8 +96,7 @@ function verificationWorkflow(): WorkflowDefBody {
 function verificationQuery(checkerVerdicts: string[]): QueryFn {
   let i = 0
   return ((args: { prompt?: string }) => {
-    const isCheck =
-      typeof args.prompt === 'string' && args.prompt.includes('automated test suite')
+    const isCheck = typeof args.prompt === 'string' && args.prompt.includes('automated test suite')
     const text = isCheck
       ? (checkerVerdicts[Math.min(i++, checkerVerdicts.length - 1)] ?? 'FAIL')
       : 'ok'
@@ -147,9 +166,10 @@ describe('RunEngine', () => {
     expect((await runs.get(run.id))!.status).toBe('awaiting_gate')
 
     await engine.resolveGate({ runId: run.id, decision: 'approve', by: 'jon', note: '' })
-    const events = await waitFor(
-      audit,
-      (e) => e.some((x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed')
+    const events = await waitFor(audit, (e) =>
+      e.some(
+        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+      )
     )
 
     expect(has(events, 'run.criterion_evaluated')).toBe(true)
@@ -163,9 +183,10 @@ describe('RunEngine', () => {
     const input = await setup('REJECT — missing error handling', 2)
     const run = await engine.start(input)
 
-    const events = await waitFor(
-      audit,
-      (e) => e.some((x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'failed')
+    const events = await waitFor(audit, (e) =>
+      e.some(
+        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'failed'
+      )
     )
 
     // Stage re-entered for a second iteration before failing.
@@ -228,10 +249,10 @@ describe('RunEngine', () => {
     const input = await setupVerification(['FAIL — button is broken', 'PASS — all good'])
     const run = await engine.start(input)
 
-    const events = await waitFor(
-      audit,
-      (e) =>
-        e.some((x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed')
+    const events = await waitFor(audit, (e) =>
+      e.some(
+        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+      )
     )
 
     const vf = events.filter((e) => e.type === 'run.verification_failed')
@@ -295,6 +316,67 @@ describe('RunEngine', () => {
     // One route-back before the first escalation, another after intervention.
     expect(routedBack.length).toBeGreaterThanOrEqual(2)
     expect(has(events, 'run.changes_requested')).toBe(true)
+  })
+
+  // --- Termination ---
+
+  it('terminates a run paused at a human gate', async () => {
+    const input = await setup('APPROVE — satisfies the spec')
+    const run = await engine.start(input)
+    await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
+    expect((await runs.get(run.id))!.status).toBe('awaiting_gate')
+
+    await engine.cancel(run.id)
+
+    const events = await waitFor(audit, (e) =>
+      e.some(
+        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'cancelled'
+      )
+    )
+    const cancelled = events.filter((e) => e.type === 'run.cancelled')
+    expect(cancelled).toHaveLength(1)
+    expect((cancelled[0]!.payload as { previousStatus: string }).previousStatus).toBe(
+      'awaiting_gate'
+    )
+    expect((await runs.get(run.id))!.status).toBe('cancelled')
+  })
+
+  it('terminates an in-flight run and cancels its live agent', async () => {
+    const specs = new SpecService(test.db, audit)
+    workItems = new WorkItemService(test.db, audit, specs)
+    workflows = new WorkflowService(test.db, audit)
+    runs = new RunStore(test.db)
+    const agents = new AgentService(audit, hangingQuery())
+    const infra = new InfraService(null, audit)
+    engine = new RunEngine(runs, audit, agents, workItems, workflows, infra)
+
+    const wi = await workItems.create({
+      title: 'Feature',
+      spec: 'Build feature X',
+      repos: [{ name: 'api', localPath: 'C:/git/api' }]
+    })
+    const wf = await workflows.create(workflowBody())
+    const run = await engine.start({ workItemId: wi.workItem.id, workflowId: wf.id })
+
+    // Wait until the agent is actually running (drive loop is live, awaiting it).
+    await waitFor(audit, (e) => has(e, 'agent.spawned'))
+    expect((await runs.get(run.id))!.status).toBe('running')
+
+    await engine.cancel(run.id)
+
+    const events = await waitFor(audit, (e) =>
+      e.some(
+        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'cancelled'
+      )
+    )
+    // The live agent was cancelled, and the run recorded exactly one finish.
+    expect(has(events, 'agent.cancelled')).toBe(true)
+    expect(has(events, 'run.cancelled')).toBe(true)
+    expect(
+      events.filter((e) => e.type === 'run.finished').length,
+      'run should finalize exactly once (no double finalize)'
+    ).toBe(1)
+    expect((await runs.get(run.id))!.status).toBe('cancelled')
   })
 
   // --- Phase 7.1: crash recovery ---

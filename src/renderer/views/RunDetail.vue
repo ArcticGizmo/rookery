@@ -36,6 +36,28 @@ const tearingDown = ref(false)
 
 const passed = computed(() => detail.value?.run.status === 'passed')
 
+const terminating = ref(false)
+// A run can be terminated while it's still doing work or paused at a gate.
+const canTerminate = computed(() => {
+  const status = detail.value?.run.status
+  return status === 'running' || status === 'awaiting_gate'
+})
+
+async function terminate(): Promise<void> {
+  if (!detail.value || terminating.value) return
+  if (!window.confirm('Terminate this run? Its active agents will be stopped.')) return
+  error.value = null
+  terminating.value = true
+  try {
+    await runsStore.cancel(props.id)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    terminating.value = false
+  }
+}
+
 async function refresh(): Promise<void> {
   const d = await runsStore.get(props.id)
   if (!d) notFound.value = true
@@ -176,6 +198,8 @@ function activityLine(event: StoredEvent): string {
         : `⚠ Verification failed — escalated for human intervention: ${p.issues}`
     case 'run.finished':
       return `■ Run ${p.status}`
+    case 'run.cancelled':
+      return `⏹ Run terminated by human (was ${p.previousStatus})`
     case 'run.landing_started':
       return `⚑ Landing ${p.repo} via ${p.method} (by ${p.by})`
     case 'run.landed':
@@ -218,6 +242,7 @@ function lineClass(type: string): string {
   if (type === 'run.verification_failed') return 'text-amber-700'
   if (type.endsWith('_failed') || type === 'agent.error') return 'text-red-600'
   if (type === 'agent.permission_denied') return 'text-red-600'
+  if (type === 'run.cancelled') return 'text-red-600'
   if (type === 'run.gate_awaiting' || type === 'run.changes_requested') return 'text-amber-700'
   if (
     type === 'run.finished' ||
@@ -326,6 +351,16 @@ onMounted(() => {
       <div class="flex items-center gap-3">
         <span class="text-lg font-semibold">{{ detail.workflow.name }}</span>
         <span class="text-xs text-muted-foreground">status: {{ detail.run.status }}</span>
+        <span class="flex-1"></span>
+        <Button
+          v-if="canTerminate"
+          variant="outline"
+          size="sm"
+          :disabled="terminating"
+          @click="terminate"
+        >
+          {{ terminating ? 'Terminating…' : 'Terminate run' }}
+        </Button>
       </div>
 
       <!-- Stage progress -->

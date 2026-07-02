@@ -45,7 +45,16 @@ export const useEventsStore = defineStore('events', () => {
   function init(): Promise<void> {
     if (initPromise) return initPromise
     initPromise = (async () => {
-      events.value = await rookery().events.list({ limit: 500 })
+      // Load the most RECENT window, not the oldest. `list` defaults to ascending
+      // id order, so `{ limit: 500 }` alone returns the first 500 events ever —
+      // in a long-lived log that excludes the spawn events of agents currently
+      // running, and the live tail only delivers events that arrive *after* we
+      // subscribe. The dashboard's activity projection would then show no active
+      // agents even while a run is live. Fetch the newest 500 descending, then
+      // reverse back to chronological so `computeActivity`'s reducer still sees
+      // events in order.
+      const recent = await rookery().events.list({ limit: 500, order: 'desc' })
+      events.value = recent.reverse()
       loaded.value = true
       unsubscribe = rookery().events.onAppend((event) => {
         pending.push(event)

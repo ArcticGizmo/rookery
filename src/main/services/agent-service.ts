@@ -132,6 +132,15 @@ export class AgentService {
     this.active.delete(agentRunId)
   }
 
+  /** Cancel every active agent belonging to a run (used when a run is terminated).
+   * Snapshots the matching ids first, since `cancel` mutates the active map. */
+  cancelByRun(runId: string): void {
+    const ids = [...this.active.entries()]
+      .filter(([, state]) => state.scope.runId === runId)
+      .map(([agentRunId]) => agentRunId)
+    for (const agentRunId of ids) this.cancel(agentRunId)
+  }
+
   private project(agentRunId: string, state: RunState, event: AgentRunnerEvent): void {
     switch (event.kind) {
       case 'init':

@@ -208,6 +208,13 @@ export type AppEvent =
       }
     }
   | { type: 'run.finished'; actor: 'system'; payload: { runId: string; status: string } }
+  // A human terminated an in-flight run from the run view (records intent; the
+  // engine then cancels live agents and emits `run.finished` with `cancelled`).
+  | {
+      type: 'run.cancelled'
+      actor: 'human'
+      payload: { runId: string; previousStatus: string }
+    }
   // Phase 7.1 — a run left mid-flight by a crash/unclean shutdown, reconciled on boot.
   | {
       type: 'run.interrupted'

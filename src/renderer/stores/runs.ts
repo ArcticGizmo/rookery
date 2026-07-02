@@ -30,5 +30,10 @@ export const useRunsStore = defineStore('runs', () => {
     return rookery().runs.gate(input)
   }
 
-  return { items, loading, load, get, start, gate }
+  async function cancel(runId: string): Promise<void> {
+    await rookery().runs.cancel(runId)
+    await load()
+  }
+
+  return { items, loading, load, get, start, gate, cancel }
 })

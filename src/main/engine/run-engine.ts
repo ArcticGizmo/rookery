@@ -90,6 +90,8 @@ function buildImplPrompt(
  */
 export class RunEngine {
   private readonly driving = new Set<string>()
+  /** Runs a human has asked to terminate; observed by the drive/stage loops. */
+  private readonly cancelled = new Set<string>()
 
   constructor(
     private readonly runs: RunStore,
@@ -246,6 +248,42 @@ export class RunEngine {
     }
   }
 
+  /**
+   * Terminate an in-flight run at a human's request. Cancels the run's live
+   * agents immediately and drives the run to `cancelled`, auditing the human
+   * action and the terminal transition. No-op on a run that has already reached
+   * a terminal state.
+   *
+   * When a drive loop is active it registers itself synchronously in `driving`
+   * (see `start`/`resolveGate`), so we can hand off the terminal transition to
+   * it: the loop observes the `cancelled` flag, applies CANCEL, breaks, and
+   * finalizes — avoiding a double finalize. A paused run (e.g. `awaiting_gate`)
+   * has no loop, so we apply CANCEL and finalize here.
+   */
+  async cancel(runId: string): Promise<void> {
+    const run = await this.runs.get(runId)
+    if (!run) throw new Error(`Run ${runId} not found`)
+    if (isTerminal(run.status)) return
+
+    this.cancelled.add(runId)
+    this.agents.cancelByRun(runId)
+    await this.emit(runId, {
+      type: 'run.cancelled',
+      actor: 'human',
+      payload: { runId, previousStatus: run.status }
+    })
+
+    if (this.driving.has(runId)) return // active loop finalizes and clears the flag
+
+    const snapshot = await this.runs.loadSnapshot(runId)
+    const ctx = await this.buildContext(runId)
+    if (snapshot && ctx) {
+      const next = await this.apply(runId, snapshot, { type: 'CANCEL' })
+      await this.finalize(runId, ctx, next.status)
+    }
+    this.cancelled.delete(runId)
+  }
+
   /** Live infrastructure status for a run, for the run view (Phase 5.5). */
   async runInfra(runId: string): Promise<RunInfra> {
     const provider = this.infra.providerName()
@@ -397,6 +435,10 @@ export class RunEngine {
     let snapshot = initial
     try {
       while (snapshot.status === 'running') {
+        if (this.cancelled.has(runId)) {
+          snapshot = await this.apply(runId, snapshot, { type: 'CANCEL' })
+          break
+        }
         const index = snapshot.currentStageIndex
         const stage = ctx.body.stages[index]
         if (!stage) {
@@ -442,6 +484,13 @@ export class RunEngine {
 
         const outcome = await this.runStage(runId, snapshot, stage, ctx)
         snapshot = outcome.snapshot
+
+        // A termination request during the stage (agents already cancelled) wins
+        // over whatever the stage would otherwise have concluded.
+        if (this.cancelled.has(runId)) {
+          snapshot = await this.apply(runId, snapshot, { type: 'CANCEL' })
+          break
+        }
 
         if (outcome.passed) {
           const gate = humanGate(stage)
@@ -555,6 +604,7 @@ export class RunEngine {
       console.error('Run engine error:', error)
     } finally {
       this.driving.delete(runId)
+      this.cancelled.delete(runId)
     }
   }
 
@@ -569,6 +619,8 @@ export class RunEngine {
     let feedback = ''
 
     for (;;) {
+      if (this.cancelled.has(runId))
+        return { snapshot: current, passed: false, reason: 'cancelled' }
       const index = current.currentStageIndex
       const iteration = current.stages[index]!.iteration
 
@@ -578,6 +630,7 @@ export class RunEngine {
       const mode: PermissionMode = ctx.isolated ? 'acceptEdits' : 'plan'
       const agentResults: AgentResult[] = []
       for (const persona of stage.personas) {
+        if (this.cancelled.has(runId)) break // don't spawn further agents once terminating
         agentResults.push(
           await ctx.runAgent(
             persona,
@@ -586,6 +639,8 @@ export class RunEngine {
           )
         )
       }
+      if (this.cancelled.has(runId))
+        return { snapshot: current, passed: false, reason: 'cancelled' }
 
       const outcomes = await evaluateCriteria(stage, {
         spec: ctx.spec,

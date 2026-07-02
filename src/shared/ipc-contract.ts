@@ -51,6 +51,7 @@ export const IPC = {
   runsList: 'runs:list',
   runsGet: 'runs:get',
   runsGate: 'runs:gate',
+  runsCancel: 'runs:cancel',
   runsInfra: 'runs:infra',
   runsLandTargets: 'runs:land-targets',
   runsLand: 'runs:land',
@@ -92,6 +93,7 @@ export interface IpcInvokeMap {
   'runs:list': { args: []; result: Run[] }
   'runs:get': { args: [runId: string]; result: RunDetail | null }
   'runs:gate': { args: [input: GateActionInput]; result: void }
+  'runs:cancel': { args: [runId: string]; result: void }
   'runs:infra': { args: [runId: string]; result: RunInfra }
   'runs:land-targets': { args: [runId: string]; result: LandingTargets }
   'runs:land': { args: [input: LandRunInput]; result: LandingResult }

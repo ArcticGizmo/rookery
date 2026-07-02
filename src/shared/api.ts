@@ -66,6 +66,8 @@ export interface RookeryApi {
     get: (runId: string) => Promise<RunDetail | null>
     /** Resolve a pending human gate (approve/reject/request-changes). */
     gate: (input: GateActionInput) => Promise<void>
+    /** Terminate an in-flight run: cancels its live agents and marks it cancelled. */
+    cancel: (runId: string) => Promise<void>
     /** Live infrastructure status for a run (instances, worktrees, container health). */
     infra: (runId: string) => Promise<RunInfra>
     /** Which repos of a successful run can be landed (open PR / merge). */
