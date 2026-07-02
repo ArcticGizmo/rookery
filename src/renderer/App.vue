@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRoute, useRouter } from 'vue-router'
+import type { NotificationItem } from '@shared/notifications'
+import { useEventsStore } from '@renderer/stores/events'
+import { useNotificationsStore } from '@renderer/stores/notifications'
 
 const route = useRoute()
+const router = useRouter()
+const eventsStore = useEventsStore()
+const notifications = useNotificationsStore()
+const { items, unreadCount, osEnabled } = storeToRefs(notifications)
+
 const links = [
   { to: '/dashboard', label: 'Activity' },
   { to: '/runs', label: 'Runs' },
@@ -12,10 +22,34 @@ const links = [
   { to: '/', label: 'Events' }
 ]
 
+const open = ref(false)
+
 function isActive(to: string): boolean {
   if (to === '/') return route.path === '/'
   return route.path === to || route.path.startsWith(`${to}/`)
 }
+
+function openNotification(n: NotificationItem): void {
+  notifications.markRead(n.id)
+  open.value = false
+  if (n.runId) {
+    notifications.markRunRead(n.runId)
+    void router.push(`/runs/${n.runId}`)
+  }
+}
+
+async function toggleOs(): Promise<void> {
+  if (osEnabled.value) notifications.disableOs()
+  else await notifications.enableOs()
+}
+
+function formatTime(ts: string): string {
+  return new Date(ts).toLocaleTimeString()
+}
+
+onMounted(() => {
+  void eventsStore.init()
+})
 </script>
 
 <template>
@@ -36,6 +70,82 @@ function isActive(to: string): boolean {
             {{ link.label }}
           </RouterLink>
         </nav>
+
+        <!-- Notifications (Phase 6.5) -->
+        <div class="relative ml-auto">
+          <button
+            type="button"
+            class="relative flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            :aria-label="`Notifications${unreadCount ? ` (${unreadCount} unread)` : ''}`"
+            @click="open = !open"
+          >
+            <span class="text-lg leading-none">🔔</span>
+            <span
+              v-if="unreadCount"
+              class="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white"
+              >{{ unreadCount > 9 ? '9+' : unreadCount }}</span
+            >
+          </button>
+
+          <!-- Click-away backdrop -->
+          <div v-if="open" class="fixed inset-0 z-10" @click="open = false"></div>
+
+          <div
+            v-if="open"
+            class="absolute right-0 z-20 mt-2 w-80 rounded-md border border-border bg-card shadow-lg"
+          >
+            <div class="flex items-center justify-between border-b border-border px-3 py-2">
+              <span class="text-sm font-semibold">Notifications</span>
+              <button
+                type="button"
+                class="text-xs text-muted-foreground hover:underline disabled:opacity-50"
+                :disabled="unreadCount === 0"
+                @click="notifications.markAllRead()"
+              >
+                Mark all read
+              </button>
+            </div>
+
+            <ul v-if="items.length" class="max-h-80 divide-y divide-border overflow-y-auto">
+              <li v-for="n in items" :key="n.id">
+                <button
+                  type="button"
+                  class="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-accent"
+                  :class="notifications.isRead(n.id) ? 'opacity-60' : ''"
+                  @click="openNotification(n)"
+                >
+                  <span class="flex items-center gap-2 text-sm">
+                    <span>{{ n.kind === 'gate' ? '⏸' : '⚠' }}</span>
+                    <span :class="notifications.isRead(n.id) ? '' : 'font-semibold'">{{
+                      n.title
+                    }}</span>
+                    <span
+                      v-if="!notifications.isRead(n.id)"
+                      class="ml-auto size-2 rounded-full bg-red-500"
+                    ></span>
+                  </span>
+                  <span class="text-xs text-muted-foreground">{{ n.body }}</span>
+                  <span class="text-[10px] text-muted-foreground">{{ formatTime(n.ts) }}</span>
+                </button>
+              </li>
+            </ul>
+            <p v-else class="px-3 py-6 text-center text-sm text-muted-foreground">
+              Nothing needs your attention.
+            </p>
+
+            <label
+              class="flex items-center gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground"
+            >
+              <input
+                type="checkbox"
+                class="size-3.5"
+                :checked="osEnabled"
+                @change="toggleOs"
+              />
+              Also show OS notifications
+            </label>
+          </div>
+        </div>
       </div>
     </header>
     <main class="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
