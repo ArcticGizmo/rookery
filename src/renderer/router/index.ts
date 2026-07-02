@@ -7,6 +7,16 @@ export const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: Home },
     {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('@renderer/views/Dashboard.vue')
+    },
+    {
+      path: '/history',
+      name: 'history',
+      component: () => import('@renderer/views/History.vue')
+    },
+    {
       path: '/work-items',
       name: 'work-items',
       component: () => import('@renderer/views/WorkItems.vue')

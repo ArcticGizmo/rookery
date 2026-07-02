@@ -234,6 +234,24 @@ export interface StoredEvent {
 export interface ListEventsOptions {
   /** Return only events with `id` greater than this (for incremental sync). */
   afterId?: number
+  /** Return only events with `id` less than this (for paging older history). */
+  beforeId?: number
   /** Maximum number of rows to return (default 500). */
   limit?: number
+  /** Sort order by id. Defaults to `'asc'` (chronological). */
+  order?: 'asc' | 'desc'
+  /** Filter to a single run. */
+  runId?: string
+  /** Filter to a single stage. */
+  stageId?: string
+  /** Filter by actor. */
+  actor?: EventActor
+  /** Prefix match on event type (e.g. `'agent.'` matches every agent event). */
+  type?: string
+  /** Inclusive lower bound on `ts` (UTC ISO-8601). */
+  since?: string
+  /** Inclusive upper bound on `ts` (UTC ISO-8601). */
+  until?: string
+  /** Case-insensitive substring match over the type and serialized payload. */
+  search?: string
 }

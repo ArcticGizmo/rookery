@@ -1,4 +1,4 @@
-import { asc, gt } from 'drizzle-orm'
+import { type SQL, and, asc, desc, eq, gt, gte, like, lt, lte, sql } from 'drizzle-orm'
 import type { EventActor, ListEventsOptions, StoredEvent } from '@shared/events'
 import type { Db } from '../db'
 import { type EventRow, events } from '../db/schema'
@@ -27,15 +27,24 @@ export class SqliteEventStore implements EventStore {
 
   async list(options: ListEventsOptions = {}): Promise<StoredEvent[]> {
     const limit = options.limit ?? DEFAULT_LIST_LIMIT
-    const rows =
-      options.afterId !== undefined
-        ? await this.db
-            .select()
-            .from(events)
-            .where(gt(events.id, options.afterId))
-            .orderBy(asc(events.id))
-            .limit(limit)
-        : await this.db.select().from(events).orderBy(asc(events.id)).limit(limit)
+    const conditions: SQL[] = []
+    if (options.afterId !== undefined) conditions.push(gt(events.id, options.afterId))
+    if (options.beforeId !== undefined) conditions.push(lt(events.id, options.beforeId))
+    if (options.runId) conditions.push(eq(events.runId, options.runId))
+    if (options.stageId) conditions.push(eq(events.stageId, options.stageId))
+    if (options.actor) conditions.push(eq(events.actor, options.actor))
+    if (options.type) conditions.push(like(events.type, `${options.type}%`))
+    if (options.since) conditions.push(gte(events.ts, options.since))
+    if (options.until) conditions.push(lte(events.ts, options.until))
+    if (options.search) {
+      const q = `%${options.search}%`
+      // `payload` is a JSON text column; match against its serialized form.
+      conditions.push(sql`(${events.type} LIKE ${q} OR ${events.payload} LIKE ${q})`)
+    }
+
+    const where = conditions.length ? and(...conditions) : undefined
+    const orderBy = options.order === 'desc' ? desc(events.id) : asc(events.id)
+    const rows = await this.db.select().from(events).where(where).orderBy(orderBy).limit(limit)
     return rows.map(toStored)
   }
 }

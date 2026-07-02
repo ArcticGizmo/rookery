@@ -3,11 +3,13 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const links = [
-  { to: '/', label: 'Events' },
+  { to: '/dashboard', label: 'Activity' },
+  { to: '/runs', label: 'Runs' },
   { to: '/work-items', label: 'Work items' },
   { to: '/workflows', label: 'Workflows' },
   { to: '/agent-run', label: 'Agent run' },
-  { to: '/runs', label: 'Runs' }
+  { to: '/history', label: 'History' },
+  { to: '/', label: 'Events' }
 ]
 
 function isActive(to: string): boolean {
