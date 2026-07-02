@@ -138,6 +138,45 @@ export class RunEngine {
     return run
   }
 
+  /**
+   * Reconcile runs left mid-flight by a crash or unclean shutdown (Phase 7.1).
+   * The in-memory `drive` loop does not survive a restart, so any run still
+   * persisted as `running` or `pending` is orphaned — nothing is advancing it.
+   * Fail those cleanly with an audited reason so the log stays honest and the UI
+   * never shows a phantom "running" run. `awaiting_gate` runs are a legitimate
+   * pause for a human and survive a restart untouched (resolving the gate
+   * rebuilds their context). Returns the number of runs recovered.
+   *
+   * Runs on boot, before the window loads. Infra is intentionally left as-is:
+   * its real state after a crash is unknown, so teardown is left to the user
+   * rather than guessed at here.
+   */
+  async recoverInterruptedRuns(): Promise<number> {
+    const all = await this.runs.list()
+    const orphaned = all.filter((r) => r.status === 'running' || r.status === 'pending')
+    for (const run of orphaned) {
+      const snapshot = await this.runs.loadSnapshot(run.id)
+      if (!snapshot) continue
+      const failed = reduceRun(snapshot, { type: 'STAGE_FAILED' })
+      await this.runs.persistSnapshot(run.id, failed, new Date().toISOString())
+      await this.emit(run.id, {
+        type: 'run.interrupted',
+        actor: 'system',
+        payload: {
+          runId: run.id,
+          previousStatus: run.status,
+          reason: 'Interrupted by an app restart or unclean shutdown; failed on recovery.'
+        }
+      })
+      await this.emit(run.id, {
+        type: 'run.finished',
+        actor: 'system',
+        payload: { runId: run.id, status: 'failed' }
+      })
+    }
+    return orphaned.length
+  }
+
   /** Resolve a pending human gate (Phase 4.4) or request changes (Phase 4.7). */
   async resolveGate(rawInput: GateActionInput): Promise<void> {
     const input = gateActionInputSchema.parse(rawInput)

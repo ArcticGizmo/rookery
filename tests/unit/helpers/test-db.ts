@@ -7,7 +7,7 @@ import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import { migrate } from 'drizzle-orm/libsql/migrator'
 import * as schema from '../../../src/main/db/schema'
-import type { Db } from '../../../src/main/db'
+import { type Db, configureConnection } from '../../../src/main/db'
 
 export interface TestDb {
   db: Db
@@ -26,6 +26,7 @@ export async function makeTestDb(): Promise<TestDb> {
   const path = join(tmpdir(), `rookery-test-${randomUUID()}.db`)
   const client = createClient({ url: pathToFileURL(path).toString() })
   const db = drizzle(client, { schema })
+  await configureConnection(db)
   await migrate(db, { migrationsFolder: 'drizzle' })
   return {
     db,

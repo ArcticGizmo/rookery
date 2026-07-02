@@ -1,6 +1,6 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, shell } from 'electron'
-import { closeDb, initDb } from './db'
+import { app, BrowserWindow, dialog, shell } from 'electron'
+import { closeDb, configureConnection, initDb } from './db'
 import { runMigrations } from './db/migrate'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { RunEngine } from './engine/run-engine'
@@ -56,6 +56,7 @@ async function bootstrap(): Promise<void> {
   // Allow tests (and advanced users) to point at an alternate database file.
   const dbPath = process.env['ROOKERY_DB_PATH'] ?? join(app.getPath('userData'), 'rookery.db')
   const db = initDb(dbPath)
+  await configureConnection(db)
   await runMigrations(db)
 
   auditLog = new AuditLog(new SqliteEventStore(db))
@@ -75,6 +76,12 @@ async function bootstrap(): Promise<void> {
     payload: { version: app.getVersion(), platform: process.platform }
   })
 
+  // Reconcile runs the previous session left mid-flight (Phase 7.1). Best-effort:
+  // a failure here must not stop the app from starting.
+  await engine
+    .recoverInterruptedRuns()
+    .catch((error) => console.error('Failed to recover interrupted runs:', error))
+
   createWindow()
 
   app.on('activate', () => {
@@ -84,7 +91,31 @@ async function bootstrap(): Promise<void> {
   })
 }
 
-void app.whenReady().then(bootstrap)
+// A failure in bootstrap (e.g. the DB can't open or a migration fails) leaves
+// the app with no window and no way forward. Surface it and exit cleanly rather
+// than hanging as an invisible, wedged process (Phase 7.1).
+app
+  .whenReady()
+  .then(bootstrap)
+  .catch((error) => {
+    console.error('Fatal error during startup:', error)
+    dialog.showErrorBox(
+      'Rookery failed to start',
+      `The application could not start.\n\n${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
+    )
+    app.exit(1)
+  })
+
+// Last-resort handlers so a stray error/rejection is logged rather than silently
+// swallowed (Phase 7.1). We deliberately do not exit: the audit log and DB are
+// the source of truth and remain intact; forcing a quit here would be worse than
+// letting the affected operation fail in place.
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception in main process:', error)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection in main process:', reason)
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

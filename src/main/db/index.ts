@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url'
 import { type Client, createClient } from '@libsql/client'
+import { sql } from 'drizzle-orm'
 import { type LibSQLDatabase, drizzle } from 'drizzle-orm/libsql'
 import * as schema from './schema'
 
@@ -14,6 +15,26 @@ export function initDb(dbPath: string): Db {
   client = createClient({ url: pathToFileURL(dbPath).toString() })
   dbInstance = drizzle(client, { schema })
   return dbInstance
+}
+
+/**
+ * Connection hardening (Phase 7.1). Local libsql defaults to a rollback journal
+ * with no busy timeout, which is fragile for us: two services write
+ * concurrently (the run store's transactions and the audit log's appends), so a
+ * lock collision would otherwise fail immediately with SQLITE_BUSY, and a crash
+ * mid-write leaves a rollback journal to replay.
+ *
+ * - `journal_mode = WAL`: keeps the database consistent if the process dies
+ *   mid-write and lets readers proceed during a write. Persists in the file, so
+ *   it only takes effect once, but is cheap to re-assert on every open.
+ * - `busy_timeout = 5000`: a contended writer waits up to 5s for the lock
+ *   instead of erroring out. Per-connection, so it must be set on each open.
+ *
+ * Call once after {@link initDb}, before running migrations or serving queries.
+ */
+export async function configureConnection(db: Db): Promise<void> {
+  await db.run(sql`PRAGMA journal_mode = WAL`)
+  await db.run(sql`PRAGMA busy_timeout = 5000`)
 }
 
 export function getDb(): Db {

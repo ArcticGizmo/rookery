@@ -203,6 +203,12 @@ export type AppEvent =
       }
     }
   | { type: 'run.finished'; actor: 'system'; payload: { runId: string; status: string } }
+  // Phase 7.1 — a run left mid-flight by a crash/unclean shutdown, reconciled on boot.
+  | {
+      type: 'run.interrupted'
+      actor: 'system'
+      payload: { runId: string; previousStatus: string; reason: string }
+    }
   // Phase 6.4 — landing changes: how a successful run's change reaches main.
   | {
       type: 'run.landing_started'

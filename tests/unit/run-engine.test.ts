@@ -9,6 +9,7 @@ import { SpecService } from '../../src/main/services/spec-service'
 import { WorkItemService } from '../../src/main/services/work-item-service'
 import { WorkflowService } from '../../src/main/services/workflow-service'
 import { RunEngine } from '../../src/main/engine/run-engine'
+import { initRunSnapshot, reduceRun } from '../../src/shared/run-state-machine'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import type { QueryFn } from '../../src/main/agent/types'
 import { makeTestDb, type TestDb } from './helpers/test-db'
@@ -294,5 +295,61 @@ describe('RunEngine', () => {
     // One route-back before the first escalation, another after intervention.
     expect(routedBack.length).toBeGreaterThanOrEqual(2)
     expect(has(events, 'run.changes_requested')).toBe(true)
+  })
+
+  // --- Phase 7.1: crash recovery ---
+
+  it('recovers interrupted runs on boot and leaves gated runs intact', async () => {
+    const input = await setup('APPROVE')
+    const body = workflowBody()
+    const stageIds = body.stages.map((s) => s.id)
+    const base = {
+      workItemId: input.workItemId,
+      workflowId: input.workflowId,
+      workflowVersion: 1,
+      body,
+      maxIterations: 3,
+      maxVerificationCycles: 0,
+      infraTemplate: null,
+      teardownOnComplete: false
+    }
+
+    // Created but never advanced (crashed before START persisted).
+    const pending = await runs.create(base)
+
+    // Crashed mid-drive: persisted as `running` with no live drive loop.
+    const running = await runs.create(base)
+    await runs.persistSnapshot(
+      running.id,
+      reduceRun(initRunSnapshot(stageIds), { type: 'START' }),
+      new Date().toISOString()
+    )
+
+    // Legitimately paused at a human gate — must survive a restart untouched.
+    const gated = await runs.create(base)
+    const gatedSnap = reduceRun(reduceRun(initRunSnapshot(stageIds), { type: 'START' }), {
+      type: 'GATE_AWAIT'
+    })
+    await runs.persistSnapshot(gated.id, gatedSnap, new Date().toISOString())
+
+    const recovered = await engine.recoverInterruptedRuns()
+    expect(recovered).toBe(2)
+
+    expect((await runs.get(pending.id))!.status).toBe('failed')
+    expect((await runs.get(running.id))!.status).toBe('failed')
+    expect((await runs.get(gated.id))!.status).toBe('awaiting_gate')
+
+    const events = await audit.list({ limit: 1000 })
+    const interruptedIds = events
+      .filter((e) => e.type === 'run.interrupted')
+      .map((e) => (e.payload as { runId: string }).runId)
+      .sort()
+    expect(interruptedIds).toEqual([pending.id, running.id].sort())
+
+    // Each recovered run also emits a terminal run.finished(failed); the gated run does not.
+    const finishedFailed = events.filter(
+      (e) => e.type === 'run.finished' && (e.payload as { status: string }).status === 'failed'
+    )
+    expect(finishedFailed).toHaveLength(2)
   })
 })
