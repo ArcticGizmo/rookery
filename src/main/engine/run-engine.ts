@@ -31,6 +31,12 @@ import { evaluateCriteria } from './criteria'
 interface RunCtx {
   body: WorkflowDefBody
   maxIterations: number
+  /** Automatic verification→fix route-backs allowed before human escalation (Phase 6.3). */
+  maxVerificationCycles: number
+  /** Route-backs already taken in the current budget window (rehydrated from the log). */
+  verificationCycles: number
+  /** Issues recorded by the last failed verification, fed into re-run prompts. */
+  verificationFeedback: string
   spec: string
   /** Working directory for stage agents; swapped to the worktree once provisioned. */
   cwd: string | null
@@ -55,11 +61,16 @@ function buildImplPrompt(
   spec: string,
   stage: Stage,
   persona: AgentPersona,
-  feedback: string
+  feedback: string,
+  verificationFeedback: string
 ): string {
   return [
     `You are the ${persona.role} for the "${stage.name}" stage.`,
     `\nWork item spec:\n${spec || '(no spec provided)'}`,
+    verificationFeedback
+      ? `\nKnown issues from a previous feature-verification cycle — make sure these are ` +
+        `addressed:\n${verificationFeedback}`
+      : '',
     feedback ? `\nRequested changes from the previous iteration:\n${feedback}` : '',
     `\nProduce your output for this stage.`
   ]
@@ -103,6 +114,7 @@ export class RunEngine {
       workflowVersion: wf.version,
       body,
       maxIterations: input.maxIterations,
+      maxVerificationCycles: input.maxVerificationCycles,
       infraTemplate: input.infraTemplate ?? null,
       teardownOnComplete: input.teardownOnComplete
     })
@@ -173,6 +185,9 @@ export class RunEngine {
     } else {
       const targetIndex = input.targetStageIndex ?? 0
       snapshot = await this.apply(input.runId, snapshot, { type: 'REQUEST_CHANGES', targetIndex })
+      // Human intervention resets the automatic verification budget (Phase 6.3), so
+      // an escalated run gets a fresh set of route-backs after a person steps in.
+      ctx.verificationCycles = 0
       await this.emit(input.runId, {
         type: 'run.changes_requested',
         actor: 'human',
@@ -225,6 +240,9 @@ export class RunEngine {
     const ctx: RunCtx = {
       body: rc.body,
       maxIterations: rc.maxIterations,
+      maxVerificationCycles: rc.maxVerificationCycles,
+      verificationCycles: 0,
+      verificationFeedback: '',
       spec,
       cwd: detail?.repos[0]?.localPath ?? null,
       infraTemplate: rc.infraTemplate,
@@ -235,6 +253,22 @@ export class RunEngine {
       // Read cwd lazily so it reflects the worktree once setup provisions it.
       runAgent: (persona, prompt, mode) =>
         this.agents.run({ persona, prompt, cwd: ctx.cwd, permissionMode: mode }, { runId })
+    }
+
+    // Rehydrate the verification safeguard from the log (the source of truth) so it
+    // survives a pause — e.g. a human gate — that rebuilds this context. A human
+    // `request_changes` resets the automatic budget: only route-backs recorded
+    // after the most recent one count toward the cap.
+    const events = await this.audit.list({ runId, limit: 1000 })
+    const baselineId = events.reduce(
+      (max, e) => (e.type === 'run.changes_requested' && e.id > max ? e.id : max),
+      0
+    )
+    for (const e of events) {
+      if (e.type !== 'run.verification_failed') continue
+      const p = e.payload as { issues?: string; routedBack?: boolean }
+      ctx.verificationFeedback = p.issues ?? ctx.verificationFeedback
+      if (p.routedBack && e.id > baselineId) ctx.verificationCycles += 1
     }
 
     // Recover the worktree cwd after a pause (e.g. a human gate) rebuilds the
@@ -375,6 +409,58 @@ export class RunEngine {
             },
             stage.id
           )
+        } else if (stage.type === 'verification') {
+          // Phase 6.3: a failed feature-verification stage records the issues and
+          // routes the run back to the first stage — carrying them as feedback —
+          // rather than failing outright. Bounded by maxVerificationCycles: once
+          // the budget is spent we stop the auto-loop and escalate to a human
+          // gate instead of burning tokens in a verify→fix death cycle.
+          const escalate = ctx.verificationCycles >= ctx.maxVerificationCycles
+          ctx.verificationFeedback = outcome.reason
+          await this.emit(
+            runId,
+            {
+              type: 'run.verification_failed',
+              actor: 'system',
+              payload: {
+                runId,
+                stageId: stage.id,
+                stageIndex: index,
+                issues: outcome.reason,
+                cycle: ctx.verificationCycles + 1,
+                maxCycles: ctx.maxVerificationCycles,
+                routedBack: !escalate
+              }
+            },
+            stage.id
+          )
+
+          if (!escalate) {
+            ctx.verificationCycles += 1
+            snapshot = await this.apply(runId, snapshot, { type: 'REQUEST_CHANGES', targetIndex: 0 })
+            continue
+          }
+
+          // Budget spent — pause for human intervention (reuses the gate machinery).
+          snapshot = await this.apply(runId, snapshot, { type: 'GATE_AWAIT' })
+          await this.emit(
+            runId,
+            {
+              type: 'run.gate_awaiting',
+              actor: 'system',
+              payload: {
+                runId,
+                stageId: stage.id,
+                gateId: `verification-escalation:${stage.id}`,
+                description:
+                  `Verification failed ${ctx.maxVerificationCycles + 1} times. Human ` +
+                  `intervention required: approve to accept as-is, reject to fail the run, ` +
+                  `or request changes to loop back with a fresh budget.`
+              }
+            },
+            stage.id
+          )
+          return // pause for a human
         } else {
           snapshot = await this.apply(runId, snapshot, { type: 'STAGE_FAILED' })
           await this.emit(
@@ -426,7 +512,11 @@ export class RunEngine {
       const agentResults: AgentResult[] = []
       for (const persona of stage.personas) {
         agentResults.push(
-          await ctx.runAgent(persona, buildImplPrompt(ctx.spec, stage, persona, feedback), mode)
+          await ctx.runAgent(
+            persona,
+            buildImplPrompt(ctx.spec, stage, persona, feedback, ctx.verificationFeedback),
+            mode
+          )
         )
       }
 

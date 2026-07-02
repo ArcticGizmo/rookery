@@ -29,6 +29,13 @@
       "when": 1782952114228,
       "tag": "0003_infra_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1782956030035,
+      "tag": "0004_lucky_hercules",
+      "breakpoints": true
     }
   ]
 }

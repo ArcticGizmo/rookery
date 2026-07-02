@@ -184,6 +184,24 @@ export type AppEvent =
       actor: 'human'
       payload: { runId: string; targetStageIndex: number; by: string; note: string }
     }
+  // Phase 6.3 — feature-verification stage: issues found end-to-end.
+  | {
+      type: 'run.verification_failed'
+      actor: 'system'
+      payload: {
+        runId: string
+        stageId: string
+        stageIndex: number
+        /** Human-readable issues found, from the stage's failed pass criteria. */
+        issues: string
+        /** 1-based failure number within the current (post-intervention) budget. */
+        cycle: number
+        /** Automatic route-backs allowed before escalation. */
+        maxCycles: number
+        /** true ⇒ auto-routed back to the first stage; false ⇒ escalated to a human. */
+        routedBack: boolean
+      }
+    }
   | { type: 'run.finished'; actor: 'system'; payload: { runId: string; status: string } }
   // Phase 5 — infrastructure (worktrees + docker via InfraProvider / sprig).
   | {

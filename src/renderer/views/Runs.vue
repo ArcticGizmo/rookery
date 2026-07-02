@@ -20,6 +20,7 @@ const { items: workflows } = storeToRefs(workflowsStore)
 const workItemId = ref('')
 const workflowId = ref('')
 const maxIterations = ref(3)
+const maxVerificationCycles = ref(2)
 const infraTemplate = ref('')
 const teardownOnComplete = ref(true)
 const error = ref<string | null>(null)
@@ -65,6 +66,7 @@ async function start(): Promise<void> {
       workItemId: workItemId.value,
       workflowId: workflowId.value,
       maxIterations: maxIterations.value,
+      maxVerificationCycles: maxVerificationCycles.value,
       infraTemplate: infraTemplate.value.trim() || undefined,
       teardownOnComplete: teardownOnComplete.value
     })
@@ -130,7 +132,18 @@ onMounted(() => {
           />
         </div>
       </div>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-medium" for="mvc">Max verification cycles</label>
+          <input
+            id="mvc"
+            v-model.number="maxVerificationCycles"
+            type="number"
+            min="1"
+            max="10"
+            class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
         <div class="flex flex-col gap-1 sm:col-span-2">
           <label class="text-sm font-medium" for="infra">Infra template (optional)</label>
           <input

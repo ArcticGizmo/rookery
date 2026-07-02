@@ -43,6 +43,8 @@ export interface CreateRunParams {
   workflowVersion: number
   body: WorkflowDefBody
   maxIterations: number
+  /** Automatic verification→fix route-backs before escalation (Phase 6.3). */
+  maxVerificationCycles: number
   /** Infra template the setup stage provisions from (null ⇒ no infra). */
   infraTemplate: string | null
   /** Tear infra down when the run finishes. */
@@ -54,6 +56,7 @@ export interface RunContext {
   workItemId: string
   body: WorkflowDefBody
   maxIterations: number
+  maxVerificationCycles: number
   infraTemplate: string | null
   teardownOnComplete: boolean
 }
@@ -75,6 +78,7 @@ export class RunStore {
         status: 'pending',
         currentStageIndex: 0,
         maxIterations: params.maxIterations,
+        maxVerificationCycles: params.maxVerificationCycles,
         infraTemplate: params.infraTemplate,
         infraTeardown: params.teardownOnComplete,
         createdAt: now,
@@ -115,6 +119,7 @@ export class RunStore {
       workItemId: row.workItemId,
       body: workflowDefBodySchema.parse(row.workflowBody),
       maxIterations: row.maxIterations,
+      maxVerificationCycles: row.maxVerificationCycles,
       infraTemplate: row.infraTemplate ?? null,
       teardownOnComplete: row.infraTeardown
     }

@@ -109,6 +109,8 @@ export const runs = sqliteTable(
     status: text('status').notNull(),
     currentStageIndex: integer('current_stage_index').notNull(),
     maxIterations: integer('max_iterations').notNull(),
+    /** Automatic verification→fix route-backs allowed before human escalation (Phase 6.3). */
+    maxVerificationCycles: integer('max_verification_cycles').notNull().default(2),
     /** Infra provider template the setup stage provisions from (null ⇒ no infra). */
     infraTemplate: text('infra_template'),
     /** Whether to tear infra down when the run reaches a terminal state. */

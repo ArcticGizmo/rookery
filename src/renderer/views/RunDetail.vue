@@ -68,6 +68,22 @@ const currentGate = computed(() => {
   return stage?.gates.find((g) => g.kind === 'human') ?? null
 })
 
+// When a run is paused because verification exhausted its automatic retry budget
+// (Phase 6.3), surface the recorded issues in the gate banner so the human sees
+// what failed. Scan back to the most recent escalation since the last resolution.
+const verificationEscalation = computed<string | null>(() => {
+  if (!awaitingGate.value) return null
+  for (let i = runEvents.value.length - 1; i >= 0; i--) {
+    const e = runEvents.value[i]!
+    if (e.type === 'run.gate_resolved') break
+    if (e.type === 'run.verification_failed') {
+      const p = e.payload as { issues?: string; routedBack?: boolean }
+      if (!p.routedBack) return p.issues ?? ''
+    }
+  }
+  return null
+})
+
 // Stages we can route back to on request-changes (0..current).
 const backTargets = computed(() => {
   const d = detail.value
@@ -100,6 +116,10 @@ function activityLine(event: StoredEvent): string {
       return `Gate ${p.decision} by ${p.by}${p.note ? ` — ${p.note}` : ''}`
     case 'run.changes_requested':
       return `↩ Changes requested → ${stageName(Number(p.targetStageIndex))}: ${p.note}`
+    case 'run.verification_failed':
+      return p.routedBack
+        ? `↺ Verification failed (${p.cycle}/${p.maxCycles}) — routing back with issues: ${p.issues}`
+        : `⚠ Verification failed — escalated for human intervention: ${p.issues}`
     case 'run.finished':
       return `■ Run ${p.status}`
     case 'agent.spawned':
@@ -132,6 +152,8 @@ function activityLine(event: StoredEvent): string {
 const activity = computed(() => runEvents.value.filter((e) => activityLine(e) !== ''))
 
 function lineClass(type: string): string {
+  // Verification failures loop back or escalate — attention, not terminal failure.
+  if (type === 'run.verification_failed') return 'text-amber-700'
   if (type.endsWith('_failed') || type === 'agent.error') return 'text-red-600'
   if (type === 'agent.permission_denied') return 'text-red-600'
   if (type === 'run.gate_awaiting' || type === 'run.changes_requested') return 'text-amber-700'
@@ -266,6 +288,12 @@ onMounted(() => {
       >
         <p class="text-sm font-medium text-amber-800">
           Human gate: {{ currentGate?.description || 'Approve to continue' }}
+        </p>
+        <p
+          v-if="verificationEscalation"
+          class="whitespace-pre-wrap rounded border border-amber-500/40 bg-amber-500/5 px-2 py-1 text-xs text-amber-800"
+        >
+          Verification issues: {{ verificationEscalation }}
         </p>
         <div class="flex flex-wrap items-end gap-2">
           <div class="flex flex-col gap-1">

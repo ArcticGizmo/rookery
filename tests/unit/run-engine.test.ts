@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { WorkflowDefBody } from '../../src/shared/domain'
+import type { StartRunInput, WorkflowDefBody } from '../../src/shared/domain'
 import type { StoredEvent } from '../../src/shared/events'
 import { AgentService } from '../../src/main/services/agent-service'
 import { AuditLog } from '../../src/main/services/audit-log'
@@ -10,6 +10,7 @@ import { WorkItemService } from '../../src/main/services/work-item-service'
 import { WorkflowService } from '../../src/main/services/workflow-service'
 import { RunEngine } from '../../src/main/engine/run-engine'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
+import type { QueryFn } from '../../src/main/agent/types'
 import { makeTestDb, type TestDb } from './helpers/test-db'
 import { fakeQuery, msg } from './helpers/fake-query'
 
@@ -38,6 +39,56 @@ function verdictQuery(verdict: string) {
     msg.assistant([{ type: 'text', text: 'working' }], { input_tokens: 10 }),
     msg.result({ result: verdict })
   ])
+}
+
+/** Review → verification workflow: stage 0 always passes, verification gates on tests. */
+function verificationWorkflow(): WorkflowDefBody {
+  return {
+    name: 'Verified feature',
+    description: '',
+    stages: [
+      {
+        id: 's0',
+        name: 'Review spec',
+        type: 'review',
+        personas: [{ id: 'p0', name: 'Lead', role: 'Tech Lead', systemPrompt: 'Review.' }],
+        passCriteria: [],
+        gates: []
+      },
+      {
+        id: 's1',
+        name: 'Feature verification',
+        type: 'verification',
+        personas: [{ id: 'p1', name: 'Tester', role: 'Tester', systemPrompt: 'Verify.' }],
+        passCriteria: [{ id: 'c1', type: 'tests_pass', description: '' }],
+        gates: []
+      }
+    ]
+  }
+}
+
+/**
+ * A query where the `tests_pass` checker (identified by its prompt) returns the
+ * next scripted verdict on each call; every other agent returns a neutral 'ok'.
+ * Lets a test fail verification on early cycles and pass on a later one.
+ */
+function verificationQuery(checkerVerdicts: string[]): QueryFn {
+  let i = 0
+  return ((args: { prompt?: string }) => {
+    const isCheck =
+      typeof args.prompt === 'string' && args.prompt.includes('automated test suite')
+    const text = isCheck
+      ? (checkerVerdicts[Math.min(i++, checkerVerdicts.length - 1)] ?? 'FAIL')
+      : 'ok'
+    async function* gen(): AsyncGenerator<unknown> {
+      yield msg.init('claude-opus-4-8')
+      yield msg.assistant([{ type: 'text', text }], { input_tokens: 10 })
+      yield msg.result({ result: text })
+    }
+    const iterator = gen()
+    ;(iterator as unknown as { close: () => void }).close = () => {}
+    return iterator
+  }) as unknown as QueryFn
 }
 
 async function waitFor(
@@ -145,5 +196,103 @@ describe('RunEngine', () => {
       audit,
       (e) => e.some((x) => x.type === 'run.gate_awaiting') // awaits the gate again after re-review
     )
+  })
+
+  // --- Phase 6.3: feature verification stage ---
+
+  async function setupVerification(
+    checkerVerdicts: string[],
+    overrides: Partial<StartRunInput> = {}
+  ) {
+    const specs = new SpecService(test.db, audit)
+    workItems = new WorkItemService(test.db, audit, specs)
+    workflows = new WorkflowService(test.db, audit)
+    runs = new RunStore(test.db)
+    const agents = new AgentService(audit, verificationQuery(checkerVerdicts))
+    const infra = new InfraService(null, audit)
+    engine = new RunEngine(runs, audit, agents, workItems, workflows, infra)
+
+    const wi = await workItems.create({
+      title: 'Feature',
+      spec: 'Build feature X',
+      repos: [{ name: 'api', localPath: 'C:/git/api' }]
+    })
+    const wf = await workflows.create(verificationWorkflow())
+    // maxIterations 1 ⇒ verification fails the whole stage on the first bad verdict
+    // (no in-stage retry) so the run-level route-back behavior is what's exercised.
+    return { workItemId: wi.workItem.id, workflowId: wf.id, maxIterations: 1, ...overrides }
+  }
+
+  it('auto-routes a failed verification back to the first stage, then completes on pass', async () => {
+    const input = await setupVerification(['FAIL — button is broken', 'PASS — all good'])
+    const run = await engine.start(input)
+
+    const events = await waitFor(
+      audit,
+      (e) =>
+        e.some((x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed')
+    )
+
+    const vf = events.filter((e) => e.type === 'run.verification_failed')
+    expect(vf).toHaveLength(1)
+    expect((vf[0]!.payload as { routedBack: boolean }).routedBack).toBe(true)
+    expect((vf[0]!.payload as { issues: string }).issues).toContain('button is broken')
+
+    // Routed back to the first stage (re-entered ≥ twice) and finished passed.
+    const s0Entries = events.filter(
+      (e) => e.type === 'run.stage_entered' && (e.payload as { stageId: string }).stageId === 's0'
+    )
+    expect(s0Entries.length).toBeGreaterThanOrEqual(2)
+    expect((await runs.get(run.id))!.status).toBe('passed')
+  })
+
+  it('escalates to a human gate after exhausting the verification budget', async () => {
+    const input = await setupVerification(['FAIL — still broken'], { maxVerificationCycles: 2 })
+    const run = await engine.start(input)
+
+    const events = await waitFor(audit, (e) =>
+      e.some(
+        (x) =>
+          x.type === 'run.verification_failed' &&
+          (x.payload as { routedBack: boolean }).routedBack === false
+      )
+    )
+
+    const vf = events.filter((e) => e.type === 'run.verification_failed')
+    // Two automatic route-backs, then the escalation.
+    expect(vf.filter((e) => (e.payload as { routedBack: boolean }).routedBack)).toHaveLength(2)
+    expect(vf.filter((e) => !(e.payload as { routedBack: boolean }).routedBack)).toHaveLength(1)
+
+    await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
+    expect((await runs.get(run.id))!.status).toBe('awaiting_gate')
+  })
+
+  it('grants a fresh verification budget after human intervention', async () => {
+    const input = await setupVerification(['FAIL — still broken'], { maxVerificationCycles: 1 })
+    const run = await engine.start(input)
+
+    // One auto route-back, then escalate.
+    await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
+
+    // A human requests changes → the automatic budget resets → verification can loop again.
+    await engine.resolveGate({
+      runId: run.id,
+      decision: 'request_changes',
+      by: 'jon',
+      note: 'have another go',
+      targetStageIndex: 0
+    })
+
+    const events = await waitFor(
+      audit,
+      (e) => e.filter((x) => x.type === 'run.gate_awaiting').length >= 2
+    )
+    const routedBack = events.filter(
+      (e) =>
+        e.type === 'run.verification_failed' && (e.payload as { routedBack: boolean }).routedBack
+    )
+    // One route-back before the first escalation, another after intervention.
+    expect(routedBack.length).toBeGreaterThanOrEqual(2)
+    expect(has(events, 'run.changes_requested')).toBe(true)
   })
 })

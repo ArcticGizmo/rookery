@@ -274,6 +274,14 @@ export const startRunInputSchema = z.object({
   /** Max implementer→reviewer iterations per stage before failing (default 3). */
   maxIterations: z.number().int().positive().max(20).default(3),
   /**
+   * Feature-verification safeguard (Phase 6.3): how many times a failed
+   * `verification` stage may automatically route the run back to the first stage
+   * — carrying the recorded issues as feedback — before the engine stops looping
+   * and escalates to a human gate for intervention. Prevents a verify→fix death
+   * cycle that silently burns tokens. Default 2.
+   */
+  maxVerificationCycles: z.number().int().positive().max(10).default(2),
+  /**
    * Infra provider template (e.g. a sprig template) the run's setup stage
    * provisions from. Empty/omitted ⇒ no infra is provisioned and stage agents
    * run against the work item's own repo checkout. (Phase 5.4)
