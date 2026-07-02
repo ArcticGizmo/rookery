@@ -59,6 +59,13 @@ Path aliases: `@shared/*` (all processes), `@renderer/*` (renderer).
   `pnpm db:generate`, which writes SQL into `drizzle/` (committed). They are applied
   automatically on boot, before the window loads. In a packaged app the `drizzle/` folder is
   bundled under resources (electron-builder `extraResources`).
+- **Migrations are forward-only** (Phase 7.2): a schema change is always a *new* migration —
+  committed migrations are never edited or rolled back after shipping. The database's schema
+  version is the number of migrations it has applied, and only ever increases. On boot, before
+  migrating, the app compares the database's applied-migration count against the count bundled
+  with the build (`src/main/db/migrate.ts`); if the database is *ahead* (e.g. it was written by
+  a newer Rookery and the app was then downgraded) startup aborts with a clear error rather than
+  operating on a schema the code doesn't understand.
 - The event log is the append-only source of truth (`src/main/services`): `AuditLog` over an
   `EventStore` port — `SqliteEventStore` (libsql) in the app, `InMemoryEventStore` in tests.
 

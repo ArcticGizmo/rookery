@@ -57,7 +57,11 @@ async function bootstrap(): Promise<void> {
   const dbPath = process.env['ROOKERY_DB_PATH'] ?? join(app.getPath('userData'), 'rookery.db')
   const db = initDb(dbPath)
   await configureConnection(db)
-  await runMigrations(db)
+  // Migrations live at the project root in dev and under resources when packaged.
+  const migrationsFolder = app.isPackaged
+    ? join(process.resourcesPath, 'drizzle')
+    : join(process.cwd(), 'drizzle')
+  await runMigrations(db, migrationsFolder)
 
   auditLog = new AuditLog(new SqliteEventStore(db))
   const specs = new SpecService(db, auditLog)
