@@ -62,6 +62,23 @@ Path aliases: `@shared/*` (all processes), `@renderer/*` (renderer).
 - The event log is the append-only source of truth (`src/main/services`): `AuditLog` over an
   `EventStore` port — `SqliteEventStore` (libsql) in the app, `InMemoryEventStore` in tests.
 
+## Infrastructure (worktrees + docker)
+
+- A run's **setup stage** provisions isolated git worktrees + docker infra so concurrent runs
+  don't collide. This sits behind the **`InfraProvider`** port
+  (`src/main/services/infra/`); see [ADR 0003](./adr/0003-infra-provider.md).
+- Provider is selected by **`ROOKERY_INFRA_PROVIDER`**:
+  - `sprig` (default) — shells out to the [`sprig`](https://www.npmjs.com/package/@ArcticGizmo/sprig)
+    CLI (`npm i -g @ArcticGizmo/sprig`). Requires sprig on PATH **only when a run requests a
+    template**; docker/compose is needed for infra to come up.
+  - `stub` — in-memory fake; no git/docker. Use for UI/engine dev without sprig installed.
+  - `none` — infra disabled; a run that requests a template fails its setup stage.
+- A run gets its template + teardown flag from the **Runs start form**
+  (`StartRunInput.infraTemplate` / `teardownOnComplete`). No template ⇒ no infra; agents run
+  against the work item's own checkout.
+- Every infra step is audited (`infra.provisioning` / `infra.up` / `infra.down` / `infra.failed`)
+  and the run view shows live status (`runs:infra`), falling back to the last `infra.up` event.
+
 ## Notes
 
 - `contextIsolation` is on and `nodeIntegration` is off. All main↔renderer traffic goes

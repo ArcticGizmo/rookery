@@ -22,6 +22,13 @@
       "when": 1782910544949,
       "tag": "0002_silky_rhino",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1782952114228,
+      "tag": "0003_infra_columns",
+      "breakpoints": true
     }
   ]
 }

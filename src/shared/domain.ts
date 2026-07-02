@@ -272,7 +272,18 @@ export const startRunInputSchema = z.object({
   workItemId: z.string().min(1),
   workflowId: z.string().min(1),
   /** Max implementer→reviewer iterations per stage before failing (default 3). */
-  maxIterations: z.number().int().positive().max(20).default(3)
+  maxIterations: z.number().int().positive().max(20).default(3),
+  /**
+   * Infra provider template (e.g. a sprig template) the run's setup stage
+   * provisions from. Empty/omitted ⇒ no infra is provisioned and stage agents
+   * run against the work item's own repo checkout. (Phase 5.4)
+   */
+  infraTemplate: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.string().optional()
+  ),
+  /** Tear the run's infra down when the run reaches a terminal state (default true). */
+  teardownOnComplete: z.boolean().default(true)
 })
 export type StartRunInput = z.infer<typeof startRunInputSchema>
 

@@ -3,6 +3,7 @@ import type { WorkflowDefBody } from '../../src/shared/domain'
 import type { StoredEvent } from '../../src/shared/events'
 import { AgentService } from '../../src/main/services/agent-service'
 import { AuditLog } from '../../src/main/services/audit-log'
+import { InfraService } from '../../src/main/services/infra-service'
 import { RunStore } from '../../src/main/services/run-store'
 import { SpecService } from '../../src/main/services/spec-service'
 import { WorkItemService } from '../../src/main/services/work-item-service'
@@ -67,7 +68,8 @@ describe('RunEngine', () => {
     workflows = new WorkflowService(test.db, audit)
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, verdictQuery(verdict))
-    engine = new RunEngine(runs, audit, agents, workItems, workflows)
+    const infra = new InfraService(null, audit)
+    engine = new RunEngine(runs, audit, agents, workItems, workflows, infra)
 
     const wi = await workItems.create({
       title: 'Feature',

@@ -7,6 +7,8 @@ import { RunEngine } from './engine/run-engine'
 import { registerIpc } from './ipc'
 import { AgentService } from './services/agent-service'
 import { AuditLog } from './services/audit-log'
+import { createInfraProvider } from './services/infra'
+import { InfraService } from './services/infra-service'
 import { RunStore } from './services/run-store'
 import { SpecService } from './services/spec-service'
 import { SqliteEventStore } from './services/sqlite-event-store'
@@ -60,7 +62,8 @@ async function bootstrap(): Promise<void> {
   const workflows = new WorkflowService(db, auditLog)
   const agent = new AgentService(auditLog, query)
   const runs = new RunStore(db)
-  const engine = new RunEngine(runs, auditLog, agent, workItems, workflows)
+  const infra = new InfraService(createInfraProvider(), auditLog)
+  const engine = new RunEngine(runs, auditLog, agent, workItems, workflows, infra)
   registerIpc({ auditLog, workItems, specs, workflows, agent, runs, engine })
 
   await auditLog.append({

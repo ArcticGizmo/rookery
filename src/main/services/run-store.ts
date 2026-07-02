@@ -43,6 +43,10 @@ export interface CreateRunParams {
   workflowVersion: number
   body: WorkflowDefBody
   maxIterations: number
+  /** Infra template the setup stage provisions from (null ⇒ no infra). */
+  infraTemplate: string | null
+  /** Tear infra down when the run finishes. */
+  teardownOnComplete: boolean
 }
 
 /** Context the engine needs to drive a run. */
@@ -50,6 +54,8 @@ export interface RunContext {
   workItemId: string
   body: WorkflowDefBody
   maxIterations: number
+  infraTemplate: string | null
+  teardownOnComplete: boolean
 }
 
 /** Persistence for runs and their stage executions (Phase 4.1). */
@@ -69,6 +75,8 @@ export class RunStore {
         status: 'pending',
         currentStageIndex: 0,
         maxIterations: params.maxIterations,
+        infraTemplate: params.infraTemplate,
+        infraTeardown: params.teardownOnComplete,
         createdAt: now,
         updatedAt: now
       })
@@ -106,7 +114,9 @@ export class RunStore {
     return {
       workItemId: row.workItemId,
       body: workflowDefBodySchema.parse(row.workflowBody),
-      maxIterations: row.maxIterations
+      maxIterations: row.maxIterations,
+      infraTemplate: row.infraTemplate ?? null,
+      teardownOnComplete: row.infraTeardown
     }
   }
 

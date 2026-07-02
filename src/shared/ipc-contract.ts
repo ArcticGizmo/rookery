@@ -1,4 +1,5 @@
 import type { ListEventsOptions, StoredEvent } from './events'
+import type { RunInfra } from './infra'
 import type {
   AgentRunConfig,
   CreateWorkItemInput,
@@ -47,7 +48,8 @@ export const IPC = {
   runsStart: 'runs:start',
   runsList: 'runs:list',
   runsGet: 'runs:get',
-  runsGate: 'runs:gate'
+  runsGate: 'runs:gate',
+  runsInfra: 'runs:infra'
 } as const
 
 /** Request/response channels: renderer invokes, main handles. */
@@ -82,6 +84,7 @@ export interface IpcInvokeMap {
   'runs:list': { args: []; result: Run[] }
   'runs:get': { args: [runId: string]; result: RunDetail | null }
   'runs:gate': { args: [input: GateActionInput]; result: void }
+  'runs:infra': { args: [runId: string]; result: RunInfra }
 }
 
 /** Push channels: main sends, renderer listens. */

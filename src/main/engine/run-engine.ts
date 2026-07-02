@@ -10,6 +10,7 @@ import {
   startRunInputSchema
 } from '@shared/domain'
 import type { AppEvent } from '@shared/events'
+import type { RunInfra, RunInfraStatus } from '@shared/infra'
 import {
   type RunSnapshot,
   initRunSnapshot,
@@ -20,6 +21,8 @@ import {
 import type { AgentResult } from '../agent/types'
 import type { AgentService } from '../services/agent-service'
 import type { AuditLog } from '../services/audit-log'
+import type { InfraService } from '../services/infra-service'
+import { instanceNameForRun } from '../services/infra'
 import type { RunStore } from '../services/run-store'
 import type { WorkItemService } from '../services/work-item-service'
 import type { WorkflowService } from '../services/workflow-service'
@@ -29,7 +32,18 @@ interface RunCtx {
   body: WorkflowDefBody
   maxIterations: number
   spec: string
+  /** Working directory for stage agents; swapped to the worktree once provisioned. */
   cwd: string | null
+  /** Infra template to provision (null ⇒ no infra). */
+  infraTemplate: string | null
+  /** Tear infra down when the run finishes. */
+  teardownOnComplete: boolean
+  /** Deterministic infra instance name for this run. */
+  instanceName: string
+  /** Impacted repo aliases (passed to providers that build worktrees explicitly). */
+  repos: string[]
+  /** True once agents run inside an isolated worktree — enables autonomous edits. */
+  isolated: boolean
   runAgent: (persona: AgentPersona, prompt: string, mode: PermissionMode) => Promise<AgentResult>
 }
 
@@ -57,8 +71,10 @@ function buildImplPrompt(
  * The orchestration engine (Phase 4.3/4.6). Drives the pure run state machine:
  * runs each stage's agents, evaluates pass criteria, loops on failure up to
  * `maxIterations`, halts at human gates, and advances — auditing every
- * transition. Stage agents run read-only (`plan`) until worktrees arrive in
- * Phase 5; the `tests_pass` criterion executes and opts into `bypassPermissions`.
+ * transition. Stage agents run read-only (`plan`) until a `setup` stage
+ * provisions an isolated worktree (Phase 5.4), after which implementer agents run
+ * autonomously (`bypassPermissions`) inside it; the `tests_pass` criterion always
+ * opts into `bypassPermissions`.
  */
 export class RunEngine {
   private readonly driving = new Set<string>()
@@ -68,7 +84,8 @@ export class RunEngine {
     private readonly audit: AuditLog,
     private readonly agents: AgentService,
     private readonly workItems: WorkItemService,
-    private readonly workflows: WorkflowService
+    private readonly workflows: WorkflowService,
+    private readonly infra: InfraService
   ) {}
 
   async start(rawInput: StartRunInput): Promise<Run> {
@@ -84,7 +101,9 @@ export class RunEngine {
       workflowId: wf.id,
       workflowVersion: wf.version,
       body,
-      maxIterations: input.maxIterations
+      maxIterations: input.maxIterations,
+      infraTemplate: input.infraTemplate ?? null,
+      teardownOnComplete: input.teardownOnComplete
     })
     await this.emit(run.id, {
       type: 'run.created',
@@ -168,12 +187,31 @@ export class RunEngine {
     if (snapshot.status === 'running') {
       void this.drive(input.runId, snapshot, ctx)
     } else if (isTerminal(snapshot.status)) {
-      await this.emit(input.runId, {
-        type: 'run.finished',
-        actor: 'system',
-        payload: { runId: input.runId, status: snapshot.status }
-      })
+      await this.finalize(input.runId, ctx, snapshot.status)
     }
+  }
+
+  /** Live infrastructure status for a run, for the run view (Phase 5.5). */
+  async runInfra(runId: string): Promise<RunInfra> {
+    const provider = this.infra.providerName()
+    if (!this.infra.isConfigured()) {
+      return {
+        runId,
+        provider,
+        providerAvailable: false,
+        instanceName: null,
+        status: 'none',
+        instance: null
+      }
+    }
+    const instanceName = instanceNameForRun(runId)
+    const providerAvailable = await this.infra.available()
+    const instance = providerAvailable
+      ? await this.infra.info(instanceName).catch(() => null)
+      : null
+    let status: RunInfraStatus = 'none'
+    if (instance) status = instance.state === 'up' ? 'up' : 'down'
+    return { runId, provider, providerAvailable, instanceName, status, instance }
   }
 
   private async buildContext(runId: string): Promise<RunCtx | null> {
@@ -181,14 +219,76 @@ export class RunEngine {
     if (!rc) return null
     const detail = await this.workItems.get(rc.workItemId)
     const spec = detail?.currentSpec?.content ?? ''
-    const cwd = detail?.repos[0]?.localPath ?? null
-    return {
+    const instanceName = instanceNameForRun(runId)
+
+    const ctx: RunCtx = {
       body: rc.body,
       maxIterations: rc.maxIterations,
       spec,
-      cwd,
+      cwd: detail?.repos[0]?.localPath ?? null,
+      infraTemplate: rc.infraTemplate,
+      teardownOnComplete: rc.teardownOnComplete,
+      instanceName,
+      repos: detail?.repos.map((r) => r.name) ?? [],
+      isolated: false,
+      // Read cwd lazily so it reflects the worktree once setup provisions it.
       runAgent: (persona, prompt, mode) =>
-        this.agents.run({ persona, prompt, cwd, permissionMode: mode }, { runId })
+        this.agents.run({ persona, prompt, cwd: ctx.cwd, permissionMode: mode }, { runId })
+    }
+
+    // Recover the worktree cwd after a pause (e.g. a human gate) rebuilds the
+    // context: if this run already has a live instance, point agents back at it.
+    if (rc.infraTemplate && this.infra.isConfigured()) {
+      const instance = await this.infra.info(instanceName).catch(() => null)
+      const worktree = instance?.worktrees[0]
+      if (worktree) {
+        ctx.cwd = worktree.path
+        ctx.isolated = true
+      }
+    }
+    return ctx
+  }
+
+  /**
+   * Ensure the run's infra is provisioned before a `setup` stage runs (Phase
+   * 5.4). No-op when the run requested no template or no provider is configured.
+   * Reuses an existing instance (e.g. on a re-entered setup stage) rather than
+   * recreating it. On success, points stage agents at the worktree; returns
+   * false if provisioning failed (the caller fails the stage).
+   */
+  private async ensureInfra(runId: string, ctx: RunCtx): Promise<boolean> {
+    if (!ctx.infraTemplate || !this.infra.isConfigured()) return true
+    const existing = await this.infra.info(ctx.instanceName).catch(() => null)
+    try {
+      const instance =
+        existing ??
+        (await this.infra.provision(runId, {
+          name: ctx.instanceName,
+          template: ctx.infraTemplate,
+          branch: ctx.instanceName,
+          repos: ctx.repos
+        }))
+      const worktree = instance.worktrees[0]
+      if (worktree) {
+        ctx.cwd = worktree.path
+        ctx.isolated = true
+      }
+      return true
+    } catch {
+      // provision() has already emitted infra.failed.
+      return false
+    }
+  }
+
+  /** Emit run.finished and tear down the run's infra when configured to. */
+  private async finalize(runId: string, ctx: RunCtx, status: string): Promise<void> {
+    await this.emit(runId, {
+      type: 'run.finished',
+      actor: 'system',
+      payload: { runId, status }
+    })
+    if (ctx.infraTemplate && ctx.teardownOnComplete && this.infra.isConfigured()) {
+      await this.infra.teardown(runId, ctx.instanceName, { remove: true })
     }
   }
 
@@ -220,6 +320,26 @@ export class RunEngine {
           },
           stage.id
         )
+
+        // A setup stage provisions the run's isolated worktrees + infra first.
+        if (stage.type === 'setup' && !(await this.ensureInfra(runId, ctx))) {
+          snapshot = await this.apply(runId, snapshot, { type: 'STAGE_FAILED' })
+          await this.emit(
+            runId,
+            {
+              type: 'run.stage_failed',
+              actor: 'system',
+              payload: {
+                runId,
+                stageId: stage.id,
+                stageIndex: index,
+                reason: 'Infrastructure provisioning failed'
+              }
+            },
+            stage.id
+          )
+          continue
+        }
 
         const outcome = await this.runStage(runId, snapshot, stage, ctx)
         snapshot = outcome.snapshot
@@ -269,23 +389,15 @@ export class RunEngine {
       }
 
       if (isTerminal(snapshot.status)) {
-        await this.emit(runId, {
-          type: 'run.finished',
-          actor: 'system',
-          payload: { runId, status: snapshot.status }
-        })
+        await this.finalize(runId, ctx, snapshot.status)
       }
     } catch (error) {
-      await this.emit(runId, {
-        type: 'run.finished',
-        actor: 'system',
-        payload: { runId, status: 'failed' }
-      })
       await this.runs.persistSnapshot(
         runId,
         reduceRun(snapshot, { type: 'STAGE_FAILED' }),
         new Date().toISOString()
       )
+      await this.finalize(runId, ctx, 'failed')
       console.error('Run engine error:', error)
     } finally {
       this.driving.delete(runId)
@@ -306,10 +418,13 @@ export class RunEngine {
       const index = current.currentStageIndex
       const iteration = current.stages[index]!.iteration
 
+      // Inside an isolated worktree, implementer agents may edit/execute
+      // autonomously; otherwise they stay read-only until a setup stage isolates.
+      const mode: PermissionMode = ctx.isolated ? 'bypassPermissions' : 'plan'
       const agentResults: AgentResult[] = []
       for (const persona of stage.personas) {
         agentResults.push(
-          await ctx.runAgent(persona, buildImplPrompt(ctx.spec, stage, persona, feedback), 'plan')
+          await ctx.runAgent(persona, buildImplPrompt(ctx.spec, stage, persona, feedback), mode)
         )
       }
 

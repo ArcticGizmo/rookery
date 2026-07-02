@@ -20,6 +20,8 @@ const { items: workflows } = storeToRefs(workflowsStore)
 const workItemId = ref('')
 const workflowId = ref('')
 const maxIterations = ref(3)
+const infraTemplate = ref('')
+const teardownOnComplete = ref(true)
 const error = ref<string | null>(null)
 const starting = ref(false)
 
@@ -62,7 +64,9 @@ async function start(): Promise<void> {
     const run = await runsStore.start({
       workItemId: workItemId.value,
       workflowId: workflowId.value,
-      maxIterations: maxIterations.value
+      maxIterations: maxIterations.value,
+      infraTemplate: infraTemplate.value.trim() || undefined,
+      teardownOnComplete: teardownOnComplete.value
     })
     await router.push(`/runs/${run.id}`)
   } catch (e) {
@@ -125,6 +129,22 @@ onMounted(() => {
             class="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
+      </div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-sm font-medium" for="infra">Infra template (optional)</label>
+          <input
+            id="infra"
+            v-model="infraTemplate"
+            type="text"
+            placeholder="e.g. api-web — a sprig template; leave blank to skip provisioning"
+            class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+        <label class="flex items-center gap-2 self-end pb-1 text-sm" for="teardown">
+          <input id="teardown" v-model="teardownOnComplete" type="checkbox" class="size-4" />
+          Tear down infra on completion
+        </label>
       </div>
       <p v-if="workflowId && !selectedWorkflowValid" class="text-xs text-amber-700">
         This workflow has validation issues — fix it in the Workflows builder before running.

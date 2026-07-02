@@ -78,6 +78,7 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.runsList, () => runs.list())
   ipcMain.handle(IPC.runsGet, (_event, runId: string) => runs.getDetail(runId))
   ipcMain.handle(IPC.runsGate, (_event, input: GateActionInput) => engine.resolveGate(input))
+  ipcMain.handle(IPC.runsInfra, (_event, runId: string) => engine.runInfra(runId))
 
   auditLog.onAppend((event) => {
     for (const window of BrowserWindow.getAllWindows()) {

@@ -44,7 +44,8 @@ const api: RookeryApi = {
     start: (input) => ipcRenderer.invoke(IPC.runsStart, input),
     list: () => ipcRenderer.invoke(IPC.runsList),
     get: (runId) => ipcRenderer.invoke(IPC.runsGet, runId),
-    gate: (input) => ipcRenderer.invoke(IPC.runsGate, input)
+    gate: (input) => ipcRenderer.invoke(IPC.runsGate, input),
+    infra: (runId) => ipcRenderer.invoke(IPC.runsInfra, runId)
   }
 }
 

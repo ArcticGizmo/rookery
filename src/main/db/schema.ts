@@ -109,6 +109,10 @@ export const runs = sqliteTable(
     status: text('status').notNull(),
     currentStageIndex: integer('current_stage_index').notNull(),
     maxIterations: integer('max_iterations').notNull(),
+    /** Infra provider template the setup stage provisions from (null ⇒ no infra). */
+    infraTemplate: text('infra_template'),
+    /** Whether to tear infra down when the run reaches a terminal state. */
+    infraTeardown: integer('infra_teardown', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull()
   },

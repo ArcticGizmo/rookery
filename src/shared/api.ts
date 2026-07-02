@@ -1,4 +1,5 @@
 import type { ListEventsOptions, StoredEvent } from './events'
+import type { RunInfra } from './infra'
 import type {
   AgentRunConfig,
   CreateWorkItemInput,
@@ -63,5 +64,7 @@ export interface RookeryApi {
     get: (runId: string) => Promise<RunDetail | null>
     /** Resolve a pending human gate (approve/reject/request-changes). */
     gate: (input: GateActionInput) => Promise<void>
+    /** Live infrastructure status for a run (instances, worktrees, container health). */
+    infra: (runId: string) => Promise<RunInfra>
   }
 }

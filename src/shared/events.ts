@@ -132,6 +132,34 @@ export type AppEvent =
       payload: { runId: string; targetStageIndex: number; by: string; note: string }
     }
   | { type: 'run.finished'; actor: 'system'; payload: { runId: string; status: string } }
+  // Phase 5 — infrastructure (worktrees + docker via InfraProvider / sprig).
+  | {
+      type: 'infra.provisioning'
+      actor: 'system'
+      payload: { runId: string; provider: string; instanceName: string; template: string }
+    }
+  | {
+      type: 'infra.up'
+      actor: 'system'
+      payload: {
+        runId: string
+        provider: string
+        instanceName: string
+        worktrees: { repo: string; path: string; branch: string | null }[]
+        ports: number[]
+        containerCount: number
+      }
+    }
+  | {
+      type: 'infra.down'
+      actor: 'system'
+      payload: { runId: string; provider: string; instanceName: string; removed: boolean }
+    }
+  | {
+      type: 'infra.failed'
+      actor: 'system'
+      payload: { runId: string; provider: string; instanceName: string; message: string }
+    }
 
 /** Optional scoping fields common to every appended event. */
 export interface EventScope {

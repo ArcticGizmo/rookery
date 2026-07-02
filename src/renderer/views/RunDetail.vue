@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { GateDecision, RunDetail, StageStatus } from '@shared/domain'
 import type { StoredEvent } from '@shared/events'
+import type { InfraInstance, RunInfra } from '@shared/infra'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useEventsStore } from '@renderer/stores/events'
 import { useRunsStore } from '@renderer/stores/runs'
@@ -13,6 +14,7 @@ const eventsStore = useEventsStore()
 const { events } = storeToRefs(eventsStore)
 
 const detail = ref<RunDetail | null>(null)
+const infra = ref<RunInfra | null>(null)
 const notFound = ref(false)
 const by = ref('human')
 const note = ref('')
@@ -24,6 +26,11 @@ async function refresh(): Promise<void> {
   const d = await runsStore.get(props.id)
   if (!d) notFound.value = true
   else detail.value = d
+  try {
+    infra.value = await window.rookery.runs.infra(props.id)
+  } catch {
+    infra.value = null
+  }
 }
 
 const runEvents = computed<StoredEvent[]>(() => events.value.filter((e) => e.runId === props.id))
@@ -103,6 +110,14 @@ function activityLine(event: StoredEvent): string {
       return `🔧 ${p.toolName}`
     case 'agent.error':
       return `✖ agent error: ${p.message}`
+    case 'infra.provisioning':
+      return `⛭ Provisioning infra: ${p.instanceName} (template ${p.template})`
+    case 'infra.up':
+      return `⛭ Infra up: ${p.instanceName} — ${(p.worktrees as unknown[]).length} worktree(s), ${p.containerCount} container(s)`
+    case 'infra.down':
+      return `⛭ Infra ${p.removed ? 'removed' : 'stopped'}: ${p.instanceName}`
+    case 'infra.failed':
+      return `✖ Infra failed: ${p.message}`
     default:
       return ''
   }
@@ -113,10 +128,62 @@ const activity = computed(() => runEvents.value.filter((e) => activityLine(e) !=
 function lineClass(type: string): string {
   if (type.endsWith('_failed') || type === 'agent.error') return 'text-red-600'
   if (type === 'run.gate_awaiting' || type === 'run.changes_requested') return 'text-amber-700'
-  if (type === 'run.finished' || type === 'run.stage_passed') return 'text-green-700'
+  if (type === 'run.finished' || type === 'run.stage_passed' || type === 'infra.up')
+    return 'text-green-700'
   if (type === 'agent.tool_use') return 'text-blue-700'
+  if (type === 'infra.provisioning' || type === 'infra.down') return 'text-purple-700'
   if (type.startsWith('run.')) return 'text-muted-foreground'
   return ''
+}
+
+// Prefer the live instance from `runs.infra`; fall back to the last infra.up
+// event payload so worktree paths remain visible after teardown.
+const lastInfraUp = computed(() => {
+  for (let i = runEvents.value.length - 1; i >= 0; i--) {
+    if (runEvents.value[i]!.type === 'infra.up') return runEvents.value[i]!
+  }
+  return null
+})
+
+interface InfraWorktreeView {
+  repo: string
+  path: string
+  branch: string | null
+}
+
+const liveInstance = computed<InfraInstance | null>(() => infra.value?.instance ?? null)
+
+const infraWorktrees = computed<InfraWorktreeView[]>(() => {
+  if (liveInstance.value) {
+    return liveInstance.value.worktrees.map((w) => ({
+      repo: w.repo,
+      path: w.path,
+      branch: w.branch
+    }))
+  }
+  const payload = lastInfraUp.value?.payload as { worktrees?: InfraWorktreeView[] } | undefined
+  return payload?.worktrees ?? []
+})
+
+const infraPorts = computed<number[]>(() => {
+  if (liveInstance.value) return liveInstance.value.ports
+  const payload = lastInfraUp.value?.payload as { ports?: number[] } | undefined
+  return payload?.ports ?? []
+})
+
+// Show the section whenever infra is configured or the run produced infra events.
+const showInfra = computed(
+  () =>
+    (infra.value?.instanceName != null && infra.value.provider !== 'none') ||
+    runEvents.value.some((e) => e.type.startsWith('infra.'))
+)
+
+const INFRA_STATUS_CLASS: Record<string, string> = {
+  none: 'bg-secondary text-muted-foreground',
+  provisioning: 'bg-purple-500/15 text-purple-700',
+  up: 'bg-green-500/15 text-green-700',
+  down: 'bg-secondary text-muted-foreground',
+  failed: 'bg-red-500/15 text-red-600'
 }
 
 async function act(decision: GateDecision): Promise<void> {
@@ -232,6 +299,60 @@ onMounted(() => {
           >
           <Button variant="ghost" :disabled="acting" @click="act('reject')">Reject</Button>
           <span v-if="error" class="text-sm text-red-600">{{ error }}</span>
+        </div>
+      </section>
+
+      <!-- Infrastructure -->
+      <section v-if="showInfra" class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm font-semibold">Infrastructure</h2>
+          <span
+            class="rounded px-2 py-0.5 text-xs"
+            :class="INFRA_STATUS_CLASS[infra?.status ?? 'none']"
+            >{{ infra?.status ?? 'none' }}</span
+          >
+          <span class="text-xs text-muted-foreground">via {{ infra?.provider ?? 'none' }}</span>
+        </div>
+
+        <p
+          v-if="infra && !infra.providerAvailable && infra.provider !== 'none'"
+          class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800"
+        >
+          The “{{ infra.provider }}” provider isn’t available on this machine — install it to
+          provision or inspect infrastructure.
+        </p>
+
+        <div class="rounded-md border border-border p-3 text-sm">
+          <dl class="flex flex-col gap-1">
+            <div class="flex gap-2">
+              <dt class="w-28 shrink-0 text-muted-foreground">Instance</dt>
+              <dd class="font-mono text-xs">{{ infra?.instanceName ?? '—' }}</dd>
+            </div>
+            <div v-if="liveInstance" class="flex gap-2">
+              <dt class="w-28 shrink-0 text-muted-foreground">Containers</dt>
+              <dd>{{ liveInstance.containerCount }}</dd>
+            </div>
+            <div v-if="infraPorts.length" class="flex gap-2">
+              <dt class="w-28 shrink-0 text-muted-foreground">Ports</dt>
+              <dd class="font-mono text-xs">{{ infraPorts.join(', ') }}</dd>
+            </div>
+          </dl>
+
+          <div v-if="infraWorktrees.length" class="mt-3 flex flex-col gap-1">
+            <span class="text-xs font-medium text-muted-foreground">Worktrees</span>
+            <ul class="flex flex-col gap-1">
+              <li
+                v-for="wt in infraWorktrees"
+                :key="wt.repo"
+                class="flex flex-wrap items-baseline gap-2"
+              >
+                <span class="font-medium">{{ wt.repo }}</span>
+                <span v-if="wt.branch" class="text-xs text-muted-foreground">{{ wt.branch }}</span>
+                <span class="font-mono text-xs text-muted-foreground">{{ wt.path }}</span>
+              </li>
+            </ul>
+          </div>
+          <p v-else class="mt-2 text-xs text-muted-foreground">No worktrees provisioned.</p>
         </div>
       </section>
 
