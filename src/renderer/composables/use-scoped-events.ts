@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 import type { ListEventsOptions, StoredEvent } from '@shared/events'
+import { rookery } from '@renderer/lib/rookery'
 
 /** Page size for backfilling a scope's history. */
 const PAGE_SIZE = 500
@@ -51,7 +52,7 @@ export function useScopedEvents(
     const collected: StoredEvent[] = []
     let afterId = 0
     for (;;) {
-      const page = await window.rookery.events.list({
+      const page = await rookery().events.list({
         ...options(),
         order: 'asc',
         afterId,
@@ -78,7 +79,7 @@ export function useScopedEvents(
   }
 
   onMounted(() => {
-    unsubscribe = window.rookery.events.onAppend((event) => {
+    unsubscribe = rookery().events.onAppend((event) => {
       if (!matches(event)) return
       if (loading) {
         buffered.push(event)

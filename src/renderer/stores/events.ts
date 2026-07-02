@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { StoredEvent } from '@shared/events'
+import { rookery } from '@renderer/lib/rookery'
 
 export const useEventsStore = defineStore('events', () => {
   const events = ref<StoredEvent[]>([])
@@ -44,9 +45,9 @@ export const useEventsStore = defineStore('events', () => {
   function init(): Promise<void> {
     if (initPromise) return initPromise
     initPromise = (async () => {
-      events.value = await window.rookery.events.list({ limit: 500 })
+      events.value = await rookery().events.list({ limit: 500 })
       loaded.value = true
-      unsubscribe = window.rookery.events.onAppend((event) => {
+      unsubscribe = rookery().events.onAppend((event) => {
         pending.push(event)
         scheduleFlush()
       })

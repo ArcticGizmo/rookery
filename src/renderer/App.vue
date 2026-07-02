@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { NotificationItem } from '@shared/notifications'
 import { useEventsStore } from '@renderer/stores/events'
 import { useNotificationsStore } from '@renderer/stores/notifications'
+import { rookery } from '@renderer/lib/rookery'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,7 +35,7 @@ function openNotification(n: NotificationItem): void {
   open.value = false
   if (n.kind === 'update') {
     // Quit and relaunch into the downloaded update (Phase 7.3).
-    void window.rookery.update.install()
+    void rookery().update.install()
     return
   }
   if (n.runId) {

@@ -7,6 +7,7 @@ import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
 import { useRunsStore } from '@renderer/stores/runs'
+import { rookery } from '@renderer/lib/rookery'
 
 const props = defineProps<{ id: string }>()
 const runsStore = useRunsStore()
@@ -40,14 +41,14 @@ async function refresh(): Promise<void> {
   if (!d) notFound.value = true
   else detail.value = d
   try {
-    infra.value = await window.rookery.runs.infra(props.id)
+    infra.value = await rookery().runs.infra(props.id)
   } catch {
     infra.value = null
   }
   // Landing is only relevant once a run has succeeded (Phase 6.4).
   if (d?.run.status === 'passed') {
     try {
-      landing.value = await window.rookery.runs.landTargets(props.id)
+      landing.value = await rookery().runs.landTargets(props.id)
     } catch {
       landing.value = null
     }
@@ -60,7 +61,7 @@ async function landRepo(repo: string, method: LandingMethod): Promise<void> {
   landingError.value = null
   landingAction.value = `${repo}:${method}`
   try {
-    await window.rookery.runs.land({
+    await rookery().runs.land({
       runId: props.id,
       repo,
       method,
@@ -78,7 +79,7 @@ async function teardownInfra(): Promise<void> {
   landingError.value = null
   tearingDown.value = true
   try {
-    await window.rookery.runs.teardown(props.id)
+    await rookery().runs.teardown(props.id)
     await refresh()
   } catch (e) {
     landingError.value = e instanceof Error ? e.message : String(e)

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { WorkflowDef, WorkflowDefBody } from '@shared/domain'
+import { rookery } from '@renderer/lib/rookery'
 
 export const useWorkflowsStore = defineStore('workflows', () => {
   const items = ref<WorkflowDef[]>([])
@@ -9,30 +10,30 @@ export const useWorkflowsStore = defineStore('workflows', () => {
   async function load(): Promise<void> {
     loading.value = true
     try {
-      items.value = await window.rookery.workflows.list()
+      items.value = await rookery().workflows.list()
     } finally {
       loading.value = false
     }
   }
 
   function get(id: string): Promise<WorkflowDef | null> {
-    return window.rookery.workflows.get(id)
+    return rookery().workflows.get(id)
   }
 
   async function create(input: WorkflowDefBody): Promise<WorkflowDef> {
-    const def = await window.rookery.workflows.create(input)
+    const def = await rookery().workflows.create(input)
     await load()
     return def
   }
 
   async function update(id: string, input: WorkflowDefBody): Promise<WorkflowDef> {
-    const def = await window.rookery.workflows.update(id, input)
+    const def = await rookery().workflows.update(id, input)
     await load()
     return def
   }
 
   async function remove(id: string): Promise<void> {
-    await window.rookery.workflows.remove(id)
+    await rookery().workflows.remove(id)
     await load()
   }
 

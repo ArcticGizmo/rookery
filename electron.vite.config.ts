@@ -29,6 +29,10 @@ export default defineConfig({
       }
     },
     plugins: [vue(), tailwindcss()],
+    server: {
+      port: 3500,
+      strictPort: true
+    },
     build: {
       rollupOptions: {
         input: resolve('src/renderer/index.html')

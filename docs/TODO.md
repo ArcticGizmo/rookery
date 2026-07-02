@@ -1,0 +1,3 @@
+- repo path should open a file selector or at least use autocomplete
+- remote URL should be learnt from the git folder (if possible)
+- would be ideal if the spec was richly rendered in markdown

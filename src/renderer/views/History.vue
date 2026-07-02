@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { EventActor, ListEventsOptions, StoredEvent } from '@shared/events'
+import { rookery } from '@renderer/lib/rookery'
 
 const PAGE_SIZE = 100
 
@@ -40,7 +41,7 @@ function baseOptions(): ListEventsOptions {
 async function query(): Promise<void> {
   loading.value = true
   try {
-    const rows = await window.rookery.events.list(baseOptions())
+    const rows = await rookery().events.list(baseOptions())
     results.value = rows
     hasMore.value = rows.length === PAGE_SIZE
   } finally {
@@ -53,7 +54,7 @@ async function loadMore(): Promise<void> {
   if (!oldest) return
   loading.value = true
   try {
-    const rows = await window.rookery.events.list({ ...baseOptions(), beforeId: oldest.id })
+    const rows = await rookery().events.list({ ...baseOptions(), beforeId: oldest.id })
     results.value = [...results.value, ...rows]
     hasMore.value = rows.length === PAGE_SIZE
   } finally {
