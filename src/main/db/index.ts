@@ -42,6 +42,22 @@ export function getDb(): Db {
   return dbInstance
 }
 
+/**
+ * Debug-only: delete every row from every table, returning the database to its
+ * freshly-migrated (empty) state. Deletes children before parents so it holds
+ * even if a foreign key lacks `onDelete: 'cascade'`. Kept out of a transaction
+ * to stay compatible with in-memory test databases (see MEMORY).
+ */
+export async function resetAllData(db: Db): Promise<void> {
+  await db.delete(schema.stageExecutions)
+  await db.delete(schema.runs)
+  await db.delete(schema.specVersions)
+  await db.delete(schema.repos)
+  await db.delete(schema.workItems)
+  await db.delete(schema.workflowDefs)
+  await db.delete(schema.events)
+}
+
 export function closeDb(): void {
   client?.close()
   client = null

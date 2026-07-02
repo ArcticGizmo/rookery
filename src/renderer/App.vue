@@ -24,6 +24,28 @@ const links = [
 ]
 
 const open = ref(false)
+const resetting = ref(false)
+
+// Only present in dev builds (`electron-vite dev`); tree-shaken out of releases.
+const isDev = import.meta.env.DEV
+
+async function resetAllData(): Promise<void> {
+  if (resetting.value) return
+  const ok = window.confirm(
+    'Delete ALL local data — work items, runs, workflows, and the event log?\n\nThis cannot be undone.'
+  )
+  if (!ok) return
+  resetting.value = true
+  try {
+    await rookery().debug.resetData()
+    // Every store caches data loaded on mount; a reload re-fetches from the now
+    // empty database rather than trying to reconcile each store by hand.
+    window.location.reload()
+  } catch (error) {
+    resetting.value = false
+    window.alert(`Failed to reset data: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
 
 function isActive(to: string): boolean {
   if (to === '/') return route.path === '/'
@@ -83,8 +105,20 @@ onMounted(() => {
           </RouterLink>
         </nav>
 
+        <!-- Debug-only: wipe all local data (dev builds only) -->
+        <button
+          v-if="isDev"
+          type="button"
+          class="ml-auto rounded-md border border-red-500/40 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+          :disabled="resetting"
+          title="Delete all local data (dev only)"
+          @click="resetAllData"
+        >
+          {{ resetting ? 'Resetting…' : 'Reset data' }}
+        </button>
+
         <!-- Notifications (Phase 6.5) -->
-        <div class="relative ml-auto">
+        <div class="relative" :class="isDev ? '' : 'ml-auto'">
           <button
             type="button"
             class="relative flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"

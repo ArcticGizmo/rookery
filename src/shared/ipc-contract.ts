@@ -63,7 +63,9 @@ export const IPC = {
   runsTeardown: 'runs:teardown',
   // Auto-update
   updateCheck: 'update:check',
-  updateInstall: 'update:install'
+  updateInstall: 'update:install',
+  // Debug tooling (dev builds only)
+  debugResetData: 'debug:reset-data'
 } as const
 
 /** Request/response channels: renderer invokes, main handles. */
@@ -110,6 +112,8 @@ export interface IpcInvokeMap {
 
   'update:check': { args: []; result: void }
   'update:install': { args: []; result: void }
+
+  'debug:reset-data': { args: []; result: void }
 }
 
 /** Push channels: main sends, renderer listens. */

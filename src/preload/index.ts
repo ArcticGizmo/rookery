@@ -59,6 +59,9 @@ const api: RookeryApi = {
   update: {
     check: () => ipcRenderer.invoke(IPC.updateCheck),
     install: () => ipcRenderer.invoke(IPC.updateInstall)
+  },
+  debug: {
+    resetData: () => ipcRenderer.invoke(IPC.debugResetData)
   }
 }
 

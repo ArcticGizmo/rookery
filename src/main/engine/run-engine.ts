@@ -304,6 +304,24 @@ export class RunEngine {
     this.cancelled.delete(runId)
   }
 
+  /**
+   * Cancel every run that hasn't reached a terminal state. Used by the debug
+   * data-reset tool so live agents are stopped before their rows are wiped —
+   * otherwise a still-running drive loop would keep emitting events into the
+   * freshly-cleared log. Best-effort: a failure to cancel one run must not stop
+   * the others (or the reset). Returns the number of runs cancelled.
+   */
+  async cancelAllInFlight(): Promise<number> {
+    const all = await this.runs.list()
+    const inFlight = all.filter((r) => !isTerminal(r.status))
+    for (const run of inFlight) {
+      await this.cancel(run.id).catch((error) =>
+        console.error(`Failed to cancel run ${run.id} during reset:`, error)
+      )
+    }
+    return inFlight.length
+  }
+
   /** Live infrastructure status for a run, for the run view (Phase 5.5). */
   async runInfra(runId: string): Promise<RunInfra> {
     const provider = this.infra.providerName()

@@ -93,4 +93,8 @@ export interface RookeryApi {
     /** Quit and install a downloaded update (the "restart to update" action). */
     install: () => Promise<void>
   }
+  debug: {
+    /** Dev-only: delete all persisted data (work items, runs, workflows, events). */
+    resetData: () => Promise<void>
+  }
 }

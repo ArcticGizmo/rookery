@@ -90,6 +90,7 @@ async function bootstrap(): Promise<void> {
   update.start()
 
   registerIpc({
+    db,
     auditLog,
     workItems,
     specs,

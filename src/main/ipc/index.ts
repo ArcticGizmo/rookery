@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { IPC } from '@shared/ipc-contract'
+import { type Db, resetAllData } from '../db'
 import type { ListEventsOptions } from '@shared/events'
 import type {
   AgentRunConfig,
@@ -22,6 +23,7 @@ import type { WorkflowService } from '../services/workflow-service'
 import type { WorkspaceService } from '../services/workspace-service'
 
 export interface IpcServices {
+  db: Db
   auditLog: AuditLog
   workItems: WorkItemService
   specs: SpecService
@@ -37,8 +39,19 @@ export interface IpcServices {
 
 /** Register request/response handlers and wire event-log push to all windows. */
 export function registerIpc(services: IpcServices): void {
-  const { auditLog, workItems, specs, workflows, agent, runs, engine, landing, workspace, update } =
-    services
+  const {
+    db,
+    auditLog,
+    workItems,
+    specs,
+    workflows,
+    agent,
+    runs,
+    engine,
+    landing,
+    workspace,
+    update
+  } = services
 
   ipcMain.handle(IPC.appPing, () => 'pong')
 
@@ -103,6 +116,14 @@ export function registerIpc(services: IpcServices): void {
   // Auto-update: no-op when the service isn't wired (e.g. unpackaged dev).
   ipcMain.handle(IPC.updateCheck, () => update?.check())
   ipcMain.handle(IPC.updateInstall, () => update?.install())
+
+  // Debug tooling: cancel any live runs (stopping their agents), then wipe every
+  // table. Gated to dev builds in the renderer, which only exposes the button
+  // when `import.meta.env.DEV` is set.
+  ipcMain.handle(IPC.debugResetData, async () => {
+    await engine.cancelAllInFlight()
+    await resetAllData(db)
+  })
 
   auditLog.onAppend((event) => {
     for (const window of BrowserWindow.getAllWindows()) {
