@@ -27,6 +27,16 @@ export interface BriefInFlight {
 /** Why a flight needs the human. `checkpoint`/`verification` are decisions; `pressure` is a warning. */
 export type AttentionKind = 'checkpoint' | 'verification' | 'pressure'
 
+/**
+ * A decision is genuinely the human's to make (a held checkpoint or a
+ * verification escalation) — distinct from an ambient warning (context
+ * pressure) that's worth a glance but needs no action. The "Needs you" surfaces
+ * lead with decisions and keep warnings quieter.
+ */
+export function isDecision(kind: AttentionKind): boolean {
+  return kind === 'checkpoint' || kind === 'verification'
+}
+
 export interface AttentionItem {
   flightId: string
   kind: AttentionKind

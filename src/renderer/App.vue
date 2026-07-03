@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import type { NotificationItem } from '@shared/notifications'
-import { briefsInFlight, needsYou } from '@shared/attention'
+import { briefsInFlight, isDecision, needsYou } from '@shared/attention'
 import { useEventsStore } from '@renderer/stores/events'
 import { useNotificationsStore } from '@renderer/stores/notifications'
 import { useTheme } from '@renderer/composables/use-theme'
@@ -28,8 +28,10 @@ const links = [
 ]
 
 // Live attention counts for the two lanes (Phase J2.4), derived from the event log.
+// The beacon lane counts decisions that are genuinely yours; ambient warnings
+// (context pressure) don't inflate it (J8.4).
 const inFlightCount = computed(() => briefsInFlight(events.value).length)
-const needsYouCount = computed(() => needsYou(events.value).length)
+const needsYouCount = computed(() => needsYou(events.value).filter((n) => isDecision(n.kind)).length)
 
 const open = ref(false)
 const resetting = ref(false)

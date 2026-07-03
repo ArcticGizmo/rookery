@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StoredEvent } from '../../src/shared/events'
-import { briefsInFlight, needsYou } from '../../src/shared/attention'
+import { briefsInFlight, isDecision, needsYou } from '../../src/shared/attention'
 
 /** Ordered event-log builder: ids/timestamps increase with insertion. */
 function log() {
@@ -135,5 +135,13 @@ describe('needsYou', () => {
     l.add('flight.checkpoint_awaiting', { checkpointId: 'g', description: 'x' }, { flightId: 'r' })
     l.add('flight.finished', { flightId: 'r', status: 'cancelled' }, { flightId: 'r' })
     expect(needsYou(l.events)).toHaveLength(0)
+  })
+})
+
+describe('isDecision', () => {
+  it('treats checkpoints and verification escalations as decisions, pressure as a warning', () => {
+    expect(isDecision('checkpoint')).toBe(true)
+    expect(isDecision('verification')).toBe(true)
+    expect(isDecision('pressure')).toBe(false)
   })
 })

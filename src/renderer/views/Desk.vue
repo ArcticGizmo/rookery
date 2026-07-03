@@ -2,7 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink } from 'vue-router'
-import { briefsInFlight, needsYou } from '@shared/attention'
+import { briefsInFlight, isDecision, needsYou } from '@shared/attention'
 import type { InFlightStatus } from '@shared/attention'
 import { useEventsStore } from '@renderer/stores/events'
 import { useBriefsStore } from '@renderer/stores/briefs'
@@ -23,7 +23,9 @@ onMounted(() => {
 })
 
 const inFlight = computed(() => briefsInFlight(events.value))
-const needs = computed(() => needsYou(events.value))
+// Decisions that are genuinely yours lead; ambient warnings stay quieter (J8.4).
+const decisions = computed(() => needsYou(events.value).filter((n) => isDecision(n.kind)))
+const warnings = computed(() => needsYou(events.value).filter((n) => !isDecision(n.kind)))
 
 function briefTitle(briefId: string | null): string {
   if (!briefId) return 'Untitled brief'
@@ -60,11 +62,11 @@ const statusLabel: Record<InFlightStatus, string> = {
       </p>
     </section>
 
-    <!-- Needs you -->
-    <section v-if="needs.length" class="flex flex-col gap-3">
-      <MonoLabel class="text-beacon">◆ Needs you · {{ needs.length }}</MonoLabel>
+    <!-- Needs you: decisions that are genuinely yours (J8.4) -->
+    <section v-if="decisions.length" class="flex flex-col gap-3">
+      <MonoLabel class="text-beacon">◆ Needs you · {{ decisions.length }}</MonoLabel>
       <ul class="flex flex-col gap-2">
-        <li v-for="item in needs" :key="`${item.flightId}-${item.kind}-${item.ts}`">
+        <li v-for="item in decisions" :key="`${item.flightId}-${item.kind}-${item.ts}`">
           <RouterLink
             :to="`/flight/${item.flightId}`"
             class="flex items-center gap-3 rounded-xl border border-beacon bg-beacon-wash/60 px-4 py-3 transition-colors hover:bg-beacon-wash"
@@ -75,6 +77,25 @@ const statusLabel: Record<InFlightStatus, string> = {
               <span class="block truncate text-xs text-ink-dim">{{ item.detail }}</span>
             </span>
             <span class="mono-label shrink-0 text-beacon">resolve →</span>
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Heads up: ambient warnings — worth a glance, no action required (J8.4) -->
+    <section v-if="warnings.length" class="flex flex-col gap-2">
+      <MonoLabel class="text-ink-faint">Heads up · {{ warnings.length }}</MonoLabel>
+      <ul class="flex flex-col gap-2">
+        <li v-for="item in warnings" :key="`${item.flightId}-${item.kind}-${item.ts}`">
+          <RouterLink
+            :to="`/flight/${item.flightId}`"
+            class="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 transition-colors hover:border-border-strong"
+          >
+            <span class="text-ink-faint" aria-hidden="true">⚠</span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm">{{ item.title }}</span>
+              <span class="block truncate text-xs text-muted-foreground">{{ item.detail }}</span>
+            </span>
           </RouterLink>
         </li>
       </ul>
