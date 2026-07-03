@@ -33,3 +33,55 @@ export function eventsByStage(events: StoredEvent[]): Map<string, StoredEvent[]>
   }
   return byStage
 }
+
+// --- "Right now" (J7.4): who's working + context pressure -------------------
+
+/** An agent currently in the air (spawned, not yet finished/errored/cancelled). */
+export interface ActiveAgent {
+  agentRunId: string
+  personaName: string
+  model: string
+}
+
+/** The most recent context-pressure reading, with its health band. */
+export interface PressureReading {
+  percent: number
+  level: 'ok' | 'warn' | 'high'
+}
+
+export interface RightNow {
+  agents: ActiveAgent[]
+  pressure: PressureReading | null
+}
+
+/**
+ * Fold the event stream into a live snapshot: which agents are working right
+ * now and the latest context-pressure reading. An agent is active from its
+ * `agent.spawned` until an `agent.finished` / `agent.error` / `agent.cancelled`
+ * for the same run. Pure so it can be unit-tested and recomputed per frame.
+ */
+export function rightNow(events: StoredEvent[]): RightNow {
+  const active = new Map<string, ActiveAgent>()
+  let pressure: PressureReading | null = null
+  for (const event of events) {
+    const p = event.payload as Record<string, unknown>
+    switch (event.type) {
+      case 'agent.spawned':
+        active.set(String(p.agentRunId), {
+          agentRunId: String(p.agentRunId),
+          personaName: String(p.personaName),
+          model: String(p.model)
+        })
+        break
+      case 'agent.finished':
+      case 'agent.error':
+      case 'agent.cancelled':
+        active.delete(String(p.agentRunId))
+        break
+      case 'agent.context_pressure':
+        pressure = { percent: Number(p.percent), level: p.level as PressureReading['level'] }
+        break
+    }
+  }
+  return { agents: [...active.values()], pressure }
+}

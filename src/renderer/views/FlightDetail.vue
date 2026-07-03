@@ -9,7 +9,7 @@ import type {
   StageStatus
 } from '@shared/domain'
 import { type ChainItem, type ChainTool, buildChainOfThought } from '@shared/chain-of-thought'
-import { eventsByStage } from '@shared/flight-timeline'
+import { eventsByStage, rightNow } from '@shared/flight-timeline'
 import { holdCount } from '@shared/checkpoint-rail'
 import { stageRoles } from '@shared/approach-view'
 import type { StoredEvent } from '@shared/events'
@@ -77,6 +77,37 @@ const phaseLabel = computed(() => {
 const checkpointCount = computed(() =>
   detail.value ? holdCount(detail.value.approach.stages, detail.value.approach.landing) : 0
 )
+
+// --- "Right now" strip (J7.4): who's working + context pressure -------------
+
+const nowSnapshot = computed(() => rightNow(runEvents.value))
+
+// personaName → role, resolved from the approach (the spawn event omits role).
+const personaRoles = computed(() => {
+  const map = new Map<string, string>()
+  for (const stage of detail.value?.approach.stages ?? []) {
+    for (const persona of stage.personas) map.set(persona.name, persona.role)
+  }
+  return map
+})
+function agentRole(agent: { personaName: string; model: string }): string {
+  return personaRoles.value.get(agent.personaName) || agent.model
+}
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  return parts.map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'
+}
+
+const PRESSURE_TONE: Record<'ok' | 'warn' | 'high', string> = {
+  ok: 'bg-pass',
+  warn: 'bg-beacon',
+  high: 'bg-block'
+}
+const PRESSURE_LABEL: Record<'ok' | 'warn' | 'high', string> = {
+  ok: 'healthy',
+  warn: 'warming',
+  high: 'high'
+}
 
 const elapsedMs = computed(() => {
   const f = detail.value?.flight
@@ -578,6 +609,53 @@ onUnmounted(() => {
           </div>
         </dl>
       </div>
+
+      <!-- "Right now": who's working + context pressure (J7.4). -->
+      <section
+        v-if="inAir && (nowSnapshot.agents.length || nowSnapshot.pressure)"
+        class="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4"
+      >
+        <div class="flex items-center gap-3">
+          <MonoLabel class="text-ink-faint">right now</MonoLabel>
+          <div v-if="nowSnapshot.agents.length" class="flex items-center gap-2">
+            <div
+              v-for="agent in nowSnapshot.agents"
+              :key="agent.agentRunId"
+              class="flex items-center gap-2"
+              :title="`${agent.personaName} · ${agentRole(agent)}`"
+            >
+              <span
+                class="grid size-7 shrink-0 place-items-center rounded-full bg-accent-wash text-xs font-semibold text-primary"
+              >
+                {{ initials(agent.personaName) }}
+              </span>
+              <span class="text-sm text-muted-foreground">{{ agentRole(agent) }}</span>
+            </div>
+          </div>
+          <span v-else class="text-sm text-ink-faint">Thinking…</span>
+        </div>
+
+        <div v-if="nowSnapshot.pressure" class="flex min-w-40 flex-1 items-center gap-2">
+          <MonoLabel class="text-ink-faint">context</MonoLabel>
+          <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
+            <div
+              class="h-full rounded-full transition-all"
+              :class="PRESSURE_TONE[nowSnapshot.pressure.level]"
+              :style="{ width: `${Math.min(100, Math.max(2, nowSnapshot.pressure.percent))}%` }"
+            ></div>
+          </div>
+          <span
+            class="mono-label shrink-0 tabular-nums"
+            :class="{
+              'text-pass': nowSnapshot.pressure.level === 'ok',
+              'text-beacon': nowSnapshot.pressure.level === 'warn',
+              'text-block': nowSnapshot.pressure.level === 'high'
+            }"
+          >
+            {{ Math.round(nowSnapshot.pressure.percent) }}% · {{ PRESSURE_LABEL[nowSnapshot.pressure.level] }}
+          </span>
+        </div>
+      </section>
 
       <!-- Milestone timeline: broad milestones that zoom to granular detail (J7.2/J7.3). -->
       <section class="flex flex-col">

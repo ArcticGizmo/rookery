@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventsByStage } from '../../src/shared/flight-timeline'
+import { eventsByStage, rightNow } from '../../src/shared/flight-timeline'
 import type { StoredEvent } from '../../src/shared/events'
 
 let seq = 0
@@ -57,5 +57,39 @@ describe('eventsByStage', () => {
       'agent.message'
     ])
     expect(s1?.at(-1)?.payload).toMatchObject({ text: 'try 2' })
+  })
+})
+
+describe('rightNow', () => {
+  it('lists agents that are spawned but not yet finished', () => {
+    const events = [
+      ev('agent.spawned', { agentRunId: 'a1', personaName: 'Engineer', model: 'opus' }),
+      ev('agent.spawned', { agentRunId: 'a2', personaName: 'Reviewer', model: 'sonnet' }),
+      ev('agent.finished', { agentRunId: 'a1' })
+    ]
+    const snapshot = rightNow(events)
+    expect(snapshot.agents.map((a) => a.personaName)).toEqual(['Reviewer'])
+  })
+
+  it('drops agents on error and cancellation too', () => {
+    const events = [
+      ev('agent.spawned', { agentRunId: 'a1', personaName: 'A', model: 'm' }),
+      ev('agent.spawned', { agentRunId: 'a2', personaName: 'B', model: 'm' }),
+      ev('agent.error', { agentRunId: 'a1', message: 'boom' }),
+      ev('agent.cancelled', { agentRunId: 'a2' })
+    ]
+    expect(rightNow(events).agents).toEqual([])
+  })
+
+  it('reports the latest context-pressure reading and band', () => {
+    const events = [
+      ev('agent.context_pressure', { agentRunId: 'a1', percent: 30, level: 'ok' }),
+      ev('agent.context_pressure', { agentRunId: 'a1', percent: 88, level: 'high' })
+    ]
+    expect(rightNow(events).pressure).toEqual({ percent: 88, level: 'high' })
+  })
+
+  it('has no pressure reading before any is emitted', () => {
+    expect(rightNow([ev('agent.spawned', { agentRunId: 'a', personaName: 'A', model: 'm' })]).pressure).toBeNull()
   })
 })
