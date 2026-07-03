@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1782904812170,
-      "tag": "0000_lucky_stellaris",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1782906421437,
-      "tag": "0001_new_frank_castle",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1782910544949,
-      "tag": "0002_silky_rhino",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1782952114228,
-      "tag": "0003_infra_columns",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1782956030035,
-      "tag": "0004_lucky_hercules",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1782996341680,
-      "tag": "0005_noisy_slapstick",
+      "when": 1783085248492,
+      "tag": "0000_redundant_slipstream",
       "breakpoints": true
     }
   ]

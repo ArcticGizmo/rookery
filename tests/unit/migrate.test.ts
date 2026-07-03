@@ -28,8 +28,10 @@ describe('migration guardrails (Phase 7.2)', () => {
   })
 
   it('bundledMigrationCount matches the committed migrations', () => {
-    // The repo ships 6 migrations (drizzle/meta/_journal.json).
-    expect(bundledMigrationCount('drizzle')).toBe(6)
+    // The repo ships a single baseline migration (drizzle/meta/_journal.json):
+    // the great rename (Phase J1) reshaped the schema directly on a fresh
+    // forward-only baseline, since pre-release data isn't preserved (journey.md §3).
+    expect(bundledMigrationCount('drizzle')).toBe(1)
   })
 
   it('appliedMigrationCount reflects a freshly-migrated database', async () => {
