@@ -5,8 +5,8 @@ import {
   type RunDetail,
   type RunExecutionMode,
   type StageExecution,
-  type WorkflowDefBody,
-  workflowDefBodySchema
+  type ApproachDefBody,
+  approachDefBodySchema
 } from '@shared/domain'
 import type { RunSnapshot, StageSnapshot } from '@shared/run-state-machine'
 import type { Db } from '../db'
@@ -16,8 +16,8 @@ function toRun(row: RunRow): Run {
   return {
     id: row.id,
     briefId: row.briefId,
-    workflowId: row.workflowId,
-    workflowVersion: row.workflowVersion,
+    approachId: row.approachId,
+    approachVersion: row.approachVersion,
     status: row.status as Run['status'],
     currentStageIndex: row.currentStageIndex,
     createdAt: row.createdAt,
@@ -40,9 +40,9 @@ function toStage(row: StageExecutionRow): StageExecution {
 
 export interface CreateRunParams {
   briefId: string
-  workflowId: string
-  workflowVersion: number
-  body: WorkflowDefBody
+  approachId: string
+  approachVersion: number
+  body: ApproachDefBody
   maxIterations: number
   /** Automatic verification→fix route-backs before escalation (Phase 6.3). */
   maxVerificationCycles: number
@@ -59,7 +59,7 @@ export interface CreateRunParams {
 /** Context the engine needs to drive a run. */
 export interface RunContext {
   briefId: string
-  body: WorkflowDefBody
+  body: ApproachDefBody
   maxIterations: number
   maxVerificationCycles: number
   infraTemplate: string | null
@@ -79,9 +79,9 @@ export class RunStore {
       await tx.insert(runs).values({
         id,
         briefId: params.briefId,
-        workflowId: params.workflowId,
-        workflowVersion: params.workflowVersion,
-        workflowBody: params.body,
+        approachId: params.approachId,
+        approachVersion: params.approachVersion,
+        approachBody: params.body,
         status: 'pending',
         currentStageIndex: 0,
         maxIterations: params.maxIterations,
@@ -126,7 +126,7 @@ export class RunStore {
     if (!row) return null
     return {
       briefId: row.briefId,
-      body: workflowDefBodySchema.parse(row.workflowBody),
+      body: approachDefBodySchema.parse(row.approachBody),
       maxIterations: row.maxIterations,
       maxVerificationCycles: row.maxVerificationCycles,
       infraTemplate: row.infraTemplate ?? null,
@@ -145,13 +145,13 @@ export class RunStore {
       .from(stageExecutions)
       .where(eq(stageExecutions.runId, runId))
       .orderBy(asc(stageExecutions.stageIndex))
-    const body = workflowDefBodySchema.parse(row.workflowBody)
+    const body = approachDefBodySchema.parse(row.approachBody)
     return {
       run: toRun(row),
       stages: stageRows.map(toStage),
-      workflow: {
-        id: row.workflowId,
-        version: row.workflowVersion,
+      approach: {
+        id: row.approachId,
+        version: row.approachVersion,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         ...body

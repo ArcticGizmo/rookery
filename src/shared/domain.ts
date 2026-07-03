@@ -1,5 +1,5 @@
 /**
- * Domain model for work items and workflow definitions.
+ * Domain model for work items and approach definitions.
  *
  * zod schemas are the source of truth; TypeScript types are inferred from them
  * so validation and typing never drift. This module is imported by all three
@@ -87,7 +87,7 @@ export const updateBriefInputSchema = z.object({
 })
 export type UpdateBriefInput = z.infer<typeof updateBriefInputSchema>
 
-// --- Workflow building blocks ----------------------------------------------
+// --- Approach building blocks ----------------------------------------------
 
 /** Kinds of stage, mirroring the Example 1 flow in idea.md. */
 export const stageTypeSchema = z.enum([
@@ -154,7 +154,7 @@ export const agentPersonaSchema = z.object({
 })
 export type AgentPersona = z.infer<typeof agentPersonaSchema>
 
-/** A single stage in a workflow. Order is the array index in `WorkflowDef.stages`. */
+/** A single stage in a approach. Order is the array index in `ApproachDef.stages`. */
 export const stageSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1, 'Stage name is required'),
@@ -165,24 +165,24 @@ export const stageSchema = z.object({
 })
 export type Stage = z.infer<typeof stageSchema>
 
-// --- Workflow definitions ---------------------------------------------------
+// --- Approach definitions ---------------------------------------------------
 
-/** The editable body of a workflow (what the builder produces and validates). */
-export const workflowDefBodySchema = z.object({
-  name: z.string().min(1, 'Workflow name is required'),
+/** The editable body of a approach (what the builder produces and validates). */
+export const approachDefBodySchema = z.object({
+  name: z.string().min(1, 'Approach name is required'),
   description: z.string().default(''),
   stages: z.array(stageSchema).default([])
 })
-export type WorkflowDefBody = z.infer<typeof workflowDefBodySchema>
+export type ApproachDefBody = z.infer<typeof approachDefBodySchema>
 
-/** A persisted workflow definition. `version` bumps on every saved edit. */
-export const workflowDefSchema = workflowDefBodySchema.extend({
+/** A persisted approach definition. `version` bumps on every saved edit. */
+export const approachDefSchema = approachDefBodySchema.extend({
   id: z.string(),
   version: z.number().int().positive(),
   createdAt: z.string(),
   updatedAt: z.string()
 })
-export type WorkflowDef = z.infer<typeof workflowDefSchema>
+export type ApproachDef = z.infer<typeof approachDefSchema>
 
 // --- Single-agent runs (Phase 3) -------------------------------------------
 
@@ -234,12 +234,12 @@ export type RunStatus = z.infer<typeof runStatusSchema>
 export const stageStatusSchema = z.enum(['pending', 'running', 'awaiting_gate', 'passed', 'failed'])
 export type StageStatus = z.infer<typeof stageStatusSchema>
 
-/** A single execution of a workflow over a work item. */
+/** A single execution of a approach over a work item. */
 export interface Run {
   id: string
   briefId: string
-  workflowId: string
-  workflowVersion: number
+  approachId: string
+  approachVersion: number
   status: RunStatus
   currentStageIndex: number
   createdAt: string
@@ -258,11 +258,11 @@ export interface StageExecution {
   finishedAt: string | null
 }
 
-/** Aggregate for the run view: the run, its stage executions, and the workflow. */
+/** Aggregate for the run view: the run, its stage executions, and the approach. */
 export interface RunDetail {
   run: Run
   stages: StageExecution[]
-  workflow: WorkflowDef
+  approach: ApproachDef
 }
 
 export const gateDecisionSchema = z.enum(['approve', 'reject', 'request_changes'])
@@ -284,7 +284,7 @@ export type RunExecutionMode = z.infer<typeof runExecutionModeSchema>
 
 export const startRunInputSchema = z.object({
   briefId: z.string().min(1),
-  workflowId: z.string().min(1),
+  approachId: z.string().min(1),
   /** Max implementer→reviewer iterations per stage before failing (default 3). */
   maxIterations: z.number().int().positive().max(20).default(3),
   /**

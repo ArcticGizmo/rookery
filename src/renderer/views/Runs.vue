@@ -3,23 +3,23 @@ import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRouter } from 'vue-router'
 import type { RunExecutionMode } from '@shared/domain'
-import { validateWorkflow } from '@shared/workflow-validation'
+import { validateApproach } from '@shared/approach-validation'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useRunsStore } from '@renderer/stores/runs'
 import { useBriefsStore } from '@renderer/stores/briefs'
-import { useWorkflowsStore } from '@renderer/stores/workflows'
+import { useApproachesStore } from '@renderer/stores/approaches'
 
 const router = useRouter()
 const runsStore = useRunsStore()
 const briefsStore = useBriefsStore()
-const workflowsStore = useWorkflowsStore()
+const approachesStore = useApproachesStore()
 
 const { items, loading } = storeToRefs(runsStore)
 const { items: briefs } = storeToRefs(briefsStore)
-const { items: workflows } = storeToRefs(workflowsStore)
+const { items: approaches } = storeToRefs(approachesStore)
 
 const briefId = ref('')
-const workflowId = ref('')
+const approachId = ref('')
 const maxIterations = ref(3)
 const maxVerificationCycles = ref(2)
 const executionMode = ref<RunExecutionMode>('read_only')
@@ -29,10 +29,10 @@ const teardownOnComplete = ref(true)
 const error = ref<string | null>(null)
 const starting = ref(false)
 
-const selectedWorkflowValid = computed(() => {
-  const wf = workflows.value.find((w) => w.id === workflowId.value)
+const selectedApproachValid = computed(() => {
+  const wf = approaches.value.find((w) => w.id === approachId.value)
   return wf
-    ? validateWorkflow({ name: wf.name, description: wf.description, stages: wf.stages }).ok
+    ? validateApproach({ name: wf.name, description: wf.description, stages: wf.stages }).ok
     : false
 })
 
@@ -40,8 +40,8 @@ const canStart = computed(
   () =>
     !starting.value &&
     briefId.value !== '' &&
-    workflowId.value !== '' &&
-    selectedWorkflowValid.value &&
+    approachId.value !== '' &&
+    selectedApproachValid.value &&
     (executionMode.value !== 'local_branch' || workBranch.value.trim() !== '')
 )
 
@@ -68,7 +68,7 @@ async function start(): Promise<void> {
   try {
     const run = await runsStore.start({
       briefId: briefId.value,
-      workflowId: workflowId.value,
+      approachId: approachId.value,
       maxIterations: maxIterations.value,
       maxVerificationCycles: maxVerificationCycles.value,
       executionMode: executionMode.value,
@@ -89,7 +89,7 @@ async function start(): Promise<void> {
 onMounted(() => {
   void runsStore.load()
   void briefsStore.load()
-  void workflowsStore.load()
+  void approachesStore.load()
 })
 </script>
 
@@ -97,7 +97,7 @@ onMounted(() => {
   <div class="flex flex-col gap-6">
     <header class="flex flex-col gap-1">
       <h1 class="text-2xl font-bold tracking-tight">Runs</h1>
-      <p class="text-sm text-muted-foreground">Execute a workflow over a work item.</p>
+      <p class="text-sm text-muted-foreground">Execute a approach over a work item.</p>
     </header>
 
     <!-- Start form -->
@@ -116,14 +116,14 @@ onMounted(() => {
           </select>
         </div>
         <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium" for="wf">Workflow</label>
+          <label class="text-sm font-medium" for="wf">Approach</label>
           <select
             id="wf"
-            v-model="workflowId"
+            v-model="approachId"
             class="h-9 rounded-md border border-input bg-background px-2 text-sm"
           >
             <option value="">Select…</option>
-            <option v-for="w in workflows" :key="w.id" :value="w.id">
+            <option v-for="w in approaches" :key="w.id" :value="w.id">
               {{ w.name }} (v{{ w.version }})
             </option>
           </select>
@@ -204,8 +204,8 @@ onMounted(() => {
       <p v-else-if="executionMode === 'read_only'" class="text-xs text-muted-foreground">
         Agents run read-only (plan mode) — they can review and propose but not edit files.
       </p>
-      <p v-if="workflowId && !selectedWorkflowValid" class="text-xs text-amber-700">
-        This workflow has validation issues — fix it in the Workflows builder before running.
+      <p v-if="approachId && !selectedApproachValid" class="text-xs text-amber-700">
+        This approach has validation issues — fix it in the Approaches builder before running.
       </p>
       <div class="flex items-center gap-3">
         <Button :disabled="!canStart" @click="start">{{

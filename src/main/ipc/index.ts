@@ -9,7 +9,7 @@ import type {
   LandRunInput,
   StartRunInput,
   UpdateBriefInput,
-  WorkflowDefBody
+  ApproachDefBody
 } from '@shared/domain'
 import type { RunEngine } from '../engine/run-engine'
 import type { AgentService } from '../services/agent-service'
@@ -19,7 +19,7 @@ import type { RunStore } from '../services/run-store'
 import type { SpecService } from '../services/spec-service'
 import type { UpdateService } from '../services/update-service'
 import type { BriefService } from '../services/brief-service'
-import type { WorkflowService } from '../services/workflow-service'
+import type { ApproachService } from '../services/approach-service'
 import type { WorkspaceService } from '../services/workspace-service'
 
 export interface IpcServices {
@@ -27,7 +27,7 @@ export interface IpcServices {
   auditLog: AuditLog
   briefs: BriefService
   specs: SpecService
-  workflows: WorkflowService
+  approaches: ApproachService
   agent: AgentService
   runs: RunStore
   engine: RunEngine
@@ -44,7 +44,7 @@ export function registerIpc(services: IpcServices): void {
     auditLog,
     briefs,
     specs,
-    workflows,
+    approaches,
     agent,
     runs,
     engine,
@@ -88,14 +88,14 @@ export function registerIpc(services: IpcServices): void {
       specs.diff(briefId, fromVersion, toVersion)
   )
 
-  // Workflow definitions
-  ipcMain.handle(IPC.workflowsList, () => workflows.list())
-  ipcMain.handle(IPC.workflowsGet, (_event, id: string) => workflows.get(id))
-  ipcMain.handle(IPC.workflowsCreate, (_event, input: WorkflowDefBody) => workflows.create(input))
-  ipcMain.handle(IPC.workflowsUpdate, (_event, id: string, input: WorkflowDefBody) =>
-    workflows.update(id, input)
+  // Approach definitions
+  ipcMain.handle(IPC.approachesList, () => approaches.list())
+  ipcMain.handle(IPC.approachesGet, (_event, id: string) => approaches.get(id))
+  ipcMain.handle(IPC.approachesCreate, (_event, input: ApproachDefBody) => approaches.create(input))
+  ipcMain.handle(IPC.approachesUpdate, (_event, id: string, input: ApproachDefBody) =>
+    approaches.update(id, input)
   )
-  ipcMain.handle(IPC.workflowsDelete, (_event, id: string) => workflows.delete(id))
+  ipcMain.handle(IPC.approachesDelete, (_event, id: string) => approaches.delete(id))
 
   // Single-agent runs
   ipcMain.handle(IPC.agentCredentials, () => agent.credentials())

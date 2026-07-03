@@ -142,7 +142,7 @@ const awaitingGate = computed(() => detail.value?.run.status === 'awaiting_gate'
 const currentGate = computed(() => {
   const d = detail.value
   if (!d) return null
-  const stage = d.workflow.stages[d.run.currentStageIndex]
+  const stage = d.approach.stages[d.run.currentStageIndex]
   return stage?.gates.find((g) => g.kind === 'human') ?? null
 })
 
@@ -192,7 +192,7 @@ const backTargets = computed(() => {
 })
 
 function stageName(index: number): string {
-  return detail.value?.workflow.stages[index]?.name ?? `Stage ${index + 1}`
+  return detail.value?.approach.stages[index]?.name ?? `Stage ${index + 1}`
 }
 
 function activityLine(event: StoredEvent): string {
@@ -403,7 +403,7 @@ onMounted(() => {
 
     <template v-else-if="detail">
       <div class="flex items-center gap-3">
-        <span class="text-lg font-semibold">{{ detail.workflow.name }}</span>
+        <span class="text-lg font-semibold">{{ detail.approach.name }}</span>
         <span class="text-xs text-muted-foreground">status: {{ detail.run.status }}</span>
         <span class="flex-1"></span>
         <Button

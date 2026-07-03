@@ -10,15 +10,15 @@ import type {
   PassCriterionType,
   GateKind
 } from '@shared/domain'
-import { validateWorkflow } from '@shared/workflow-validation'
+import { validateApproach } from '@shared/approach-validation'
 import { KNOWN_MODELS } from '@shared/models'
-import { WORKFLOW_TEMPLATES, instantiateTemplate } from '@shared/workflow-templates'
+import { WORKFLOW_TEMPLATES, instantiateTemplate } from '@shared/approach-templates'
 import Button from '@renderer/components/ui/button/Button.vue'
-import { useWorkflowsStore } from '@renderer/stores/workflows'
+import { useApproachesStore } from '@renderer/stores/approaches'
 
 const props = defineProps<{ id?: string }>()
 const router = useRouter()
-const store = useWorkflowsStore()
+const store = useApproachesStore()
 
 const STAGE_TYPES: StageType[] = [
   'review',
@@ -45,11 +45,11 @@ const stages = ref<Stage[]>([])
 const saving = ref(false)
 const error = ref<string | null>(null)
 const notFound = ref(false)
-// New workflows begin at a template chooser; editing an existing one skips it.
+// New approaches begin at a template chooser; editing an existing one skips it.
 const showTemplateChooser = ref(false)
 
 const validation = computed(() =>
-  validateWorkflow({ name: name.value, description: description.value, stages: stages.value })
+  validateApproach({ name: name.value, description: description.value, stages: stages.value })
 )
 
 function issuesFor(prefix: string): string[] {
@@ -147,7 +147,7 @@ async function save(): Promise<void> {
       await store.update(props.id, body)
     } else {
       const created = await store.create(body)
-      await router.push(`/workflows/${created.id}`)
+      await router.push(`/approaches/${created.id}`)
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -159,7 +159,7 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   if (!props.id) return
   await store.remove(props.id)
-  await router.push('/workflows')
+  await router.push('/approaches')
 }
 
 const inputClass =
@@ -182,18 +182,18 @@ watch(
   <div class="flex flex-col gap-6">
     <header class="flex items-center justify-between">
       <h1 class="text-2xl font-bold tracking-tight">
-        {{ isEdit ? 'Edit workflow' : 'New workflow' }}
+        {{ isEdit ? 'Edit approach' : 'New approach' }}
       </h1>
-      <RouterLink to="/workflows" class="text-sm text-muted-foreground hover:underline">
+      <RouterLink to="/approaches" class="text-sm text-muted-foreground hover:underline">
         ← Back to list
       </RouterLink>
     </header>
 
     <p v-if="notFound" class="rounded-md border border-border p-4 text-sm text-muted-foreground">
-      Workflow not found.
+      Approach not found.
     </p>
 
-    <!-- Template chooser (new workflows only). -->
+    <!-- Template chooser (new approaches only). -->
     <section v-else-if="showTemplateChooser" class="flex flex-col gap-3">
       <h2 class="text-sm font-medium">Start from a template</h2>
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -254,7 +254,7 @@ watch(
             : 'border-amber-500/40 bg-amber-500/10 text-amber-700'
         "
       >
-        <template v-if="validation.ok">✓ Workflow is valid and ready to run.</template>
+        <template v-if="validation.ok">✓ Approach is valid and ready to run.</template>
         <template v-else>
           <p class="font-medium">
             {{ validation.issues.length }} issue(s) to resolve before running:
@@ -275,7 +275,7 @@ watch(
         </div>
 
         <p v-if="stages.length === 0" class="text-sm text-muted-foreground">
-          No stages yet. A workflow needs at least one.
+          No stages yet. A approach needs at least one.
         </p>
 
         <article
@@ -430,7 +430,7 @@ watch(
       </section>
 
       <div class="flex items-center gap-3 border-t border-border pt-4">
-        <Button :disabled="saving" @click="save">{{ saving ? 'Saving…' : 'Save workflow' }}</Button>
+        <Button :disabled="saving" @click="save">{{ saving ? 'Saving…' : 'Save approach' }}</Button>
         <Button v-if="isEdit" variant="outline" @click="remove">Delete</Button>
         <span v-if="error" class="text-sm text-red-600">{{ error }}</span>
       </div>

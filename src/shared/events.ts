@@ -13,7 +13,7 @@ export type AppEvent =
   | { type: 'app.update_available'; actor: 'system'; payload: { version: string } }
   | { type: 'app.update_downloaded'; actor: 'system'; payload: { version: string } }
   | { type: 'app.update_error'; actor: 'system'; payload: { message: string } }
-  // Phase 2 — work items, spec versioning, workflow definitions.
+  // Phase 2 — work items, spec versioning, approach definitions.
   | { type: 'brief.created'; actor: 'human'; payload: { briefId: string; title: string } }
   | { type: 'brief.updated'; actor: 'human'; payload: { briefId: string; title: string } }
   | { type: 'brief.deleted'; actor: 'human'; payload: { briefId: string } }
@@ -23,16 +23,16 @@ export type AppEvent =
       payload: { briefId: string; version: number; contentHash: string }
     }
   | {
-      type: 'workflow.created'
+      type: 'approach.created'
       actor: 'human'
-      payload: { workflowId: string; name: string; version: number }
+      payload: { approachId: string; name: string; version: number }
     }
   | {
-      type: 'workflow.updated'
+      type: 'approach.updated'
       actor: 'human'
-      payload: { workflowId: string; name: string; version: number }
+      payload: { approachId: string; name: string; version: number }
     }
-  | { type: 'workflow.deleted'; actor: 'human'; payload: { workflowId: string } }
+  | { type: 'approach.deleted'; actor: 'human'; payload: { approachId: string } }
   // Phase 3 — single-agent runs (Claude Agent SDK).
   | {
       type: 'agent.spawned'
@@ -138,7 +138,7 @@ export type AppEvent =
   | {
       type: 'run.created'
       actor: 'human'
-      payload: { runId: string; briefId: string; workflowId: string; workflowVersion: number }
+      payload: { runId: string; briefId: string; approachId: string; approachVersion: number }
     }
   | { type: 'run.started'; actor: 'system'; payload: { runId: string } }
   | {

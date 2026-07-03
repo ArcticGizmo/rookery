@@ -1,5 +1,5 @@
 /**
- * Structural validation for workflow definitions (Phase 2.5). Runs before a run
+ * Structural validation for approach definitions (Phase 2.5). Runs before a run
  * can start. Pure and dependency-light so it can be used in the renderer (inline
  * builder errors) and the main process (guard before persisting / running).
  *
@@ -9,10 +9,10 @@
 
 import { z } from 'zod'
 import {
-  type WorkflowDefBody,
+  type ApproachDefBody,
   passCriterionTypeSchema,
   stageTypeSchema,
-  workflowDefBodySchema
+  approachDefBodySchema
 } from './domain'
 
 export interface ValidationIssue {
@@ -50,11 +50,11 @@ function firstDuplicate(values: string[]): string | null {
 }
 
 /**
- * Validate a workflow definition body. Returns all issues found (not just the
+ * Validate a approach definition body. Returns all issues found (not just the
  * first) so the builder can surface them together.
  */
-export function validateWorkflow(input: unknown): ValidationResult {
-  const parsed = workflowDefBodySchema.safeParse(input)
+export function validateApproach(input: unknown): ValidationResult {
+  const parsed = approachDefBodySchema.safeParse(input)
   if (!parsed.success) {
     return {
       ok: false,
@@ -65,11 +65,11 @@ export function validateWorkflow(input: unknown): ValidationResult {
     }
   }
 
-  const def: WorkflowDefBody = parsed.data
+  const def: ApproachDefBody = parsed.data
   const issues: ValidationIssue[] = []
 
   if (def.stages.length === 0) {
-    issues.push({ path: 'stages', message: 'A workflow needs at least one stage' })
+    issues.push({ path: 'stages', message: 'A approach needs at least one stage' })
   }
 
   const dupStageId = firstDuplicate(def.stages.map((s) => s.id))

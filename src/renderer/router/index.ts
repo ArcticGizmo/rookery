@@ -33,19 +33,19 @@ export const router = createRouter({
       props: true
     },
     {
-      path: '/workflows',
-      name: 'workflows',
-      component: () => import('@renderer/views/Workflows.vue')
+      path: '/approaches',
+      name: 'approaches',
+      component: () => import('@renderer/views/Approaches.vue')
     },
     {
-      path: '/workflows/new',
-      name: 'workflow-new',
-      component: () => import('@renderer/views/WorkflowBuilder.vue')
+      path: '/approaches/new',
+      name: 'approach-new',
+      component: () => import('@renderer/views/ApproachBuilder.vue')
     },
     {
-      path: '/workflows/:id',
-      name: 'workflow-edit',
-      component: () => import('@renderer/views/WorkflowBuilder.vue'),
+      path: '/approaches/:id',
+      name: 'approach-edit',
+      component: () => import('@renderer/views/ApproachBuilder.vue'),
       props: true
     },
     {

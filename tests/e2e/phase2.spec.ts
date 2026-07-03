@@ -31,7 +31,7 @@ test.afterAll(async () => {
   }
 })
 
-test('create a work item with a versioned spec, then a workflow — both audited', async () => {
+test('create a work item with a versioned spec, then a approach — both audited', async () => {
   const window = await app.firstWindow()
 
   // --- Work item ---
@@ -47,17 +47,17 @@ test('create a work item with a versioned spec, then a workflow — both audited
   await expect(window.locator('h1')).toHaveText('Edit work item')
   await expect(window.getByText('v1', { exact: true })).toBeVisible()
 
-  // --- Workflow ---
-  await window.getByRole('link', { name: 'Workflows' }).click()
-  await window.getByRole('button', { name: 'New workflow' }).click()
-  await expect(window.locator('h1')).toHaveText('New workflow')
+  // --- Approach ---
+  await window.getByRole('link', { name: 'Approaches' }).click()
+  await window.getByRole('button', { name: 'New approach' }).click()
+  await expect(window.locator('h1')).toHaveText('New approach')
 
   await window.locator('#wf-name').fill('E2E basic flow')
   await window.getByRole('button', { name: 'Add stage' }).click()
-  await window.getByRole('button', { name: 'Save workflow' }).click()
-  await expect(window.locator('h1')).toHaveText('Edit workflow')
+  await window.getByRole('button', { name: 'Save approach' }).click()
+  await expect(window.locator('h1')).toHaveText('Edit approach')
 
-  // --- Runs page wiring (start form renders with the created work item/workflow) ---
+  // --- Runs page wiring (start form renders with the created work item/approach) ---
   await window.getByRole('link', { name: 'Runs' }).click()
   await expect(window.locator('h1')).toHaveText('Runs')
   await expect(window.getByRole('heading', { name: 'Start a run' })).toBeVisible()
@@ -68,5 +68,5 @@ test('create a work item with a versioned spec, then a workflow — both audited
   await window.getByRole('link', { name: 'Events' }).click()
   await expect(window.getByText('brief.created').first()).toBeVisible()
   await expect(window.getByText('spec.version_created').first()).toBeVisible()
-  await expect(window.getByText('workflow.created').first()).toBeVisible()
+  await expect(window.getByText('approach.created').first()).toBeVisible()
 })

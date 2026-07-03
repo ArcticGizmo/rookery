@@ -78,9 +78,9 @@ export const specVersions = sqliteTable(
 
 export type SpecVersionRow = typeof specVersions.$inferSelect
 
-/** Workflow definitions. The editable body (stages, personas, gates) is stored as
+/** Approach definitions. The editable body (stages, personas, gates) is stored as
  * JSON; `version` bumps on every saved edit. */
-export const workflowDefs = sqliteTable('workflow_defs', {
+export const approachDefs = sqliteTable('workflow_defs', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   version: integer('version').notNull(),
@@ -89,11 +89,11 @@ export const workflowDefs = sqliteTable('workflow_defs', {
   updatedAt: text('updated_at').notNull()
 })
 
-export type WorkflowDefRow = typeof workflowDefs.$inferSelect
+export type ApproachDefRow = typeof approachDefs.$inferSelect
 
 /**
- * A run: one execution of a workflow over a work item. `workflowBody` snapshots
- * the workflow definition at start so a later edit doesn't mutate an in-flight
+ * A run: one execution of a approach over a work item. `approachBody` snapshots
+ * the approach definition at start so a later edit doesn't mutate an in-flight
  * run. `status`/`currentStageIndex` mirror the run state machine.
  */
 export const runs = sqliteTable(
@@ -103,9 +103,9 @@ export const runs = sqliteTable(
     briefId: text('work_item_id')
       .notNull()
       .references(() => briefs.id, { onDelete: 'cascade' }),
-    workflowId: text('workflow_id').notNull(),
-    workflowVersion: integer('workflow_version').notNull(),
-    workflowBody: text('workflow_body', { mode: 'json' }).notNull(),
+    approachId: text('workflow_id').notNull(),
+    approachVersion: integer('workflow_version').notNull(),
+    approachBody: text('workflow_body', { mode: 'json' }).notNull(),
     status: text('status').notNull(),
     currentStageIndex: integer('current_stage_index').notNull(),
     maxIterations: integer('max_iterations').notNull(),

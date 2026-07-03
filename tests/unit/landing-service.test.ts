@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { WorkflowDefBody } from '../../src/shared/domain'
+import type { ApproachDefBody } from '../../src/shared/domain'
 import { AuditLog } from '../../src/main/services/audit-log'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import { InfraService } from '../../src/main/services/infra-service'
@@ -10,11 +10,11 @@ import { LandingService } from '../../src/main/services/landing-service'
 import { RunStore } from '../../src/main/services/run-store'
 import { SpecService } from '../../src/main/services/spec-service'
 import { BriefService } from '../../src/main/services/brief-service'
-import { WorkflowService } from '../../src/main/services/workflow-service'
+import { ApproachService } from '../../src/main/services/approach-service'
 import { initRunSnapshot } from '../../src/shared/run-state-machine'
 import { makeTestDb, type TestDb } from './helpers/test-db'
 
-function workflowBody(): WorkflowDefBody {
+function approachBody(): ApproachDefBody {
   return {
     name: 'wf',
     description: '',
@@ -27,7 +27,7 @@ describe('LandingService (Phase 6.4)', () => {
   let audit: AuditLog
   let runs: RunStore
   let briefs: BriefService
-  let workflows: WorkflowService
+  let approaches: ApproachService
   let infra: InfraService
   let provider: StubProvider
   let landingProvider: StubLandingProvider
@@ -41,12 +41,12 @@ describe('LandingService (Phase 6.4)', () => {
       spec: 'Build it',
       repos: [{ name: 'api', localPath: 'C:/git/api', remoteUrl: 'https://github.com/x/api.git' }]
     })
-    const wf = await workflows.create(workflowBody())
+    const wf = await approaches.create(approachBody())
     const body = { name: wf.name, description: wf.description, stages: wf.stages }
     const run = await runs.create({
       briefId: wi.brief.id,
-      workflowId: wf.id,
-      workflowVersion: wf.version,
+      approachId: wf.id,
+      approachVersion: wf.version,
       body,
       maxIterations: 3,
       maxVerificationCycles: 2,
@@ -73,7 +73,7 @@ describe('LandingService (Phase 6.4)', () => {
     runs = new RunStore(test.db)
     const specs = new SpecService(test.db, audit)
     briefs = new BriefService(test.db, audit, specs)
-    workflows = new WorkflowService(test.db, audit)
+    approaches = new ApproachService(test.db, audit)
     provider = new StubProvider('/wt', ['api'])
     infra = new InfraService(provider, audit)
     landingProvider = new StubLandingProvider()

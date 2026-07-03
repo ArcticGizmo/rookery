@@ -6,7 +6,7 @@ import {
   type RunExecutionMode,
   type Stage,
   type StartRunInput,
-  type WorkflowDefBody,
+  type ApproachDefBody,
   gateActionInputSchema,
   resolveExecutionMode,
   startRunInputSchema
@@ -28,11 +28,11 @@ import type { LocalBranchService } from '../services/local-branch-service'
 import { instanceNameForRun } from '../services/infra'
 import type { RunStore } from '../services/run-store'
 import type { BriefService } from '../services/brief-service'
-import type { WorkflowService } from '../services/workflow-service'
+import type { ApproachService } from '../services/approach-service'
 import { evaluateCriteria } from './criteria'
 
 interface RunCtx {
-  body: WorkflowDefBody
+  body: ApproachDefBody
   maxIterations: number
   /** Automatic verification→fix route-backs allowed before human escalation (Phase 6.3). */
   maxVerificationCycles: number
@@ -105,15 +105,15 @@ export class RunEngine {
     private readonly audit: AuditLog,
     private readonly agents: AgentService,
     private readonly briefs: BriefService,
-    private readonly workflows: WorkflowService,
+    private readonly approaches: ApproachService,
     private readonly infra: InfraService,
     private readonly localBranch: LocalBranchService
   ) {}
 
   async start(rawInput: StartRunInput): Promise<Run> {
     const input = startRunInputSchema.parse(rawInput)
-    const wf = await this.workflows.get(input.workflowId)
-    if (!wf) throw new Error(`Workflow ${input.workflowId} not found`)
+    const wf = await this.approaches.get(input.approachId)
+    if (!wf) throw new Error(`Approach ${input.approachId} not found`)
     const detail = await this.briefs.get(input.briefId)
     if (!detail) throw new Error(`Work item ${input.briefId} not found`)
 
@@ -127,11 +127,11 @@ export class RunEngine {
       }
     }
 
-    const body: WorkflowDefBody = { name: wf.name, description: wf.description, stages: wf.stages }
+    const body: ApproachDefBody = { name: wf.name, description: wf.description, stages: wf.stages }
     const run = await this.runs.create({
       briefId: input.briefId,
-      workflowId: wf.id,
-      workflowVersion: wf.version,
+      approachId: wf.id,
+      approachVersion: wf.version,
       body,
       maxIterations: input.maxIterations,
       maxVerificationCycles: input.maxVerificationCycles,
@@ -146,8 +146,8 @@ export class RunEngine {
       payload: {
         runId: run.id,
         briefId: input.briefId,
-        workflowId: wf.id,
-        workflowVersion: wf.version
+        approachId: wf.id,
+        approachVersion: wf.version
       }
     })
 

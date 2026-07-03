@@ -1,15 +1,15 @@
 /**
- * Built-in workflow templates. Selecting one in the builder seeds a fresh
- * workflow the user can then edit — templates are copied in, never linked, so
- * editing a seeded workflow never mutates the template. Kept dependency-light and
+ * Built-in approach templates. Selecting one in the builder seeds a fresh
+ * approach the user can then edit — templates are copied in, never linked, so
+ * editing a seeded approach never mutates the template. Kept dependency-light and
  * id-less; `instantiateTemplate` assigns fresh ids at copy time.
  *
  * These are deliberately practical, end-to-end flows (review → plan → setup →
- * implement → verify) that pass `validateWorkflow` as-is so a seeded workflow is
+ * implement → verify) that pass `validateApproach` as-is so a seeded approach is
  * immediately runnable.
  */
 
-import type { GateKind, PassCriterionType, StageType, WorkflowDefBody } from './domain'
+import type { GateKind, PassCriterionType, StageType, ApproachDefBody } from './domain'
 
 interface TemplatePersona {
   name: string
@@ -26,16 +26,16 @@ interface TemplateStage {
   gates?: { kind: GateKind; description?: string }[]
 }
 
-export interface WorkflowTemplate {
+export interface ApproachTemplate {
   /** Stable template id used by the chooser. */
   id: string
   /** Short label for the chooser button. */
   label: string
   /** One-line description shown in the chooser. */
   description: string
-  /** Default name/description seeded into the new workflow. */
-  workflowName: string
-  workflowDescription: string
+  /** Default name/description seeded into the new approach. */
+  approachName: string
+  approachDescription: string
   stages: TemplateStage[]
 }
 
@@ -112,13 +112,13 @@ function standardStages(opts: {
   ]
 }
 
-export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+export const WORKFLOW_TEMPLATES: ApproachTemplate[] = [
   {
     id: 'vue',
     label: 'Vue app',
     description: 'Review → plan → implement → verify for a Vue 3 + TypeScript app (Vitest).',
-    workflowName: 'Vue feature',
-    workflowDescription: 'Standard flow for a Vue 3 + TypeScript app with a Vitest suite.',
+    approachName: 'Vue feature',
+    approachDescription: 'Standard flow for a Vue 3 + TypeScript app with a Vitest suite.',
     stages: standardStages({
       stack: 'vue',
       reviewPrompt:
@@ -140,8 +140,8 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     id: 'dotnet',
     label: '.NET service',
     description: 'Review → plan → implement → verify for a C# / .NET service (dotnet test).',
-    workflowName: '.NET feature',
-    workflowDescription: 'Standard flow for a C# / .NET service with an xUnit/NUnit test suite.',
+    approachName: '.NET feature',
+    approachDescription: 'Standard flow for a C# / .NET service with an xUnit/NUnit test suite.',
     stages: standardStages({
       stack: 'dotnet',
       reviewPrompt:
@@ -162,17 +162,17 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 ]
 
 /**
- * Copy a template into a fresh, editable workflow body, assigning new ids to every
+ * Copy a template into a fresh, editable approach body, assigning new ids to every
  * stage, persona, criterion, and gate. `uid` is injectable for testing; it
  * defaults to `crypto.randomUUID` (present in the renderer and Node ≥ 19).
  */
 export function instantiateTemplate(
-  template: WorkflowTemplate,
+  template: ApproachTemplate,
   uid: () => string = () => crypto.randomUUID()
-): WorkflowDefBody {
+): ApproachDefBody {
   return {
-    name: template.workflowName,
-    description: template.workflowDescription,
+    name: template.approachName,
+    description: template.approachDescription,
     stages: template.stages.map((stage) => ({
       id: uid(),
       name: stage.name,

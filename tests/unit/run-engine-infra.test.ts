@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { WorkflowDefBody } from '../../src/shared/domain'
+import type { ApproachDefBody } from '../../src/shared/domain'
 import type { StoredEvent } from '../../src/shared/events'
 import { AgentService } from '../../src/main/services/agent-service'
 import { AuditLog } from '../../src/main/services/audit-log'
@@ -10,14 +10,14 @@ import { StubProvider } from '../../src/main/services/infra/stub-provider'
 import { RunStore } from '../../src/main/services/run-store'
 import { SpecService } from '../../src/main/services/spec-service'
 import { BriefService } from '../../src/main/services/brief-service'
-import { WorkflowService } from '../../src/main/services/workflow-service'
+import { ApproachService } from '../../src/main/services/approach-service'
 import { RunEngine } from '../../src/main/engine/run-engine'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import { makeTestDb, type TestDb } from './helpers/test-db'
 import { fakeQuery, msg } from './helpers/fake-query'
 
 /** setup stage (provisions infra) → implementation stage (reviewer approves). */
-function workflowBody(): WorkflowDefBody {
+function approachBody(): ApproachDefBody {
   return {
     name: 'Feature with infra',
     description: '',
@@ -75,21 +75,21 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
   async function seed(teardownOnComplete = true) {
     const specs = new SpecService(test.db, audit)
     const briefs = new BriefService(test.db, audit, specs)
-    const workflows = new WorkflowService(test.db, audit)
+    const approaches = new ApproachService(test.db, audit)
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, approveQuery())
     const infra = new InfraService(provider, audit)
-    engine = new RunEngine(runs, audit, agents, briefs, workflows, infra, new LocalBranchService(audit))
+    engine = new RunEngine(runs, audit, agents, briefs, approaches, infra, new LocalBranchService(audit))
 
     const wi = await briefs.create({
       title: 'Feature',
       spec: 'Build feature X',
       repos: [{ name: 'api', localPath: 'C:/git/api' }]
     })
-    const wf = await workflows.create(workflowBody())
+    const wf = await approaches.create(approachBody())
     return engine.start({
       briefId: wi.brief.id,
-      workflowId: wf.id,
+      approachId: wf.id,
       infraTemplate: 'api-web',
       teardownOnComplete
     })

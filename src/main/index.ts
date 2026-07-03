@@ -18,7 +18,7 @@ import { SpecService } from './services/spec-service'
 import { SqliteEventStore } from './services/sqlite-event-store'
 import { UpdateService } from './services/update-service'
 import { BriefService } from './services/brief-service'
-import { WorkflowService } from './services/workflow-service'
+import { ApproachService } from './services/approach-service'
 import { WorkspaceService } from './services/workspace-service'
 
 /** Re-check for updates on this cadence while the app stays open (6 hours). */
@@ -74,12 +74,12 @@ async function bootstrap(): Promise<void> {
   auditLog = new AuditLog(new SqliteEventStore(db))
   const specs = new SpecService(db, auditLog)
   const briefs = new BriefService(db, auditLog, specs)
-  const workflows = new WorkflowService(db, auditLog)
+  const approaches = new ApproachService(db, auditLog)
   const agent = new AgentService(auditLog, query)
   const runs = new RunStore(db)
   const infra = new InfraService(createInfraProvider(), auditLog)
   const localBranch = new LocalBranchService(auditLog)
-  const engine = new RunEngine(runs, auditLog, agent, briefs, workflows, infra, localBranch)
+  const engine = new RunEngine(runs, auditLog, agent, briefs, approaches, infra, localBranch)
   const landing = new LandingService(createLandingProvider(), auditLog, infra, briefs, runs)
   const workspace = new WorkspaceService()
 
@@ -94,7 +94,7 @@ async function bootstrap(): Promise<void> {
     auditLog,
     briefs,
     specs,
-    workflows,
+    approaches,
     agent,
     runs,
     engine,

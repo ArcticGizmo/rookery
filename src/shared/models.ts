@@ -1,5 +1,5 @@
 /**
- * Known Claude model ids offered as autocomplete in the workflow builder's persona
+ * Known Claude model ids offered as autocomplete in the approach builder's persona
  * `model` field. This is a convenience list only — the field stays free text so a
  * newer or custom model id can always be typed. Passed through to the Agent SDK
  * verbatim (see `mapPersonaToOptions`).

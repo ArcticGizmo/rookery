@@ -16,8 +16,8 @@ import type {
   UpdateBriefInput,
   Brief,
   BriefDetail,
-  WorkflowDef,
-  WorkflowDefBody
+  ApproachDef,
+  ApproachDefBody
 } from './domain'
 
 /**
@@ -41,12 +41,12 @@ export const IPC = {
   specSave: 'spec:save',
   specHistory: 'spec:history',
   specDiff: 'spec:diff',
-  // Workflow definitions
-  workflowsList: 'workflows:list',
-  workflowsGet: 'workflows:get',
-  workflowsCreate: 'workflows:create',
-  workflowsUpdate: 'workflows:update',
-  workflowsDelete: 'workflows:delete',
+  // Approach definitions
+  approachesList: 'approaches:list',
+  approachesGet: 'approaches:get',
+  approachesCreate: 'approaches:create',
+  approachesUpdate: 'approaches:update',
+  approachesDelete: 'approaches:delete',
   // Single-agent runs
   agentCredentials: 'agent:credentials',
   agentStart: 'agent:start',
@@ -90,11 +90,11 @@ export interface IpcInvokeMap {
     result: SpecDiff
   }
 
-  'workflows:list': { args: []; result: WorkflowDef[] }
-  'workflows:get': { args: [id: string]; result: WorkflowDef | null }
-  'workflows:create': { args: [input: WorkflowDefBody]; result: WorkflowDef }
-  'workflows:update': { args: [id: string, input: WorkflowDefBody]; result: WorkflowDef }
-  'workflows:delete': { args: [id: string]; result: void }
+  'approaches:list': { args: []; result: ApproachDef[] }
+  'approaches:get': { args: [id: string]; result: ApproachDef | null }
+  'approaches:create': { args: [input: ApproachDefBody]; result: ApproachDef }
+  'approaches:update': { args: [id: string, input: ApproachDefBody]; result: ApproachDef }
+  'approaches:delete': { args: [id: string]; result: void }
 
   'agent:credentials': { args: []; result: CredentialStatus }
   'agent:start': { args: [config: AgentRunConfig]; result: { agentRunId: string } }

@@ -33,12 +33,12 @@ const api: RookeryApi = {
     diff: (briefId, fromVersion, toVersion) =>
       ipcRenderer.invoke(IPC.specDiff, briefId, fromVersion, toVersion)
   },
-  workflows: {
-    list: () => ipcRenderer.invoke(IPC.workflowsList),
-    get: (id) => ipcRenderer.invoke(IPC.workflowsGet, id),
-    create: (input) => ipcRenderer.invoke(IPC.workflowsCreate, input),
-    update: (id, input) => ipcRenderer.invoke(IPC.workflowsUpdate, id, input),
-    remove: (id) => ipcRenderer.invoke(IPC.workflowsDelete, id)
+  approaches: {
+    list: () => ipcRenderer.invoke(IPC.approachesList),
+    get: (id) => ipcRenderer.invoke(IPC.approachesGet, id),
+    create: (input) => ipcRenderer.invoke(IPC.approachesCreate, input),
+    update: (id, input) => ipcRenderer.invoke(IPC.approachesUpdate, id, input),
+    remove: (id) => ipcRenderer.invoke(IPC.approachesDelete, id)
   },
   agent: {
     credentials: () => ipcRenderer.invoke(IPC.agentCredentials),

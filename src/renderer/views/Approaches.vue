@@ -2,17 +2,17 @@
 import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink } from 'vue-router'
-import { validateWorkflow } from '@shared/workflow-validation'
+import { validateApproach } from '@shared/approach-validation'
 import Button from '@renderer/components/ui/button/Button.vue'
-import { useWorkflowsStore } from '@renderer/stores/workflows'
+import { useApproachesStore } from '@renderer/stores/approaches'
 
-const store = useWorkflowsStore()
+const store = useApproachesStore()
 const { items, loading } = storeToRefs(store)
 
 function isValid(id: string): boolean {
   const wf = items.value.find((w) => w.id === id)
   if (!wf) return false
-  return validateWorkflow({ name: wf.name, description: wf.description, stages: wf.stages }).ok
+  return validateApproach({ name: wf.name, description: wf.description, stages: wf.stages }).ok
 }
 
 onMounted(() => {
@@ -24,23 +24,23 @@ onMounted(() => {
   <div class="flex flex-col gap-6">
     <header class="flex items-center justify-between">
       <div class="flex flex-col gap-1">
-        <h1 class="text-2xl font-bold tracking-tight">Workflows</h1>
+        <h1 class="text-2xl font-bold tracking-tight">Approaches</h1>
         <p class="text-sm text-muted-foreground">How work moves through stages and gates.</p>
       </div>
-      <RouterLink to="/workflows/new">
-        <Button>New workflow</Button>
+      <RouterLink to="/approaches/new">
+        <Button>New approach</Button>
       </RouterLink>
     </header>
 
     <div class="rounded-md border border-border">
       <p v-if="loading" class="p-4 text-sm text-muted-foreground">Loading…</p>
       <p v-else-if="items.length === 0" class="p-4 text-sm text-muted-foreground">
-        No workflows yet. Create one to define your process.
+        No approaches yet. Create one to define your process.
       </p>
       <ul v-else class="divide-y divide-border">
         <li v-for="wf in items" :key="wf.id">
           <RouterLink
-            :to="`/workflows/${wf.id}`"
+            :to="`/approaches/${wf.id}`"
             class="flex items-center justify-between px-4 py-3 hover:bg-accent"
           >
             <span class="flex items-center gap-3">

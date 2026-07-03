@@ -16,8 +16,8 @@ import type {
   UpdateBriefInput,
   Brief,
   BriefDetail,
-  WorkflowDef,
-  WorkflowDefBody
+  ApproachDef,
+  ApproachDefBody
 } from './domain'
 
 /**
@@ -55,11 +55,11 @@ export interface RookeryApi {
     history: (briefId: string) => Promise<SpecVersion[]>
     diff: (briefId: string, fromVersion: number, toVersion: number) => Promise<SpecDiff>
   }
-  workflows: {
-    list: () => Promise<WorkflowDef[]>
-    get: (id: string) => Promise<WorkflowDef | null>
-    create: (input: WorkflowDefBody) => Promise<WorkflowDef>
-    update: (id: string, input: WorkflowDefBody) => Promise<WorkflowDef>
+  approaches: {
+    list: () => Promise<ApproachDef[]>
+    get: (id: string) => Promise<ApproachDef | null>
+    create: (input: ApproachDefBody) => Promise<ApproachDef>
+    update: (id: string, input: ApproachDefBody) => Promise<ApproachDef>
     remove: (id: string) => Promise<void>
   }
   agent: {
@@ -70,7 +70,7 @@ export interface RookeryApi {
     cancel: (agentRunId: string) => Promise<void>
   }
   runs: {
-    /** Start a workflow run over a work item; activity streams via `events.onAppend`. */
+    /** Start a approach run over a work item; activity streams via `events.onAppend`. */
     start: (input: StartRunInput) => Promise<Run>
     list: () => Promise<Run[]>
     get: (runId: string) => Promise<RunDetail | null>
@@ -94,7 +94,7 @@ export interface RookeryApi {
     install: () => Promise<void>
   }
   debug: {
-    /** Dev-only: delete all persisted data (work items, runs, workflows, events). */
+    /** Dev-only: delete all persisted data (work items, runs, approaches, events). */
     resetData: () => Promise<void>
   }
 }
