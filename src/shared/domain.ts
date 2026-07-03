@@ -1,5 +1,5 @@
 /**
- * Domain model for work items and approach definitions.
+ * Domain model for briefs and approach definitions.
  *
  * zod schemas are the source of truth; TypeScript types are inferred from them
  * so validation and typing never drift. This module is imported by all three
@@ -13,7 +13,7 @@ import { z } from 'zod'
 
 // --- Repos ------------------------------------------------------------------
 
-/** A repository a work item touches. Local checkout is required (worktrees run
+/** A repository a brief touches. Local checkout is required (worktrees run
  * locally); the remote URL is optional context used later when landing changes. */
 export const repoInputSchema = z.object({
   name: z.string().min(1, 'Repo name is required'),
@@ -32,7 +32,7 @@ export const repoSchema = repoInputSchema.extend({
 })
 export type Repo = z.infer<typeof repoSchema>
 
-// --- Work items -------------------------------------------------------------
+// --- Briefs -----------------------------------------------------------------
 
 export const briefSchema = z.object({
   id: z.string(),
@@ -42,7 +42,7 @@ export const briefSchema = z.object({
 })
 export type Brief = z.infer<typeof briefSchema>
 
-/** A single, immutable version of a work item's spec (content-addressed). */
+/** A single, immutable version of a brief's spec (content-addressed). */
 export const specVersionSchema = z.object({
   id: z.string(),
   briefId: z.string(),
@@ -66,7 +66,7 @@ export interface SpecDiffLine {
   value: string
 }
 
-/** Structured line-level diff between two spec versions of a work item. */
+/** Structured line-level diff between two spec versions of a brief. */
 export interface SpecDiff {
   briefId: string
   fromVersion: number
@@ -101,7 +101,7 @@ export const stageTypeSchema = z.enum([
 export type StageType = z.infer<typeof stageTypeSchema>
 
 /**
- * An automated pass criterion evaluated by the engine (Phase 4.5 supplies the
+ * An automated done criterion evaluated by the engine (Phase 4.5 supplies the
  * pluggable evaluators). `manual` defers the decision to a human checkpoint.
  */
 export const doneCriterionTypeSchema = z.enum([
@@ -120,7 +120,7 @@ export const doneCriterionSchema = z.object({
 export type DoneCriterion = z.infer<typeof doneCriterionSchema>
 
 /** A checkpoint halts a stage until satisfied. Human checkpoints require a person to act;
- * automated checkpoints are satisfied by their stage's pass criteria. */
+ * automated checkpoints are satisfied by their stage's done criteria. */
 export const checkpointKindSchema = z.enum(['human', 'automated'])
 export type CheckpointKind = z.infer<typeof checkpointKindSchema>
 
@@ -154,7 +154,7 @@ export const agentPersonaSchema = z.object({
 })
 export type AgentPersona = z.infer<typeof agentPersonaSchema>
 
-/** A single stage in a approach. Order is the array index in `ApproachDef.stages`. */
+/** A single stage in an approach. Order is the array index in `ApproachDef.stages`. */
 export const stageSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1, 'Stage name is required'),
@@ -179,7 +179,7 @@ export const landingConfigSchema = z.object({
 })
 export type LandingConfig = z.infer<typeof landingConfigSchema>
 
-/** The editable body of a approach (what the builder produces and validates). */
+/** The editable body of an approach (what the builder produces and validates). */
 export const approachDefBodySchema = z.object({
   name: z.string().min(1, 'Approach name is required'),
   description: z.string().default(''),
@@ -225,7 +225,7 @@ export const agentRunConfigSchema = z.object({
   cwd: z.string().nullish(),
   /**
    * Permission mode. Defaults to `plan` (read-only, no tool execution) — the
-   * safe choice until Phase 5 flights agents inside isolated worktrees. Choose
+   * safe choice until Phase 5 runs agents inside isolated worktrees. Choose
    * `bypassPermissions` for autonomous editing/execution.
    */
   permissionMode: permissionModeSchema.default('plan')
@@ -254,7 +254,7 @@ export type FlightStatus = z.infer<typeof flightStatusSchema>
 export const stageStatusSchema = z.enum(['pending', 'running', 'awaiting_checkpoint', 'passed', 'failed'])
 export type StageStatus = z.infer<typeof stageStatusSchema>
 
-/** A single execution of a approach over a work item. */
+/** A single execution of an approach over a brief. */
 export interface Flight {
   id: string
   briefId: string
@@ -318,7 +318,7 @@ export const startFlightInputSchema = z.object({
   /**
    * Infra provider template (e.g. a sprig template) the run's setup stage
    * provisions from. Empty/omitted ⇒ no infra is provisioned and stage agents
-   * run against the work item's own repo checkout. (Phase 5.4)
+   * run against the brief's own repo checkout. (Phase 5.4)
    */
   infraTemplate: z.preprocess(
     (v) => (v === '' || v === null ? undefined : v),
@@ -370,7 +370,7 @@ export const landFlightInputSchema = z.object({
   method: landingMethodSchema,
   /** Who initiated the landing (freeform, e.g. an email). */
   by: z.string().default('human'),
-  /** PR title (method `pr`); defaults to the work item title when omitted. */
+  /** PR title (method `pr`); defaults to the brief title when omitted. */
   title: z.string().optional(),
   /** PR body (method `pr`). */
   body: z.string().optional()

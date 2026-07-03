@@ -73,7 +73,7 @@ function buildImplPrompt(
 ): string {
   return [
     `You are the ${persona.role} for the "${stage.name}" stage.`,
-    `\nWork item spec:\n${spec || '(no spec provided)'}`,
+    `\nBrief spec:\n${spec || '(no spec provided)'}`,
     verificationFeedback
       ? `\nKnown issues from a previous feature-verification cycle — make sure these are ` +
         `addressed:\n${verificationFeedback}`
@@ -87,7 +87,7 @@ function buildImplPrompt(
 
 /**
  * The orchestration engine (Phase 4.3/4.6). Drives the pure run state machine:
- * flights each stage's agents, evaluates pass criteria, loops on failure up to
+ * runs each stage's agents, evaluates done criteria, loops on failure up to
  * `maxIterations`, halts at human checkpoints, and advances — auditing every
  * transition. Stage agents run read-only (`plan`) until a `setup` stage
  * provisions an isolated worktree (Phase 5.4), after which implementer agents run
@@ -115,7 +115,7 @@ export class FlightEngine {
     const wf = await this.approaches.get(input.approachId)
     if (!wf) throw new Error(`Approach ${input.approachId} not found`)
     const detail = await this.briefs.get(input.briefId)
-    if (!detail) throw new Error(`Work item ${input.briefId} not found`)
+    if (!detail) throw new Error(`Brief ${input.briefId} not found`)
 
     const executionMode = resolveExecutionMode(input)
     if (executionMode === 'local_branch') {
@@ -123,7 +123,7 @@ export class FlightEngine {
         throw new Error('A work branch is required for local-branch execution mode.')
       }
       if (!detail.repos[0]?.localPath) {
-        throw new Error('Local-branch execution mode needs the work item to have a repo attached.')
+        throw new Error('Local-branch execution mode needs the brief to have a repo attached.')
       }
     }
 
@@ -416,8 +416,8 @@ export class FlightEngine {
   }
 
   /**
-   * Ensure the run's infra is provisioned before a `setup` stage flights (Phase
-   * 5.4). No-op when the run requested no template or no provider is configured.
+   * Ensure the flight's infra is provisioned before a `setup` stage runs (Phase
+   * 5.4). No-op when the flight requested no template or no provider is configured.
    * Reuses an existing instance (e.g. on a re-entered setup stage) rather than
    * recreating it. On success, points stage agents at the worktree; returns
    * false if provisioning failed (the caller fails the stage).
@@ -447,8 +447,8 @@ export class FlightEngine {
   }
 
   /**
-   * Prepare a `local_branch` run's write path before its `setup` stage flights:
-   * check out the run's branch on the work item's own repo checkout so implementer
+   * Prepare a `local_branch` flight's write path before its `setup` stage runs:
+   * check out the flight's branch on the brief's own repo checkout so implementer
    * agents can edit in place — no sprig or Docker. On success, isolation is on and
    * agents edit the real checkout on that branch; returns false (failing the
    * stage) if the branch couldn't be prepared (e.g. dirty tree, missing git).
@@ -693,7 +693,7 @@ export class FlightEngine {
     }
   }
 
-  /** Flight one stage's agents + criteria, looping on failure up to maxIterations. */
+  /** Run one stage's agents + criteria, looping on failure up to maxIterations. */
   private async runStage(
     flightId: string,
     snapshot: FlightSnapshot,

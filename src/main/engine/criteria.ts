@@ -2,7 +2,7 @@ import type { AgentPersona, DoneCriterion, PermissionMode, Stage } from '@shared
 import type { AgentResult } from '../agent/types'
 
 export interface CriterionContext {
-  /** The work item's current spec text. */
+  /** The brief's current spec text. */
   spec: string
   cwd?: string | null
   /** Outputs produced by this stage's agents in the current iteration. */
@@ -126,7 +126,7 @@ const EVALUATORS: Record<DoneCriterion['type'], Evaluator> = {
   }
 }
 
-/** Evaluate all of a stage's pass criteria (Phase 4.5). Empty ⇒ vacuously passes. */
+/** Evaluate all of a stage's done criteria (Phase 4.5). Empty ⇒ vacuously passes. */
 export async function evaluateCriteria(
   stage: Stage,
   ctx: CriterionContext

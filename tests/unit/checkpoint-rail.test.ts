@@ -6,7 +6,7 @@ import {
   setHumanHold,
   stageHolds
 } from '../../src/shared/checkpoint-rail'
-import { instantiateTemplate, WORKFLOW_TEMPLATES } from '../../src/shared/approach-templates'
+import { instantiateTemplate, APPROACH_TEMPLATES } from '../../src/shared/approach-templates'
 import { parseApproachDraft } from '../../src/shared/approach-draft'
 import type { Checkpoint, Stage } from '../../src/shared/domain'
 
@@ -104,7 +104,7 @@ describe('firstHold', () => {
 
 describe('landing defaults (J5.4)', () => {
   it('templates land held by default', () => {
-    for (const template of WORKFLOW_TEMPLATES) {
+    for (const template of APPROACH_TEMPLATES) {
       expect(instantiateTemplate(template).landing).toEqual({ hold: true })
     }
   })

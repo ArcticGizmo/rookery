@@ -72,7 +72,7 @@ function pretty(payload: unknown): string {
   return JSON.stringify(payload, null, 2)
 }
 
-/** Work item id for a spec event, so we can link to its diff viewer. */
+/** Brief id for a spec event, so we can link to its diff viewer. */
 function specBriefId(event: StoredEvent): string | null {
   if (event.type !== 'spec.version_created') return null
   const p = event.payload as { briefId?: string }

@@ -1,5 +1,5 @@
 /**
- * Structural validation for approach definitions (Phase 2.5). Flights before a run
+ * Structural validation for approach definitions (Phase 2.5). Runs before a flight
  * can start. Pure and dependency-light so it can be used in the renderer (inline
  * builder errors) and the main process (guard before persisting / running).
  *
@@ -34,7 +34,7 @@ const PERSONA_REQUIRED_STAGE_TYPES = new Set<z.infer<typeof stageTypeSchema>>([
   'verification'
 ])
 
-/** Pass-criterion types whose evaluation depends on agent output. */
+/** Done-criterion types whose evaluation depends on agent output. */
 const PERSONA_DEPENDENT_CRITERIA = new Set<z.infer<typeof doneCriterionTypeSchema>>([
   'reviewer_approves',
   'personas_agree'
@@ -50,7 +50,7 @@ function firstDuplicate(values: string[]): string | null {
 }
 
 /**
- * Validate a approach definition body. Returns all issues found (not just the
+ * Validate an approach definition body. Returns all issues found (not just the
  * first) so the builder can surface them together.
  */
 export function validateApproach(input: unknown): ValidationResult {
@@ -69,7 +69,7 @@ export function validateApproach(input: unknown): ValidationResult {
   const issues: ValidationIssue[] = []
 
   if (def.stages.length === 0) {
-    issues.push({ path: 'stages', message: 'A approach needs at least one stage' })
+    issues.push({ path: 'stages', message: 'An approach needs at least one stage' })
   }
 
   const dupStageId = firstDuplicate(def.stages.map((s) => s.id))
@@ -117,16 +117,16 @@ export function validateApproach(input: unknown): ValidationResult {
     if (hasAutomatedCheckpoint && stage.doneCriteria.length === 0) {
       issues.push({
         path: `${base}.doneCriteria`,
-        message: `Stage "${stage.name}" has an automated checkpoint but no pass criteria to evaluate`
+        message: `Stage "${stage.name}" has an automated checkpoint but no done criteria to evaluate`
       })
     }
 
-    // Pass criteria.
+    // Done criteria.
     const dupCriterion = firstDuplicate(stage.doneCriteria.map((c) => c.id))
     if (dupCriterion) {
       issues.push({
         path: `${base}.doneCriteria`,
-        message: `Duplicate pass-criterion id "${dupCriterion}"`
+        message: `Duplicate done-criterion id "${dupCriterion}"`
       })
     }
     stage.doneCriteria.forEach((criterion, cIndex) => {

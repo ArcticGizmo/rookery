@@ -59,7 +59,7 @@ function standardStages(opts: {
           allowedTools: ['Read', 'Grep', 'Glob']
         }
       ],
-      // A `review` stage flights read-only, before setup/implement — no code exists
+      // A `review` stage runs read-only, before setup/implement — no code exists
       // yet, so a `reviewer_approves` check (which asks "does this fully satisfy
       // the spec?") can only ever reject and would fail the run at stage one.
       // Defer the call to the human checkpoint instead, exactly as the Plan stage does.
@@ -112,7 +112,7 @@ function standardStages(opts: {
   ]
 }
 
-export const WORKFLOW_TEMPLATES: ApproachTemplate[] = [
+export const APPROACH_TEMPLATES: ApproachTemplate[] = [
   {
     id: 'vue',
     label: 'Vue app',

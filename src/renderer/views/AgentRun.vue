@@ -282,7 +282,7 @@ onMounted(() => {
 
         <div class="flex items-center gap-3">
           <Button :disabled="!canRun" @click="run">{{
-            isRunning ? 'Running…' : 'Flight agent'
+            isRunning ? 'Running…' : 'Run agent'
           }}</Button>
           <Button v-if="isRunning" variant="outline" @click="cancel">Cancel</Button>
           <span v-if="error" class="text-sm text-red-600">{{ error }}</span>
@@ -337,7 +337,7 @@ onMounted(() => {
 
         <div class="min-h-[16rem] rounded-md border border-border">
           <p v-if="transcript.length === 0" class="p-4 text-sm text-muted-foreground">
-            No activity yet. Configure a run and hit “Flight agent”.
+            No activity yet. Configure a run and hit “Run agent”.
           </p>
           <ul v-else class="divide-y divide-border">
             <li

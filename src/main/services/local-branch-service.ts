@@ -39,7 +39,7 @@ const defaultGit: GitCli = (args, cwd) =>
   })
 
 /**
- * Prepares a plain git branch on a work item's own repo checkout for the
+ * Prepares a plain git branch on a brief's own repo checkout for the
  * `local_branch` execution mode — the sprig/Docker-free write path. Lets a run's
  * implementer agents edit real files on a named branch so a user can evaluate the
  * quality of the changes before wiring up isolated infra. Changes are left in the

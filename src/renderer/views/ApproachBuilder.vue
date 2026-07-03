@@ -13,7 +13,7 @@ import type {
 } from '@shared/domain'
 import { validateApproach } from '@shared/approach-validation'
 import { KNOWN_MODELS } from '@shared/models'
-import { WORKFLOW_TEMPLATES, instantiateTemplate } from '@shared/approach-templates'
+import { APPROACH_TEMPLATES, instantiateTemplate } from '@shared/approach-templates'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useApproachesStore } from '@renderer/stores/approaches'
 
@@ -67,7 +67,7 @@ function uid(): string {
 function useTemplate(templateId: string | null): void {
   showTemplateChooser.value = false
   if (!templateId) return // blank — leave the empty defaults in place
-  const template = WORKFLOW_TEMPLATES.find((t) => t.id === templateId)
+  const template = APPROACH_TEMPLATES.find((t) => t.id === templateId)
   if (!template) return
   const body = instantiateTemplate(template, uid)
   name.value = body.name
@@ -211,7 +211,7 @@ watch(
           <span class="text-xs text-muted-foreground">Start from scratch with no stages.</span>
         </button>
         <button
-          v-for="t in WORKFLOW_TEMPLATES"
+          v-for="t in APPROACH_TEMPLATES"
           :key="t.id"
           type="button"
           class="flex flex-col gap-1 rounded-md border border-border p-4 text-left hover:border-ring hover:bg-accent"
@@ -280,7 +280,7 @@ watch(
         </div>
 
         <p v-if="stages.length === 0" class="text-sm text-muted-foreground">
-          No stages yet. A approach needs at least one.
+          No stages yet. An approach needs at least one.
         </p>
 
         <article

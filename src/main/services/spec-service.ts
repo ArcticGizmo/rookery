@@ -36,7 +36,7 @@ export class SpecService {
     private readonly audit: AuditLog
   ) {}
 
-  /** The latest spec version for a work item, or null if none exists yet. */
+  /** The latest spec version for a brief, or null if none exists yet. */
   async getLatest(briefId: string): Promise<SpecVersion | null> {
     const rows = await this.db
       .select()
@@ -47,7 +47,7 @@ export class SpecService {
     return rows[0] ? toSpecVersion(rows[0]) : null
   }
 
-  /** Full version history for a work item, oldest first. */
+  /** Full version history for a brief, oldest first. */
   async history(briefId: string): Promise<SpecVersion[]> {
     const rows = await this.db
       .select()
@@ -98,14 +98,14 @@ export class SpecService {
     return stored
   }
 
-  /** Line-level diff between two versions of a work item's spec. */
+  /** Line-level diff between two versions of a brief's spec. */
   async diff(briefId: string, fromVersion: number, toVersion: number): Promise<SpecDiff> {
     const [from, to] = await Promise.all([
       this.getVersion(briefId, fromVersion),
       this.getVersion(briefId, toVersion)
     ])
-    if (!from) throw new Error(`Spec version ${fromVersion} not found for work item ${briefId}`)
-    if (!to) throw new Error(`Spec version ${toVersion} not found for work item ${briefId}`)
+    if (!from) throw new Error(`Spec version ${fromVersion} not found for brief ${briefId}`)
+    if (!to) throw new Error(`Spec version ${toVersion} not found for brief ${briefId}`)
 
     const lines = diffLines(from.content, to.content).flatMap((part) =>
       toLines(part.added ? 'added' : part.removed ? 'removed' : 'unchanged', part.value)

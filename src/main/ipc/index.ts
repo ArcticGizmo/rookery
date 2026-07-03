@@ -70,7 +70,7 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.repoProbe, (_event, localPath: string) => workspace.probeRepo(localPath))
   ipcMain.handle(IPC.fsListDirs, (_event, input: string) => workspace.listDirs(input))
 
-  // Work items
+  // Briefs
   ipcMain.handle(IPC.briefsList, () => briefs.list())
   ipcMain.handle(IPC.briefsGet, (_event, id: string) => briefs.get(id))
   ipcMain.handle(IPC.briefsCreate, (_event, input: CreateBriefInput) =>

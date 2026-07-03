@@ -40,7 +40,7 @@ function repoValues(briefId: string, input: RepoInput): RepoRow {
 }
 
 /**
- * CRUD for work items and their attached repos (Phase 2.2). Spec content is
+ * CRUD for briefs and their attached repos (Phase 2.2). Spec content is
  * delegated to `SpecService`; every meaningful change is audited.
  */
 export class BriefService {
@@ -50,13 +50,13 @@ export class BriefService {
     private readonly specs: SpecService
   ) {}
 
-  /** All work items, most recently updated first. */
+  /** All briefs, most recently updated first. */
   async list(): Promise<Brief[]> {
     const rows = await this.db.select().from(briefs).orderBy(desc(briefs.updatedAt))
     return rows.map(toBrief)
   }
 
-  /** A work item with its repos and current spec, or null if not found. */
+  /** A brief with its repos and current spec, or null if not found. */
   async get(id: string): Promise<BriefDetail | null> {
     const itemRows = await this.db.select().from(briefs).where(eq(briefs.id, id)).limit(1)
     const item = itemRows[0]
@@ -89,14 +89,14 @@ export class BriefService {
     await this.specs.saveSpec(id, parsed.spec)
 
     const detail = await this.get(id)
-    if (!detail) throw new Error('Work item vanished immediately after creation')
+    if (!detail) throw new Error('Brief vanished immediately after creation')
     return detail
   }
 
   async update(id: string, input: UpdateBriefInput): Promise<BriefDetail> {
     const parsed = updateBriefInputSchema.parse(input)
     const existing = await this.db.select().from(briefs).where(eq(briefs.id, id)).limit(1)
-    if (!existing[0]) throw new Error(`Work item ${id} not found`)
+    if (!existing[0]) throw new Error(`Brief ${id} not found`)
     const now = new Date().toISOString()
 
     await this.db.transaction(async (tx) => {
@@ -120,13 +120,13 @@ export class BriefService {
     })
 
     const detail = await this.get(id)
-    if (!detail) throw new Error('Work item vanished immediately after update')
+    if (!detail) throw new Error('Brief vanished immediately after update')
     return detail
   }
 
   async delete(id: string): Promise<void> {
     const existing = await this.db.select().from(briefs).where(eq(briefs.id, id)).limit(1)
-    if (!existing[0]) throw new Error(`Work item ${id} not found`)
+    if (!existing[0]) throw new Error(`Brief ${id} not found`)
 
     await this.db.transaction(async (tx) => {
       await tx.delete(specVersions).where(eq(specVersions.briefId, id))

@@ -1,5 +1,5 @@
 /**
- * Shared workspace/filesystem types + helpers for attaching repos to a work item.
+ * Shared workspace/filesystem types + helpers for attaching repos to a brief.
  * Pure (no Node/Electron/DOM) so main, preload, and renderer all agree on shapes.
  */
 

@@ -34,7 +34,7 @@ export const IPC = {
   dialogPickDirectory: 'dialog:pick-directory',
   repoProbe: 'repo:probe',
   fsListDirs: 'fs:list-dirs',
-  // Work items + spec versioning
+  // Briefs + spec versioning
   briefsList: 'briefs:list',
   briefsGet: 'briefs:get',
   briefsCreate: 'briefs:create',

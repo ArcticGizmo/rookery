@@ -47,7 +47,7 @@ export class AgentService {
   }
 
   /**
-   * Flight an agent to completion, projecting its activity to the audit log and
+   * Run an agent to completion, projecting its activity to the audit log and
    * resolving with the collected result. Used by the orchestration engine to
    * drive stage agents and criterion checks.
    */

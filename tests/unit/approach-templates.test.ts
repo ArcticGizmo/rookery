@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { WORKFLOW_TEMPLATES, instantiateTemplate } from '../../src/shared/approach-templates'
+import { APPROACH_TEMPLATES, instantiateTemplate } from '../../src/shared/approach-templates'
 import { validateApproach } from '../../src/shared/approach-validation'
 
 /** Deterministic id factory so assertions don't depend on random UUIDs. */
@@ -10,10 +10,10 @@ function counterUid(): () => string {
 
 describe('approach templates', () => {
   it('ships the Vue and .NET templates', () => {
-    expect(WORKFLOW_TEMPLATES.map((t) => t.id).sort()).toEqual(['dotnet', 'vue'])
+    expect(APPROACH_TEMPLATES.map((t) => t.id).sort()).toEqual(['dotnet', 'vue'])
   })
 
-  for (const template of WORKFLOW_TEMPLATES) {
+  for (const template of APPROACH_TEMPLATES) {
     describe(`template "${template.id}"`, () => {
       it('instantiates to a valid, runnable approach', () => {
         const body = instantiateTemplate(template, counterUid())

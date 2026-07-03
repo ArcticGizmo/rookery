@@ -13,7 +13,7 @@ export type AppEvent =
   | { type: 'app.update_available'; actor: 'system'; payload: { version: string } }
   | { type: 'app.update_downloaded'; actor: 'system'; payload: { version: string } }
   | { type: 'app.update_error'; actor: 'system'; payload: { message: string } }
-  // Phase 2 — work items, spec versioning, approach definitions.
+  // Phase 2 — briefs, spec versioning, approach definitions.
   | { type: 'brief.created'; actor: 'human'; payload: { briefId: string; title: string } }
   | { type: 'brief.updated'; actor: 'human'; payload: { briefId: string; title: string } }
   | { type: 'brief.deleted'; actor: 'human'; payload: { briefId: string } }
@@ -213,7 +213,7 @@ export type AppEvent =
         flightId: string
         stageId: string
         stageIndex: number
-        /** Human-readable issues found, from the stage's failed pass criteria. */
+        /** Human-readable issues found, from the stage's failed done criteria. */
         issues: string
         /** 1-based failure number within the current (post-intervention) budget. */
         cycle: number
@@ -232,7 +232,7 @@ export type AppEvent =
       payload: { flightId: string; previousStatus: string }
     }
   // Local-branch execution mode: the setup stage checked out a branch on the
-  // work item's own repo checkout so agents can edit without sprig/Docker.
+  // brief's own repo checkout so agents can edit without sprig/Docker.
   | {
       type: 'flight.branch_ready'
       actor: 'system'

@@ -6,7 +6,7 @@
  * of what a hold is, and it can be unit-tested without a component.
  *
  * A checkpoint's `kind` is the source of truth: a stage "holds" iff it carries
- * a `human` checkpoint. Automated checkpoints (satisfied by pass criteria) are
+ * a `human` checkpoint. Automated checkpoints (satisfied by done criteria) are
  * left untouched by the toggle.
  */
 

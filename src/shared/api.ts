@@ -35,7 +35,7 @@ export interface RookeryApi {
     /** Subscribe to events as they are appended. Returns an unsubscribe fn. */
     onAppend: (listener: (event: StoredEvent) => void) => () => void
   }
-  /** Filesystem/git helpers for attaching repos to a work item. */
+  /** Filesystem/git helpers for attaching repos to a brief. */
   workspace: {
     /** Open the OS folder picker; resolves to the chosen path or null if cancelled. */
     pickDirectory: (defaultPath?: string) => Promise<string | null>
@@ -74,7 +74,7 @@ export interface RookeryApi {
     cancel: (agentRunId: string) => Promise<void>
   }
   flights: {
-    /** Start a approach run over a work item; activity streams via `events.onAppend`. */
+    /** Start an approach flight over a brief; activity streams via `events.onAppend`. */
     start: (input: StartFlightInput) => Promise<Flight>
     list: () => Promise<Flight[]>
     get: (flightId: string) => Promise<FlightDetail | null>
@@ -100,7 +100,7 @@ export interface RookeryApi {
     install: () => Promise<void>
   }
   debug: {
-    /** Dev-only: delete all persisted data (work items, flights, approaches, events). */
+    /** Dev-only: delete all persisted data (briefs, flights, approaches, events). */
     resetData: () => Promise<void>
   }
 }

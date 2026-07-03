@@ -20,7 +20,7 @@ export interface LandingTarget {
   branch: string
   /** Base branch the change lands into (e.g. `main`). */
   base: string
-  /** Remote URL, when the work item recorded one. */
+  /** Remote URL, when the brief recorded one. */
   remoteUrl: string | null
   /** Whether this repo has already been landed in this run (from the log). */
   landed: boolean

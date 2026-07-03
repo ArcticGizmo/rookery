@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import type { ApproachDefBody, DoneCriterionType, Stage, StageType } from '@shared/domain'
 import { validateApproach } from '@shared/approach-validation'
 import { doneCriterionLabel, stageRoles, stageTypeLabel } from '@shared/approach-view'
-import { WORKFLOW_TEMPLATES, instantiateTemplate } from '@shared/approach-templates'
+import { APPROACH_TEMPLATES, instantiateTemplate } from '@shared/approach-templates'
 import { useBriefsStore } from '@renderer/stores/briefs'
 import { useApproachesStore } from '@renderer/stores/approaches'
 import { Button } from '@renderer/components/ui/button'
@@ -59,7 +59,7 @@ onMounted(async () => {
 })
 
 function pickTemplate(templateId: string): void {
-  const template = WORKFLOW_TEMPLATES.find((t) => t.id === templateId)
+  const template = APPROACH_TEMPLATES.find((t) => t.id === templateId)
   if (!template) return
   body.value = { ...instantiateTemplate(template), briefId: props.id }
   saved.value = false
@@ -200,7 +200,7 @@ async function save(): Promise<void> {
 
       <div class="grid gap-3 sm:grid-cols-2">
         <button
-          v-for="t in WORKFLOW_TEMPLATES"
+          v-for="t in APPROACH_TEMPLATES"
           :key="t.id"
           type="button"
           class="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-border-strong"
