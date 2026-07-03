@@ -184,7 +184,7 @@ describe('FlightEngine', () => {
     expect(has(events, 'flight.criterion_evaluated')).toBe(true)
     expect(has(events, 'flight.checkpoint_resolved')).toBe(true)
     const detail = await flights.getDetail(run.id)
-    expect(detail!.run.status).toBe('passed')
+    expect(detail!.flight.status).toBe('passed')
     expect(detail!.stages.every((s) => s.status === 'passed')).toBe(true)
   })
 
