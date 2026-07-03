@@ -1,18 +1,33 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import type { CheckpointDecision, LandingMethod, FlightDetail, StageStatus } from '@shared/domain'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import type {
+  CheckpointDecision,
+  FlightStatus,
+  LandingMethod,
+  FlightDetail,
+  StageStatus
+} from '@shared/domain'
 import { type ChainTool, buildChainOfThought } from '@shared/chain-of-thought'
+import { holdCount } from '@shared/checkpoint-rail'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, FlightInfra } from '@shared/infra'
 import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
+import { Chip, MonoLabel } from '@renderer/components/journey'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
 import { useFlightsStore } from '@renderer/stores/flights'
+import { useBriefsStore } from '@renderer/stores/briefs'
 import { rookery } from '@renderer/lib/rookery'
 
 const props = defineProps<{ id: string }>()
 const runsStore = useFlightsStore()
+const briefsStore = useBriefsStore()
+
+// The brief this flight is for (title + repo count for the header). Fetched
+// alongside the flight projection; falls back to the approach name.
+const briefTitle = ref('')
+const repoCount = ref(0)
 
 // Load this run's events straight from the backend (paginated) and live-tail
 // them, so a run's full history is shown even after a restart — the shared
@@ -37,6 +52,61 @@ const landingError = ref<string | null>(null)
 const tearingDown = ref(false)
 
 const passed = computed(() => detail.value?.flight.status === 'passed')
+
+// --- Header (J7.1): the flight read as a journey at a glance -----------------
+
+// A live clock so elapsed time ticks while the flight is still in the air.
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | null = null
+
+const inAir = computed(() => {
+  const s = detail.value?.flight.status
+  return s === 'running' || s === 'awaiting_checkpoint' || s === 'pending'
+})
+
+const phaseLabel = computed(() => {
+  const d = detail.value
+  if (!d) return ''
+  const total = d.approach.stages.length
+  return `phase ${Math.min(d.flight.currentStageIndex + 1, total)} of ${total}`
+})
+
+const checkpointCount = computed(() =>
+  detail.value ? holdCount(detail.value.approach.stages, detail.value.approach.landing) : 0
+)
+
+const elapsedMs = computed(() => {
+  const f = detail.value?.flight
+  if (!f) return 0
+  const start = new Date(f.createdAt).getTime()
+  const end = inAir.value ? now.value : new Date(f.updatedAt).getTime()
+  return Math.max(0, end - start)
+})
+
+function formatDuration(ms: number): string {
+  const secs = Math.floor(ms / 1000)
+  if (secs < 60) return `${secs}s`
+  const mins = Math.floor(secs / 60)
+  if (mins < 60) return `${mins}m`
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`
+}
+
+const STATUS_TONE: Record<FlightStatus, 'pass' | 'active' | 'pending' | 'beacon' | 'block'> = {
+  pending: 'pending',
+  running: 'active',
+  awaiting_checkpoint: 'beacon',
+  passed: 'pass',
+  failed: 'block',
+  cancelled: 'pending'
+}
+const STATUS_LABEL: Record<FlightStatus, string> = {
+  pending: 'pending',
+  running: 'in flight',
+  awaiting_checkpoint: 'needs you',
+  passed: 'landed',
+  failed: 'failed',
+  cancelled: 'cancelled'
+}
 
 const terminating = ref(false)
 // A run can be terminated while it's still doing work or paused at a checkpoint.
@@ -63,7 +133,12 @@ async function terminate(): Promise<void> {
 async function refresh(): Promise<void> {
   const d = await runsStore.get(props.id)
   if (!d) notFound.value = true
-  else detail.value = d
+  else {
+    detail.value = d
+    const brief = await briefsStore.get(d.flight.briefId)
+    briefTitle.value = brief?.brief.title ?? d.approach.name
+    repoCount.value = brief?.repos.length ?? 0
+  }
   try {
     infra.value = await rookery().flights.infra(props.id)
   } catch {
@@ -385,16 +460,21 @@ async function act(decision: CheckpointDecision): Promise<void> {
 
 onMounted(() => {
   void refresh()
+  clock = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (clock) clearInterval(clock)
 })
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <header class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold tracking-tight">Flight</h1>
-      <RouterLink to="/flights" class="text-sm text-muted-foreground hover:underline"
-        >← All flights</RouterLink
-      >
+    <header class="flex items-start justify-between gap-4">
+      <MonoLabel class="text-primary">The flight</MonoLabel>
+      <RouterLink to="/" class="text-sm text-muted-foreground hover:underline">← Desk</RouterLink>
     </header>
 
     <p v-if="notFound" class="rounded-md border border-border p-4 text-sm text-muted-foreground">
@@ -402,19 +482,46 @@ onMounted(() => {
     </p>
 
     <template v-else-if="detail">
-      <div class="flex items-center gap-3">
-        <span class="text-lg font-semibold">{{ detail.approach.name }}</span>
-        <span class="text-xs text-muted-foreground">status: {{ detail.flight.status }}</span>
-        <span class="flex-1"></span>
-        <Button
-          v-if="canTerminate"
-          variant="outline"
-          size="sm"
-          :disabled="terminating"
-          @click="terminate"
-        >
-          {{ terminating ? 'Terminating…' : 'Terminate run' }}
-        </Button>
+      <!-- Flight header: the journey at a glance (J7.1). -->
+      <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex min-w-0 flex-col gap-1">
+            <h1 class="truncate text-2xl font-bold tracking-tight text-balance">{{ briefTitle }}</h1>
+            <span class="text-sm text-muted-foreground">via {{ detail.approach.name }}</span>
+          </div>
+          <div class="flex shrink-0 items-center gap-3">
+            <Chip :tone="STATUS_TONE[detail.flight.status]" led>{{
+              STATUS_LABEL[detail.flight.status]
+            }}</Chip>
+            <Button
+              v-if="canTerminate"
+              variant="outline"
+              size="sm"
+              :disabled="terminating"
+              @click="terminate"
+            >
+              {{ terminating ? 'Terminating…' : 'Terminate' }}
+            </Button>
+          </div>
+        </div>
+        <dl class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+          <div class="flex items-center gap-1.5">
+            <dt class="mono-label text-ink-faint">phase</dt>
+            <dd class="font-medium text-ink">{{ phaseLabel }}</dd>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <dt class="mono-label text-ink-faint">elapsed</dt>
+            <dd class="font-medium tabular-nums text-ink">{{ formatDuration(elapsedMs) }}</dd>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <dt class="mono-label text-ink-faint">repos</dt>
+            <dd class="font-medium text-ink">{{ repoCount }}</dd>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <dt class="mono-label text-ink-faint">checkpoints</dt>
+            <dd class="font-medium text-ink">{{ checkpointCount }}</dd>
+          </div>
+        </dl>
       </div>
 
       <!-- Stage progress -->
