@@ -14,7 +14,7 @@ export const router = createRouter({
     {
       path: '/brief/new',
       name: 'brief-new',
-      component: () => import('@renderer/views/BriefEditor.vue')
+      component: () => import('@renderer/views/BriefComposer.vue')
     },
     {
       path: '/brief/:id',

@@ -1,32 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { SpecDiff, SpecVersion } from '@shared/domain'
-import { type RepoProbe, normalizeRepoPath } from '@shared/workspace'
-import Button from '@renderer/components/ui/button/Button.vue'
+import { Button } from '@renderer/components/ui/button'
+import { MonoLabel } from '@renderer/components/journey'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
-import { rookery } from '@renderer/lib/rookery'
+import RepoRowsEditor from '@renderer/components/RepoRowsEditor.vue'
 import { useBriefsStore } from '@renderer/stores/briefs'
 
-const props = defineProps<{ id?: string }>()
+// Editing an existing brief: its name, repos, and spec (with version history +
+// diffs). New briefs are authored in the composer (BriefComposer / /brief/new).
+const props = defineProps<{ id: string }>()
 const router = useRouter()
 const store = useBriefsStore()
 
-interface RepoRow {
-  name: string
-  localPath: string
-  remoteUrl: string
-  /** Last probe of `localPath` (transient UI state; not persisted). */
-  probe: RepoProbe | null
-  /** Directory autocomplete candidates for the current `localPath`. */
-  suggestions: string[]
-}
-
-const isEdit = computed(() => Boolean(props.id))
-
 const title = ref('')
 const spec = ref('')
-const repos = ref<RepoRow[]>([])
+const reposEditor = ref<InstanceType<typeof RepoRowsEditor> | null>(null)
 
 const history = ref<SpecVersion[]>([])
 const diffFrom = ref<number | null>(null)
@@ -37,48 +27,6 @@ const saving = ref(false)
 const error = ref<string | null>(null)
 const notFound = ref(false)
 const specPreview = ref(false)
-
-function addRepo(): void {
-  repos.value.push({ name: '', localPath: '', remoteUrl: '', probe: null, suggestions: [] })
-}
-
-function removeRepo(index: number): void {
-  repos.value.splice(index, 1)
-}
-
-// Autocomplete: fetch directory candidates as the user types, converting Windows
-// backslashes live. A request id guards against out-of-order responses.
-let listRequestId = 0
-async function onPathInput(repo: RepoRow): Promise<void> {
-  repo.localPath = repo.localPath.replace(/\\/g, '/')
-  repo.probe = null // stale until re-probed on blur
-  const id = ++listRequestId
-  const suggestions = await rookery().workspace.listDirs(repo.localPath)
-  if (id === listRequestId) repo.suggestions = suggestions
-}
-
-// Probe the path for git-ness + remote URL (on blur or after picking a folder).
-async function probeRepoRow(repo: RepoRow): Promise<void> {
-  repo.localPath = normalizeRepoPath(repo.localPath)
-  if (repo.localPath === '') {
-    repo.probe = null
-    return
-  }
-  const probe = await rookery().workspace.probeRepo(repo.localPath)
-  repo.probe = probe
-  // Infer the remote URL from the checkout when the user hasn't supplied one.
-  if (probe.isGitRepo && probe.remoteUrl && repo.remoteUrl.trim() === '') {
-    repo.remoteUrl = probe.remoteUrl
-  }
-}
-
-async function browseRepo(repo: RepoRow): Promise<void> {
-  const picked = await rookery().workspace.pickDirectory(repo.localPath || undefined)
-  if (picked) {
-    repo.localPath = picked
-    await probeRepoRow(repo)
-  }
-}
 
 async function loadHistory(id: string): Promise<void> {
   history.value = await store.specHistory(id)
@@ -98,48 +46,27 @@ async function loadDetail(id: string): Promise<void> {
     notFound.value = true
     return
   }
+  notFound.value = false
   title.value = detail.brief.title
   spec.value = detail.currentSpec?.content ?? ''
-  repos.value = detail.repos.map((r) => ({
-    name: r.name,
-    localPath: r.localPath,
-    remoteUrl: r.remoteUrl ?? '',
-    probe: null,
-    suggestions: []
-  }))
-  // Surface any git warnings for already-attached repos without blocking the load.
-  for (const repo of repos.value) void probeRepoRow(repo)
+  reposEditor.value?.setFrom(detail.repos)
   await loadHistory(id)
-}
-
-function reposPayload(): { name: string; localPath: string; remoteUrl: string | undefined }[] {
-  return repos.value.map((r) => ({
-    name: r.name.trim(),
-    localPath: r.localPath.trim(),
-    remoteUrl: r.remoteUrl.trim() === '' ? undefined : r.remoteUrl.trim()
-  }))
 }
 
 async function save(): Promise<void> {
   error.value = null
   if (title.value.trim() === '') {
-    error.value = 'Title is required.'
+    error.value = 'A name is required.'
     return
   }
   saving.value = true
   try {
-    if (isEdit.value && props.id) {
-      await store.update(props.id, { title: title.value.trim(), repos: reposPayload() })
-      await store.saveSpec(props.id, spec.value)
-      await loadHistory(props.id)
-    } else {
-      const detail = await store.create({
-        title: title.value.trim(),
-        spec: spec.value,
-        repos: reposPayload()
-      })
-      await router.push(`/briefs/${detail.brief.id}`)
-    }
+    await store.update(props.id, {
+      title: title.value.trim(),
+      repos: reposEditor.value?.payload() ?? []
+    })
+    await store.saveSpec(props.id, spec.value)
+    await loadHistory(props.id)
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -148,13 +75,12 @@ async function save(): Promise<void> {
 }
 
 async function remove(): Promise<void> {
-  if (!props.id) return
   await store.remove(props.id)
-  await router.push('/briefs')
+  await router.push('/')
 }
 
 async function showDiff(): Promise<void> {
-  if (!props.id || diffFrom.value === null || diffTo.value === null) return
+  if (diffFrom.value === null || diffTo.value === null) return
   diff.value = await store.specDiff(props.id, diffFrom.value, diffTo.value)
 }
 
@@ -162,107 +88,47 @@ function formatDate(ts: string): string {
   return new Date(ts).toLocaleString()
 }
 
-onMounted(() => {
-  if (props.id) void loadDetail(props.id)
-})
+onMounted(() => void loadDetail(props.id))
 
-// Handle navigating between different work items without a full remount.
+// Handle navigating between different briefs without a full remount.
 watch(
   () => props.id,
-  (id) => {
-    if (id) void loadDetail(id)
-  }
+  (id) => void loadDetail(id)
 )
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <header class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold tracking-tight">
-        {{ isEdit ? 'Edit work item' : 'New work item' }}
-      </h1>
-      <RouterLink to="/briefs" class="text-sm text-muted-foreground hover:underline">
-        ← Back to list
-      </RouterLink>
+  <div class="mx-auto flex max-w-3xl flex-col gap-6">
+    <header class="flex items-center justify-between gap-4">
+      <div class="flex flex-col gap-1">
+        <MonoLabel class="text-primary">Brief</MonoLabel>
+        <h1 class="text-2xl font-bold tracking-tight">Edit brief</h1>
+      </div>
+      <RouterLink to="/" class="text-sm text-muted-foreground hover:underline">← Desk</RouterLink>
     </header>
 
     <p v-if="notFound" class="rounded-md border border-border p-4 text-sm text-muted-foreground">
-      Work item not found.
+      Brief not found.
     </p>
 
     <template v-else>
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-medium" for="title">Title</label>
+        <label class="text-sm font-medium" for="title">Name</label>
         <input
           id="title"
           v-model="title"
           type="text"
-          placeholder="Add SSO login"
+          placeholder="Rate-limit the public API"
           class="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
       </div>
 
-      <!-- Repos -->
-      <section class="flex flex-col gap-3">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-medium">Repos</h2>
-          <Button variant="outline" size="sm" @click="addRepo">Add repo</Button>
-        </div>
-        <p v-if="repos.length === 0" class="text-sm text-muted-foreground">No repos attached.</p>
-        <div v-for="(repo, index) in repos" :key="index" class="flex flex-col gap-1">
-          <div class="grid grid-cols-[1fr_1.5fr_1.5fr_auto] items-center gap-2">
-            <input
-              v-model="repo.name"
-              type="text"
-              placeholder="name (api)"
-              class="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-            <div class="flex items-center gap-1">
-              <input
-                v-model="repo.localPath"
-                type="text"
-                :list="`dirs-${index}`"
-                placeholder="local path (C:/git/api)"
-                class="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                @input="onPathInput(repo)"
-                @blur="probeRepoRow(repo)"
-              />
-              <datalist :id="`dirs-${index}`">
-                <option v-for="s in repo.suggestions" :key="s" :value="s" />
-              </datalist>
-              <Button variant="outline" size="sm" @click="browseRepo(repo)">Browse…</Button>
-            </div>
-            <input
-              v-model="repo.remoteUrl"
-              type="text"
-              placeholder="remote URL (optional)"
-              class="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-            <Button variant="ghost" size="sm" @click="removeRepo(index)">Remove</Button>
-          </div>
-          <!-- Non-blocking git hints for the path. -->
-          <p
-            v-if="repo.probe && repo.localPath && !repo.probe.exists"
-            class="text-xs text-amber-700"
-          >
-            Path not found on disk.
-          </p>
-          <p v-else-if="repo.probe && !repo.probe.isGitRepo" class="text-xs text-amber-700">
-            No <span class="font-mono">.git</span> folder here — you can still attach it, but it
-            doesn't look like a git repo.
-          </p>
-          <p v-else-if="repo.probe && repo.probe.isGitRepo" class="text-xs text-muted-foreground">
-            ✓ git repo<template v-if="repo.probe.defaultBranch">
-              · {{ repo.probe.defaultBranch }}</template
-            ><template v-if="repo.probe.remoteUrl"> · {{ repo.probe.remoteUrl }}</template>
-          </p>
-        </div>
-      </section>
+      <RepoRowsEditor ref="reposEditor" />
 
       <!-- Spec -->
       <section class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium" for="spec">Spec (markdown)</label>
+          <label class="text-sm font-medium" for="spec">Brief (markdown)</label>
           <div class="flex overflow-hidden rounded-md border border-input text-xs">
             <button
               type="button"
@@ -290,10 +156,7 @@ watch(
           placeholder="# Feature&#10;Describe the work…"
           class="rounded-md border border-input bg-background p-3 font-mono text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
         ></textarea>
-        <div
-          v-if="specPreview"
-          class="min-h-[8rem] rounded-md border border-input bg-background p-3"
-        >
+        <div v-if="specPreview" class="min-h-[8rem] rounded-md border border-input bg-background p-3">
           <MarkdownView :source="spec" />
         </div>
         <p class="text-xs text-muted-foreground">
@@ -305,12 +168,15 @@ watch(
         <Button :disabled="saving" @click="save">
           {{ saving ? 'Saving…' : 'Save' }}
         </Button>
-        <Button v-if="isEdit" variant="outline" @click="remove">Delete</Button>
-        <span v-if="error" class="text-sm text-red-600">{{ error }}</span>
+        <RouterLink :to="`/brief/${props.id}/approach`">
+          <Button variant="outline">Shape the approach →</Button>
+        </RouterLink>
+        <Button variant="ghost" @click="remove">Delete</Button>
+        <span v-if="error" class="text-sm text-block">{{ error }}</span>
       </div>
 
       <!-- Spec version history + diff -->
-      <section v-if="isEdit" class="flex flex-col gap-3 border-t border-border pt-6">
+      <section class="flex flex-col gap-3 border-t border-border pt-6">
         <h2 class="text-sm font-medium">Spec history</h2>
         <p v-if="history.length === 0" class="text-sm text-muted-foreground">No versions yet.</p>
         <ul v-else class="flex flex-col gap-1 text-sm">
@@ -351,8 +217,8 @@ watch(
               :key="i"
               class="whitespace-pre px-3 py-0.5"
               :class="{
-                'bg-green-500/15 text-green-700': line.kind === 'added',
-                'bg-red-500/15 text-red-700': line.kind === 'removed',
+                'bg-pass-wash text-pass': line.kind === 'added',
+                'bg-block-wash text-block': line.kind === 'removed',
                 'text-muted-foreground': line.kind === 'unchanged'
               }"
             >
