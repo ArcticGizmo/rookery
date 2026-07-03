@@ -24,7 +24,8 @@ const { theme, toggle: toggleTheme } = useTheme()
 const links = [
   { to: '/', label: 'Desk' },
   { to: '/approaches', label: 'Approaches' },
-  { to: '/history', label: 'History' }
+  { to: '/history', label: 'History' },
+  { to: '/agent-run', label: 'Agent run' }
 ]
 
 // Live attention counts for the two lanes (Phase J2.4), derived from the event log.

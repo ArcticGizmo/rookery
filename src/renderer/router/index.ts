@@ -85,12 +85,6 @@ export const router = createRouter({
       name: 'agent-run',
       component: () => import('@renderer/views/AgentRun.vue')
     },
-    {
-      // The raw event feed — kept as a low-level surface (History is the richer view).
-      path: '/events',
-      name: 'events',
-      component: () => import('@renderer/views/Home.vue')
-    },
 
     // Journey redesign reference surfaces (Phase J0). Not in the main nav.
     {
