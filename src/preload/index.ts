@@ -53,6 +53,7 @@ const api: RookeryApi = {
     checkpoint: (input) => ipcRenderer.invoke(IPC.runsCheckpoint, input),
     cancel: (flightId) => ipcRenderer.invoke(IPC.runsCancel, flightId),
     infra: (flightId) => ipcRenderer.invoke(IPC.runsInfra, flightId),
+    changes: (flightId) => ipcRenderer.invoke(IPC.runsChanges, flightId),
     landTargets: (flightId) => ipcRenderer.invoke(IPC.runsLandTargets, flightId),
     land: (input) => ipcRenderer.invoke(IPC.runsLand, input),
     teardown: (flightId) => ipcRenderer.invoke(IPC.runsTeardown, flightId)

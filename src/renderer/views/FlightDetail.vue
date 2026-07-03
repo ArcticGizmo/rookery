@@ -14,6 +14,7 @@ import { holdCount } from '@shared/checkpoint-rail'
 import { stageRoles } from '@shared/approach-view'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, FlightInfra } from '@shared/infra'
+import type { FlightChanges } from '@shared/changes'
 import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
@@ -42,6 +43,7 @@ const { events: runEvents, reload: reloadEvents } = useScopedEvents(
 
 const detail = ref<FlightDetail | null>(null)
 const infra = ref<FlightInfra | null>(null)
+const changes = ref<FlightChanges | null>(null)
 const landing = ref<LandingTargets | null>(null)
 const notFound = ref(false)
 const by = ref('human')
@@ -108,6 +110,9 @@ const PRESSURE_LABEL: Record<'ok' | 'warn' | 'high', string> = {
   warn: 'warming',
   high: 'high'
 }
+
+// --- Broad changes summary (J7.5) -------------------------------------------
+const hasChanges = computed(() => (changes.value?.repos ?? []).some((r) => r.files.length > 0))
 
 const elapsedMs = computed(() => {
   const f = detail.value?.flight
@@ -177,6 +182,11 @@ async function refresh(): Promise<void> {
     infra.value = await rookery().flights.infra(props.id)
   } catch {
     infra.value = null
+  }
+  try {
+    changes.value = await runsStore.changes(props.id)
+  } catch {
+    changes.value = null
   }
   // Landing is only relevant once a run has succeeded (Phase 6.4).
   if (d?.flight.status === 'passed') {
@@ -747,6 +757,45 @@ onUnmounted(() => {
             </li>
           </ul>
         </MilestoneNode>
+      </section>
+
+      <!-- Broad changes so far, across the workspace (J7.5). -->
+      <section v-if="changes?.available && hasChanges" class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <MonoLabel>Changes so far · this workspace</MonoLabel>
+          <span class="mono-label">
+            <span class="text-pass">+{{ changes.totalAdditions }}</span>
+            <span class="text-block">−{{ changes.totalDeletions }}</span>
+          </span>
+        </div>
+        <div
+          v-for="repo in changes.repos"
+          :key="repo.repo"
+          class="overflow-hidden rounded-xl border border-border"
+        >
+          <div class="mono-label border-b border-border bg-surface-2 px-3 py-1.5 text-ink-faint">
+            {{ repo.repo }}
+          </div>
+          <p v-if="!repo.files.length" class="px-3 py-2 text-xs text-muted-foreground">
+            No changes yet.
+          </p>
+          <ul v-else class="divide-y divide-border">
+            <li
+              v-for="f in repo.files"
+              :key="f.path"
+              class="flex items-center justify-between gap-3 px-3 py-1.5 font-mono text-xs"
+            >
+              <span class="truncate text-muted-foreground">{{ f.path }}</span>
+              <span class="shrink-0 tabular-nums">
+                <span v-if="f.binary" class="text-ink-faint">binary</span>
+                <template v-else>
+                  <span class="text-pass">+{{ f.additions }}</span>
+                  <span class="text-block">−{{ f.deletions }}</span>
+                </template>
+              </span>
+            </li>
+          </ul>
+        </div>
       </section>
 
       <!-- Pending checkpoint -->

@@ -1,6 +1,7 @@
 import type { ApproachDraftResult } from './approach-draft'
 import type { ListEventsOptions, StoredEvent } from './events'
 import type { FlightInfra } from './infra'
+import type { FlightChanges } from './changes'
 import type { RepoProbe } from './workspace'
 import type { LandingResult, LandingTargets } from './landing'
 import type {
@@ -60,6 +61,7 @@ export const IPC = {
   runsCheckpoint: 'flights:checkpoint',
   runsCancel: 'flights:cancel',
   runsInfra: 'flights:infra',
+  runsChanges: 'flights:changes',
   runsLandTargets: 'flights:land-targets',
   runsLand: 'flights:land',
   runsTeardown: 'flights:teardown',
@@ -109,6 +111,7 @@ export interface IpcInvokeMap {
   'flights:checkpoint': { args: [input: CheckpointActionInput]; result: void }
   'flights:cancel': { args: [flightId: string]; result: void }
   'flights:infra': { args: [flightId: string]; result: FlightInfra }
+  'flights:changes': { args: [flightId: string]; result: FlightChanges }
   'flights:land-targets': { args: [flightId: string]; result: LandingTargets }
   'flights:land': { args: [input: LandFlightInput]; result: LandingResult }
   'flights:teardown': { args: [flightId: string]; result: void }

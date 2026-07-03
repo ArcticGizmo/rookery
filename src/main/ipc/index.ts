@@ -15,6 +15,7 @@ import type { FlightEngine } from '../engine/flight-engine'
 import type { AgentService } from '../services/agent-service'
 import type { AuditLog } from '../services/audit-log'
 import type { LandingService } from '../services/landing-service'
+import type { ChangesService } from '../services/changes-service'
 import type { FlightStore } from '../services/flight-store'
 import type { SpecService } from '../services/spec-service'
 import type { UpdateService } from '../services/update-service'
@@ -33,6 +34,7 @@ export interface IpcServices {
   flights: FlightStore
   engine: FlightEngine
   landing: LandingService
+  changes: ChangesService
   workspace: WorkspaceService
   /** Optional: absent in contexts without auto-update (e.g. some tests). */
   update?: UpdateService
@@ -50,6 +52,7 @@ export function registerIpc(services: IpcServices): void {
     flights,
     engine,
     landing,
+    changes,
     workspace,
     update
   } = services
@@ -113,6 +116,7 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.runsCheckpoint, (_event, input: CheckpointActionInput) => engine.resolveCheckpoint(input))
   ipcMain.handle(IPC.runsCancel, (_event, flightId: string) => engine.cancel(flightId))
   ipcMain.handle(IPC.runsInfra, (_event, flightId: string) => engine.flightInfra(flightId))
+  ipcMain.handle(IPC.runsChanges, (_event, flightId: string) => changes.changes(flightId))
   ipcMain.handle(IPC.runsLandTargets, (_event, flightId: string) => landing.targets(flightId))
   ipcMain.handle(IPC.runsLand, (_event, input: LandFlightInput) => landing.land(input))
   ipcMain.handle(IPC.runsTeardown, (_event, flightId: string) => engine.teardownInfra(flightId))

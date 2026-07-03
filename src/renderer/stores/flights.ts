@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { CheckpointActionInput, Flight, FlightDetail, StartFlightInput } from '@shared/domain'
+import type { FlightChanges } from '@shared/changes'
 import { rookery } from '@renderer/lib/rookery'
 
 export const useFlightsStore = defineStore('flights', () => {
@@ -30,10 +31,14 @@ export const useFlightsStore = defineStore('flights', () => {
     return rookery().flights.checkpoint(input)
   }
 
+  function changes(flightId: string): Promise<FlightChanges> {
+    return rookery().flights.changes(flightId)
+  }
+
   async function cancel(flightId: string): Promise<void> {
     await rookery().flights.cancel(flightId)
     await load()
   }
 
-  return { items, loading, load, get, start, checkpoint, cancel }
+  return { items, loading, load, get, start, checkpoint, changes, cancel }
 })

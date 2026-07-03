@@ -1,6 +1,7 @@
 import type { ApproachDraftResult } from './approach-draft'
 import type { ListEventsOptions, StoredEvent } from './events'
 import type { FlightInfra } from './infra'
+import type { FlightChanges } from './changes'
 import type { RepoProbe } from './workspace'
 import type { LandingResult, LandingTargets } from './landing'
 import type {
@@ -83,6 +84,8 @@ export interface RookeryApi {
     cancel: (flightId: string) => Promise<void>
     /** Live infrastructure status for a run (instances, worktrees, container health). */
     infra: (flightId: string) => Promise<FlightInfra>
+    /** Broad changes summary (files touched, +/-) across the flight's worktrees. */
+    changes: (flightId: string) => Promise<FlightChanges>
     /** Which repos of a successful run can be landed (open PR / merge). */
     landTargets: (flightId: string) => Promise<LandingTargets>
     /** Land one impacted repo of a successful run via a PR or a direct merge. */

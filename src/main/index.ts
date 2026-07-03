@@ -12,6 +12,7 @@ import { createInfraProvider } from './services/infra'
 import { InfraService } from './services/infra-service'
 import { createLandingProvider } from './services/landing'
 import { LandingService } from './services/landing-service'
+import { ChangesService } from './services/changes-service'
 import { LocalBranchService } from './services/local-branch-service'
 import { FlightStore } from './services/flight-store'
 import { SpecService } from './services/spec-service'
@@ -81,6 +82,7 @@ async function bootstrap(): Promise<void> {
   const localBranch = new LocalBranchService(auditLog)
   const engine = new FlightEngine(flights, auditLog, agent, briefs, approaches, infra, localBranch)
   const landing = new LandingService(createLandingProvider(), auditLog, infra, briefs, flights)
+  const changes = new ChangesService(infra, flights)
   const workspace = new WorkspaceService()
 
   // Auto-update (Phase 7.3): project updater lifecycle into the audit log so it
@@ -99,6 +101,7 @@ async function bootstrap(): Promise<void> {
     flights,
     engine,
     landing,
+    changes,
     workspace,
     update
   })
