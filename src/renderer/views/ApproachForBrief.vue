@@ -28,6 +28,7 @@ const approachId = ref<string | null>(null)
 
 const saving = ref(false)
 const saved = ref(false)
+const drafting = ref(false)
 const error = ref<string | null>(null)
 
 const uid = (): string => crypto.randomUUID()
@@ -61,6 +62,24 @@ function pickTemplate(templateId: string): void {
   if (!template) return
   body.value = { ...instantiateTemplate(template), briefId: props.id }
   saved.value = false
+}
+
+async function draftFromBrief(): Promise<void> {
+  error.value = null
+  drafting.value = true
+  try {
+    const result = await approachesStore.draft(props.id)
+    if (result.ok) {
+      body.value = result.body
+      saved.value = false
+    } else {
+      error.value = result.message
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    drafting.value = false
+  }
 }
 
 function startBlank(): void {
@@ -150,9 +169,33 @@ async function save(): Promise<void> {
     <!-- Chooser: pick a starting point -->
     <section v-else-if="!body" class="flex flex-col gap-4">
       <p class="max-w-prose text-sm text-muted-foreground">
-        Start from a template and edit it to fit. Each is a readable set of steps — review, plan,
-        build, verify — that you can reshape.
+        Let an agent read your brief and propose the steps, or start from a template — either way
+        you'll edit it into a readable set of steps you can reshape.
       </p>
+
+      <button
+        type="button"
+        class="flex items-center gap-3 rounded-xl border border-primary bg-accent-wash/60 p-4 text-left transition-colors hover:bg-accent-wash disabled:opacity-60"
+        :disabled="drafting"
+        @click="draftFromBrief"
+      >
+        <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">✦</span>
+        <span class="min-w-0">
+          <span class="block text-sm font-semibold">
+            {{ drafting ? 'Reading your brief…' : 'Draft from my brief' }}
+          </span>
+          <span class="block text-xs text-muted-foreground">
+            An agent proposes tailored steps, roles, and “Done means…”. You edit before anything runs.
+          </span>
+        </span>
+      </button>
+
+      <p v-if="error" class="text-sm text-block">{{ error }}</p>
+
+      <div class="flex items-center gap-3 text-xs text-ink-faint">
+        <span class="h-px flex-1 bg-border"></span>or start from a template<span class="h-px flex-1 bg-border"></span>
+      </div>
+
       <div class="grid gap-3 sm:grid-cols-2">
         <button
           v-for="t in WORKFLOW_TEMPLATES"
@@ -172,12 +215,6 @@ async function save(): Promise<void> {
           <span class="text-sm font-semibold">Start blank</span>
           <span class="text-xs text-muted-foreground">Add your own steps from scratch.</span>
         </button>
-      </div>
-      <div class="flex items-center gap-2 rounded-lg border border-dashed border-border px-4 py-3">
-        <Chip tone="pending">soon</Chip>
-        <span class="text-xs text-muted-foreground">
-          ✦ Drafting an approach from your brief with an agent arrives in the next step.
-        </span>
       </div>
     </section>
 

@@ -20,6 +20,7 @@ import type { SpecService } from '../services/spec-service'
 import type { UpdateService } from '../services/update-service'
 import type { BriefService } from '../services/brief-service'
 import type { ApproachService } from '../services/approach-service'
+import { draftApproachForBrief } from '../services/approach-drafter'
 import type { WorkspaceService } from '../services/workspace-service'
 
 export interface IpcServices {
@@ -96,6 +97,9 @@ export function registerIpc(services: IpcServices): void {
     approaches.update(id, input)
   )
   ipcMain.handle(IPC.approachesDelete, (_event, id: string) => approaches.delete(id))
+  ipcMain.handle(IPC.approachesDraft, (_event, briefId: string) =>
+    draftApproachForBrief(agent, briefs, briefId)
+  )
 
   // Single-agent flights
   ipcMain.handle(IPC.agentCredentials, () => agent.credentials())

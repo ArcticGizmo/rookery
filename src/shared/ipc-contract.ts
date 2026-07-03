@@ -1,3 +1,4 @@
+import type { ApproachDraftResult } from './approach-draft'
 import type { ListEventsOptions, StoredEvent } from './events'
 import type { FlightInfra } from './infra'
 import type { RepoProbe } from './workspace'
@@ -47,6 +48,7 @@ export const IPC = {
   approachesCreate: 'approaches:create',
   approachesUpdate: 'approaches:update',
   approachesDelete: 'approaches:delete',
+  approachesDraft: 'approaches:draft',
   // Single-agent flights
   agentCredentials: 'agent:credentials',
   agentStart: 'agent:start',
@@ -95,6 +97,7 @@ export interface IpcInvokeMap {
   'approaches:create': { args: [input: ApproachDefBody]; result: ApproachDef }
   'approaches:update': { args: [id: string, input: ApproachDefBody]; result: ApproachDef }
   'approaches:delete': { args: [id: string]; result: void }
+  'approaches:draft': { args: [briefId: string]; result: ApproachDraftResult }
 
   'agent:credentials': { args: []; result: CredentialStatus }
   'agent:start': { args: [config: AgentRunConfig]; result: { agentRunId: string } }

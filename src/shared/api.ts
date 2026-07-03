@@ -1,3 +1,4 @@
+import type { ApproachDraftResult } from './approach-draft'
 import type { ListEventsOptions, StoredEvent } from './events'
 import type { FlightInfra } from './infra'
 import type { RepoProbe } from './workspace'
@@ -61,6 +62,8 @@ export interface RookeryApi {
     create: (input: ApproachDefBody) => Promise<ApproachDef>
     update: (id: string, input: ApproachDefBody) => Promise<ApproachDef>
     remove: (id: string) => Promise<void>
+    /** Ask an agent to draft an approach from a brief's spec (Phase J4). */
+    draft: (briefId: string) => Promise<ApproachDraftResult>
   }
   agent: {
     /** Whether Agent SDK credentials resolve (drives the login banner). */

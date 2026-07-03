@@ -37,5 +37,9 @@ export const useApproachesStore = defineStore('approaches', () => {
     await load()
   }
 
-  return { items, loading, load, get, create, update, remove }
+  function draft(briefId: string) {
+    return rookery().approaches.draft(briefId)
+  }
+
+  return { items, loading, load, get, create, update, remove, draft }
 })

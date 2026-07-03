@@ -38,7 +38,8 @@ const api: RookeryApi = {
     get: (id) => ipcRenderer.invoke(IPC.approachesGet, id),
     create: (input) => ipcRenderer.invoke(IPC.approachesCreate, input),
     update: (id, input) => ipcRenderer.invoke(IPC.approachesUpdate, id, input),
-    remove: (id) => ipcRenderer.invoke(IPC.approachesDelete, id)
+    remove: (id) => ipcRenderer.invoke(IPC.approachesDelete, id),
+    draft: (briefId) => ipcRenderer.invoke(IPC.approachesDraft, briefId)
   },
   agent: {
     credentials: () => ipcRenderer.invoke(IPC.agentCredentials),
