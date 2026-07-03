@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { NotificationItem } from '@shared/notifications'
 import { useEventsStore } from '@renderer/stores/events'
 import { useNotificationsStore } from '@renderer/stores/notifications'
+import { useTheme } from '@renderer/composables/use-theme'
 import { rookery } from '@renderer/lib/rookery'
 
 const route = useRoute()
@@ -12,6 +13,7 @@ const router = useRouter()
 const eventsStore = useEventsStore()
 const notifications = useNotificationsStore()
 const { items, unreadCount, osEnabled } = storeToRefs(notifications)
+const { theme, toggle: toggleTheme } = useTheme()
 
 const links = [
   { to: '/dashboard', label: 'Activity' },
@@ -105,11 +107,32 @@ onMounted(() => {
           </RouterLink>
         </nav>
 
+        <!-- Journey redesign reference surfaces (Phase J0, dev builds only) -->
+        <RouterLink
+          v-if="isDev"
+          to="/dev/gallery"
+          class="ml-auto rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          title="Journey component kit (dev only)"
+        >
+          Kit
+        </RouterLink>
+
+        <!-- Theme toggle -->
+        <button
+          type="button"
+          class="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          :class="isDev ? '' : 'ml-auto'"
+          :aria-label="`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`"
+          @click="toggleTheme"
+        >
+          <span class="text-base leading-none">{{ theme === 'dark' ? '☾' : '☀' }}</span>
+        </button>
+
         <!-- Debug-only: wipe all local data (dev builds only) -->
         <button
           v-if="isDev"
           type="button"
-          class="ml-auto rounded-md border border-red-500/40 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+          class="rounded-md border border-red-500/40 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 disabled:opacity-50"
           :disabled="resetting"
           title="Delete all local data (dev only)"
           @click="resetAllData"
@@ -118,7 +141,7 @@ onMounted(() => {
         </button>
 
         <!-- Notifications (Phase 6.5) -->
-        <div class="relative" :class="isDev ? '' : 'ml-auto'">
+        <div class="relative">
           <button
             type="button"
             class="relative flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"

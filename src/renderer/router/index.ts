@@ -63,6 +63,17 @@ export const router = createRouter({
       name: 'run-detail',
       component: () => import('@renderer/views/RunDetail.vue'),
       props: true
+    },
+    // Journey redesign reference surfaces (Phase J0). Not in the main nav.
+    {
+      path: '/dev/tokens',
+      name: 'dev-tokens',
+      component: () => import('@renderer/views/dev/TokensReference.vue')
+    },
+    {
+      path: '/dev/gallery',
+      name: 'dev-gallery',
+      component: () => import('@renderer/views/dev/PrimitivesGallery.vue')
     }
   ]
 })
