@@ -30,13 +30,13 @@ test.afterAll(async () => {
   }
 })
 
-test('activity dashboard and history browser (Phase 6.1/6.2)', async () => {
+test('the Desk attention lanes and the history browser (J8.4 / J9)', async () => {
   const window = await app.firstWindow()
 
-  // --- Activity dashboard: no active work on a fresh install ---
-  await window.getByRole('link', { name: 'Activity' }).click()
-  await expect(window.locator('h1')).toHaveText('Activity')
-  await expect(window.getByText('No active flights.')).toBeVisible()
+  // --- The Desk: nothing in flight on a fresh install ---
+  await window.getByRole('link', { name: 'Desk' }).click()
+  await expect(window.locator('h1')).toHaveText('What do you want done?')
+  await expect(window.getByText('Nothing in flight yet.')).toBeVisible()
 
   // --- History browser: the boot event is searchable ---
   await window.getByRole('link', { name: 'History' }).click()
