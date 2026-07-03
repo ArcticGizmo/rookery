@@ -18,7 +18,7 @@ function approachBody(): ApproachDefBody {
   return {
     name: 'wf',
     description: '',
-    stages: [{ id: 's0', name: 'Build', type: 'implementation', personas: [], passCriteria: [], gates: [] }]
+    stages: [{ id: 's0', name: 'Build', type: 'implementation', personas: [], passCriteria: [], checkpoints: [] }]
   }
 }
 

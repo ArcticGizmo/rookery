@@ -6,7 +6,7 @@ import type {
   AgentRunConfig,
   CreateBriefInput,
   CredentialStatus,
-  GateActionInput,
+  CheckpointActionInput,
   LandRunInput,
   Run,
   RunDetail,
@@ -74,8 +74,8 @@ export interface RookeryApi {
     start: (input: StartRunInput) => Promise<Run>
     list: () => Promise<Run[]>
     get: (runId: string) => Promise<RunDetail | null>
-    /** Resolve a pending human gate (approve/reject/request-changes). */
-    gate: (input: GateActionInput) => Promise<void>
+    /** Resolve a pending human checkpoint (approve/reject/request-changes). */
+    checkpoint: (input: CheckpointActionInput) => Promise<void>
     /** Terminate an in-flight run: cancels its live agents and marks it cancelled. */
     cancel: (runId: string) => Promise<void>
     /** Live infrastructure status for a run (instances, worktrees, container health). */

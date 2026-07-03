@@ -1,6 +1,6 @@
 /**
  * Append-only audit/event log types. The discriminated union grows as later
- * phases add behavior (spec edits, agent lifecycle, gates, transitions).
+ * phases add behavior (spec edits, agent lifecycle, checkpoints, transitions).
  */
 
 export type EventActor = 'system' | 'human' | 'agent'
@@ -175,7 +175,7 @@ export type AppEvent =
       }
     }
   // The consolidated artifact a stage's persona produced this iteration — what a
-  // human reviews at the stage's gate (rendered as markdown in the run view).
+  // human reviews at the stage's checkpoint (rendered as markdown in the run view).
   | {
       type: 'run.stage_output'
       actor: 'agent'
@@ -191,12 +191,12 @@ export type AppEvent =
       }
     }
   | {
-      type: 'run.gate_awaiting'
+      type: 'run.checkpoint_awaiting'
       actor: 'system'
-      payload: { runId: string; stageId: string; gateId: string; description: string }
+      payload: { runId: string; stageId: string; checkpointId: string; description: string }
     }
   | {
-      type: 'run.gate_resolved'
+      type: 'run.checkpoint_resolved'
       actor: 'human'
       payload: { runId: string; stageId: string; decision: string; by: string; note: string }
     }

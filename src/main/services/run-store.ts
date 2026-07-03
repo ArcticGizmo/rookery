@@ -159,7 +159,7 @@ export class RunStore {
     }
   }
 
-  /** Rebuild the in-memory run snapshot from persisted rows (e.g. after a gate). */
+  /** Rebuild the in-memory run snapshot from persisted rows (e.g. after a checkpoint). */
   async loadSnapshot(runId: string): Promise<RunSnapshot | null> {
     const rows = await this.db.select().from(runs).where(eq(runs.id, runId)).limit(1)
     const row = rows[0]
@@ -205,7 +205,7 @@ export class RunStore {
         if (stage.status === 'pending') {
           startedAt = null
           finishedAt = null
-        } else if (stage.status === 'running' || stage.status === 'awaiting_gate') {
+        } else if (stage.status === 'running' || stage.status === 'awaiting_checkpoint') {
           startedAt = startedAt ?? now
           finishedAt = null
         } else {

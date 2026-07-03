@@ -4,7 +4,7 @@
  * builder errors) and the main process (guard before persisting / running).
  *
  * Two layers: zod shape validation, then semantic rules zod can't express
- * (uniqueness, cross-references, stage/persona/gate coherence).
+ * (uniqueness, cross-references, stage/persona/checkpoint coherence).
  */
 
 import { z } from 'zod'
@@ -108,16 +108,16 @@ export function validateApproach(input: unknown): ValidationResult {
       issues.push({ path: `${base}.personas`, message: `Duplicate persona id "${dupPersona}"` })
     }
 
-    // Gates.
-    const dupGate = firstDuplicate(stage.gates.map((g) => g.id))
-    if (dupGate) {
-      issues.push({ path: `${base}.gates`, message: `Duplicate gate id "${dupGate}"` })
+    // Checkpoints.
+    const dupCheckpoint = firstDuplicate(stage.checkpoints.map((g) => g.id))
+    if (dupCheckpoint) {
+      issues.push({ path: `${base}.checkpoints`, message: `Duplicate checkpoint id "${dupCheckpoint}"` })
     }
-    const hasAutomatedGate = stage.gates.some((g) => g.kind === 'automated')
-    if (hasAutomatedGate && stage.passCriteria.length === 0) {
+    const hasAutomatedCheckpoint = stage.checkpoints.some((g) => g.kind === 'automated')
+    if (hasAutomatedCheckpoint && stage.passCriteria.length === 0) {
       issues.push({
         path: `${base}.passCriteria`,
-        message: `Stage "${stage.name}" has an automated gate but no pass criteria to evaluate`
+        message: `Stage "${stage.name}" has an automated checkpoint but no pass criteria to evaluate`
       })
     }
 

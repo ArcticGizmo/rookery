@@ -17,7 +17,7 @@ function validApproach(): ApproachDefBody {
         type: 'review',
         personas: [persona('p1')],
         passCriteria: [{ id: 'c1', type: 'personas_agree', description: '' }],
-        gates: [{ id: 'g1', kind: 'human', description: 'Approve' }]
+        checkpoints: [{ id: 'g1', kind: 'human', description: 'Approve' }]
       },
       {
         id: 's2',
@@ -25,7 +25,7 @@ function validApproach(): ApproachDefBody {
         type: 'setup',
         personas: [],
         passCriteria: [],
-        gates: []
+        checkpoints: []
       }
     ]
   }
@@ -74,13 +74,13 @@ describe('validateApproach', () => {
     expect(result.issues.some((i) => i.message.includes('no system prompt'))).toBe(true)
   })
 
-  it('requires pass criteria when a stage has an automated gate', () => {
+  it('requires pass criteria when a stage has an automated checkpoint', () => {
     const wf = validApproach()
-    wf.stages[0]!.gates = [{ id: 'g1', kind: 'automated', description: '' }]
+    wf.stages[0]!.checkpoints = [{ id: 'g1', kind: 'automated', description: '' }]
     wf.stages[0]!.passCriteria = []
     const result = validateApproach(wf)
     expect(result.ok).toBe(false)
-    expect(result.issues.some((i) => i.message.includes('automated gate'))).toBe(true)
+    expect(result.issues.some((i) => i.message.includes('automated checkpoint'))).toBe(true)
   })
 
   it('flags persona-dependent criteria with no personas', () => {

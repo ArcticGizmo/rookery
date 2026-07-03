@@ -57,14 +57,14 @@ describe('briefsInFlight', () => {
     expect(briefsInFlight(l.events).map((f) => f.runId)).toEqual(['live'])
   })
 
-  it('marks a run awaiting a human gate as needsYou', () => {
+  it('marks a run awaiting a human checkpoint as needsYou', () => {
     const l = log()
     l.add('run.started', { runId: 'r' }, { runId: 'r' })
     l.add('run.stage_entered', { stageName: 'Review' }, { runId: 'r' })
-    l.add('run.gate_awaiting', { gateId: 'g', description: 'Approve the reviewed brief' }, { runId: 'r' })
+    l.add('run.checkpoint_awaiting', { checkpointId: 'g', description: 'Approve the reviewed brief' }, { runId: 'r' })
 
     const [flight] = briefsInFlight(l.events)
-    expect(flight).toMatchObject({ status: 'awaiting_gate', needsYou: true })
+    expect(flight).toMatchObject({ status: 'awaiting_checkpoint', needsYou: true })
   })
 
   it('sorts most-recently-active first', () => {
@@ -82,7 +82,7 @@ describe('needsYou', () => {
     const l = log()
     l.add('run.started', { runId: 'r' }, { runId: 'r' })
     l.add('run.stage_entered', { stageName: 'Plan' }, { runId: 'r' })
-    l.add('run.gate_awaiting', { gateId: 'g', description: 'Approve the plan' }, { runId: 'r' })
+    l.add('run.checkpoint_awaiting', { checkpointId: 'g', description: 'Approve the plan' }, { runId: 'r' })
 
     const items = needsYou(l.events)
     expect(items).toHaveLength(1)
@@ -97,8 +97,8 @@ describe('needsYou', () => {
   it('clears a checkpoint once resolved', () => {
     const l = log()
     l.add('run.started', { runId: 'r' }, { runId: 'r' })
-    l.add('run.gate_awaiting', { gateId: 'g', description: 'Sign off' }, { runId: 'r' })
-    l.add('run.gate_resolved', { decision: 'approve', by: 'me', note: '' }, { runId: 'r', actor: 'human' })
+    l.add('run.checkpoint_awaiting', { checkpointId: 'g', description: 'Sign off' }, { runId: 'r' })
+    l.add('run.checkpoint_resolved', { decision: 'approve', by: 'me', note: '' }, { runId: 'r', actor: 'human' })
     l.add('run.stage_entered', { stageName: 'Build' }, { runId: 'r' })
 
     expect(needsYou(l.events)).toHaveLength(0)
@@ -132,7 +132,7 @@ describe('needsYou', () => {
   it('ignores attention for terminal runs', () => {
     const l = log()
     l.add('run.started', { runId: 'r' }, { runId: 'r' })
-    l.add('run.gate_awaiting', { gateId: 'g', description: 'x' }, { runId: 'r' })
+    l.add('run.checkpoint_awaiting', { checkpointId: 'g', description: 'x' }, { runId: 'r' })
     l.add('run.finished', { runId: 'r', status: 'cancelled' }, { runId: 'r' })
     expect(needsYou(l.events)).toHaveLength(0)
   })

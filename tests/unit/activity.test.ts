@@ -73,14 +73,14 @@ describe('computeActivity', () => {
     expect(activity.pressureLevel).toBe('ok')
   })
 
-  it('reflects a pending human gate as awaiting_gate', () => {
+  it('reflects a pending human checkpoint as awaiting_checkpoint', () => {
     const l = log()
     l.add('run.started', { runId: 'r3' }, { runId: 'r3' })
     l.add('run.stage_entered', { stageName: 'Review' }, { runId: 'r3' })
-    l.add('run.gate_awaiting', { gateId: 'g1' }, { runId: 'r3' })
+    l.add('run.checkpoint_awaiting', { checkpointId: 'g1' }, { runId: 'r3' })
 
     const activity = computeActivity(l.events)
-    expect(activity.runs[0]).toMatchObject({ status: 'awaiting_gate', currentStageName: 'Review' })
+    expect(activity.runs[0]).toMatchObject({ status: 'awaiting_checkpoint', currentStageName: 'Review' })
   })
 
   it('flags high pressure across agents', () => {

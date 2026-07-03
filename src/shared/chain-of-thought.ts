@@ -2,7 +2,7 @@
  * Compact "chain of thought" projection for the run view (Phase C1). Reduces a
  * run's raw event stream to the recent, meaningful moments — the agent's
  * messages, its tool calls (each paired with its result so the detail can be
- * expanded on demand), and run/stage/gate transitions — dropping pure telemetry
+ * expanded on demand), and run/stage/checkpoint transitions — dropping pure telemetry
  * (token usage, context-pressure samples) that belongs in the full audit log.
  *
  * Pure and derived entirely from the event log, so it's unit-testable and the run

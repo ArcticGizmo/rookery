@@ -78,7 +78,7 @@ export const specVersions = sqliteTable(
 
 export type SpecVersionRow = typeof specVersions.$inferSelect
 
-/** Approach definitions. The editable body (stages, personas, gates) is stored as
+/** Approach definitions. The editable body (stages, personas, checkpoints) is stored as
  * JSON; `version` bumps on every saved edit. */
 export const approachDefs = sqliteTable('workflow_defs', {
   id: text('id').primaryKey(),

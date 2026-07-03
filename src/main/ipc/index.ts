@@ -5,7 +5,7 @@ import type { ListEventsOptions } from '@shared/events'
 import type {
   AgentRunConfig,
   CreateBriefInput,
-  GateActionInput,
+  CheckpointActionInput,
   LandRunInput,
   StartRunInput,
   UpdateBriefInput,
@@ -106,7 +106,7 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.runsStart, (_event, input: StartRunInput) => engine.start(input))
   ipcMain.handle(IPC.runsList, () => runs.list())
   ipcMain.handle(IPC.runsGet, (_event, runId: string) => runs.getDetail(runId))
-  ipcMain.handle(IPC.runsGate, (_event, input: GateActionInput) => engine.resolveGate(input))
+  ipcMain.handle(IPC.runsCheckpoint, (_event, input: CheckpointActionInput) => engine.resolveCheckpoint(input))
   ipcMain.handle(IPC.runsCancel, (_event, runId: string) => engine.cancel(runId))
   ipcMain.handle(IPC.runsInfra, (_event, runId: string) => engine.runInfra(runId))
   ipcMain.handle(IPC.runsLandTargets, (_event, runId: string) => landing.targets(runId))
@@ -118,7 +118,7 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.updateInstall, () => update?.install())
 
   // Debug tooling: cancel any live runs (stopping their agents), then wipe every
-  // table. Gated to dev builds in the renderer, which only exposes the button
+  // table. Checkpointd to dev builds in the renderer, which only exposes the button
   // when `import.meta.env.DEV` is set.
   ipcMain.handle(IPC.debugResetData, async () => {
     await engine.cancelAllInFlight()

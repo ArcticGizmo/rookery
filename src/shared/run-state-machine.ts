@@ -1,10 +1,10 @@
 /**
  * Pure run/stage lifecycle reducer (Phase 4.2). No side effects, no I/O — the
  * engine (Phase 4.3) interprets the resulting snapshot to decide what to
- * actually do (spawn agents, halt at gates, persist). Kept in `shared` so both
+ * actually do (spawn agents, halt at checkpoints, persist). Kept in `shared` so both
  * the engine and the UI reason about run state identically.
  *
- * Lifecycle: pending → running → (awaiting_gate) → passed / failed, with
+ * Lifecycle: pending → running → (awaiting_checkpoint) → passed / failed, with
  * `next` (advance) and `back` (request-changes) transitions between stages.
  */
 
@@ -72,7 +72,7 @@ export function reduceRun(snapshot: RunSnapshot, action: RunAction): RunSnapshot
   if (action.type === 'CANCEL') {
     if (isTerminal(snapshot.status)) return snapshot
     const stages = snapshot.stages.map((s) =>
-      s.status === 'running' || s.status === 'awaiting_gate'
+      s.status === 'running' || s.status === 'awaiting_checkpoint'
         ? { ...s, status: 'failed' as const }
         : s
     )
@@ -110,8 +110,8 @@ export function reduceRun(snapshot: RunSnapshot, action: RunAction): RunSnapshot
       const i = snapshot.currentStageIndex
       return {
         ...snapshot,
-        status: 'awaiting_gate',
-        stages: setStage(snapshot.stages, i, { status: 'awaiting_gate' })
+        status: 'awaiting_checkpoint',
+        stages: setStage(snapshot.stages, i, { status: 'awaiting_checkpoint' })
       }
     }
 

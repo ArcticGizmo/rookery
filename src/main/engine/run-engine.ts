@@ -1,13 +1,13 @@
 import {
   type AgentPersona,
-  type GateActionInput,
+  type CheckpointActionInput,
   type PermissionMode,
   type Run,
   type RunExecutionMode,
   type Stage,
   type StartRunInput,
   type ApproachDefBody,
-  gateActionInputSchema,
+  checkpointActionInputSchema,
   resolveExecutionMode,
   startRunInputSchema
 } from '@shared/domain'
@@ -60,8 +60,8 @@ interface RunCtx {
   runAgent: (persona: AgentPersona, prompt: string, mode: PermissionMode) => Promise<AgentResult>
 }
 
-function humanGate(stage: Stage): Stage['gates'][number] | undefined {
-  return stage.gates.find((gate) => gate.kind === 'human')
+function humanCheckpoint(stage: Stage): Stage['checkpoints'][number] | undefined {
+  return stage.checkpoints.find((checkpoint) => checkpoint.kind === 'human')
 }
 
 function buildImplPrompt(
@@ -88,7 +88,7 @@ function buildImplPrompt(
 /**
  * The orchestration engine (Phase 4.3/4.6). Drives the pure run state machine:
  * runs each stage's agents, evaluates pass criteria, loops on failure up to
- * `maxIterations`, halts at human gates, and advances — auditing every
+ * `maxIterations`, halts at human checkpoints, and advances — auditing every
  * transition. Stage agents run read-only (`plan`) until a `setup` stage
  * provisions an isolated worktree (Phase 5.4), after which implementer agents run
  * with `acceptEdits` inside it — file edits auto-apply, but Bash/network stay
@@ -165,8 +165,8 @@ export class RunEngine {
    * The in-memory `drive` loop does not survive a restart, so any run still
    * persisted as `running` or `pending` is orphaned — nothing is advancing it.
    * Fail those cleanly with an audited reason so the log stays honest and the UI
-   * never shows a phantom "running" run. `awaiting_gate` runs are a legitimate
-   * pause for a human and survive a restart untouched (resolving the gate
+   * never shows a phantom "running" run. `awaiting_checkpoint` runs are a legitimate
+   * pause for a human and survive a restart untouched (resolving the checkpoint
    * rebuilds their context). Returns the number of runs recovered.
    *
    * Runs on boot, before the window loads. Infra is intentionally left as-is:
@@ -199,12 +199,12 @@ export class RunEngine {
     return orphaned.length
   }
 
-  /** Resolve a pending human gate (Phase 4.4) or request changes (Phase 4.7). */
-  async resolveGate(rawInput: GateActionInput): Promise<void> {
-    const input = gateActionInputSchema.parse(rawInput)
+  /** Resolve a pending human checkpoint (Phase 4.4) or request changes (Phase 4.7). */
+  async resolveCheckpoint(rawInput: CheckpointActionInput): Promise<void> {
+    const input = checkpointActionInputSchema.parse(rawInput)
     const run = await this.runs.get(input.runId)
     if (!run) throw new Error(`Run ${input.runId} not found`)
-    if (run.status !== 'awaiting_gate') throw new Error('Run is not awaiting a gate')
+    if (run.status !== 'awaiting_checkpoint') throw new Error('Run is not awaiting a checkpoint')
 
     let snapshot = await this.runs.loadSnapshot(input.runId)
     const ctx = await this.buildContext(input.runId)
@@ -215,7 +215,7 @@ export class RunEngine {
     await this.emit(
       input.runId,
       {
-        type: 'run.gate_resolved',
+        type: 'run.checkpoint_resolved',
         actor: 'human',
         payload: {
           runId: input.runId,
@@ -275,9 +275,9 @@ export class RunEngine {
    * a terminal state.
    *
    * When a drive loop is active it registers itself synchronously in `driving`
-   * (see `start`/`resolveGate`), so we can hand off the terminal transition to
+   * (see `start`/`resolveCheckpoint`), so we can hand off the terminal transition to
    * it: the loop observes the `cancelled` flag, applies CANCEL, breaks, and
-   * finalizes — avoiding a double finalize. A paused run (e.g. `awaiting_gate`)
+   * finalizes — avoiding a double finalize. A paused run (e.g. `awaiting_checkpoint`)
    * has no loop, so we apply CANCEL and finalize here.
    */
   async cancel(runId: string): Promise<void> {
@@ -376,7 +376,7 @@ export class RunEngine {
     }
 
     // Rehydrate the verification safeguard from the log (the source of truth) so it
-    // survives a pause — e.g. a human gate — that rebuilds this context. A human
+    // survives a pause — e.g. a human checkpoint — that rebuilds this context. A human
     // `request_changes` resets the automatic budget: only route-backs recorded
     // after the most recent one count toward the cap.
     const events = await this.audit.list({ runId, limit: 1000 })
@@ -391,7 +391,7 @@ export class RunEngine {
       if (p.routedBack && e.id > baselineId) ctx.verificationCycles += 1
     }
 
-    // Recover isolation after a pause (e.g. a human gate) rebuilds the context.
+    // Recover isolation after a pause (e.g. a human checkpoint) rebuilds the context.
     if (ctx.executionMode === 'infra' && rc.infraTemplate && this.infra.isConfigured()) {
       // Infra: point agents back at the live worktree if one exists.
       const instance = await this.infra.info(instanceName).catch(() => null)
@@ -573,19 +573,19 @@ export class RunEngine {
         }
 
         if (outcome.passed) {
-          const gate = humanGate(stage)
-          if (gate) {
+          const checkpoint = humanCheckpoint(stage)
+          if (checkpoint) {
             snapshot = await this.apply(runId, snapshot, { type: 'GATE_AWAIT' })
             await this.emit(
               runId,
               {
-                type: 'run.gate_awaiting',
+                type: 'run.checkpoint_awaiting',
                 actor: 'system',
                 payload: {
                   runId,
                   stageId: stage.id,
-                  gateId: gate.id,
-                  description: gate.description
+                  checkpointId: checkpoint.id,
+                  description: checkpoint.description
                 }
               },
               stage.id
@@ -607,7 +607,7 @@ export class RunEngine {
           // routes the run back to the first stage — carrying them as feedback —
           // rather than failing outright. Bounded by maxVerificationCycles: once
           // the budget is spent we stop the auto-loop and escalate to a human
-          // gate instead of burning tokens in a verify→fix death cycle.
+          // checkpoint instead of burning tokens in a verify→fix death cycle.
           const escalate = ctx.verificationCycles >= ctx.maxVerificationCycles
           ctx.verificationFeedback = outcome.reason
           await this.emit(
@@ -637,17 +637,17 @@ export class RunEngine {
             continue
           }
 
-          // Budget spent — pause for human intervention (reuses the gate machinery).
+          // Budget spent — pause for human intervention (reuses the checkpoint machinery).
           snapshot = await this.apply(runId, snapshot, { type: 'GATE_AWAIT' })
           await this.emit(
             runId,
             {
-              type: 'run.gate_awaiting',
+              type: 'run.checkpoint_awaiting',
               actor: 'system',
               payload: {
                 runId,
                 stageId: stage.id,
-                gateId: `verification-escalation:${stage.id}`,
+                checkpointId: `verification-escalation:${stage.id}`,
                 description:
                   `Verification failed ${ctx.maxVerificationCycles + 1} times. Human ` +
                   `intervention required: approve to accept as-is, reject to fail the run, ` +
@@ -723,7 +723,7 @@ export class RunEngine {
         return { snapshot: current, passed: false, reason: 'cancelled' }
 
       // Record each persona's artifact so a human can actually see what they're
-      // approving at the stage's gate (rendered as markdown in the run view).
+      // approving at the stage's checkpoint (rendered as markdown in the run view).
       for (let i = 0; i < stage.personas.length; i++) {
         const persona = stage.personas[i]
         const result = agentResults[i]

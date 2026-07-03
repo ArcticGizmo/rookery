@@ -3,12 +3,12 @@ import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type {
   AgentPersona,
-  Gate,
+  Checkpoint,
   PassCriterion,
   Stage,
   StageType,
   PassCriterionType,
-  GateKind
+  CheckpointKind
 } from '@shared/domain'
 import { validateApproach } from '@shared/approach-validation'
 import { KNOWN_MODELS } from '@shared/models'
@@ -34,7 +34,7 @@ const CRITERION_TYPES: PassCriterionType[] = [
   'tests_pass',
   'manual'
 ]
-const GATE_KINDS: GateKind[] = ['human', 'automated']
+const GATE_KINDS: CheckpointKind[] = ['human', 'automated']
 
 const isEdit = computed(() => Boolean(props.id))
 
@@ -79,7 +79,7 @@ function addStage(): void {
     type: 'review',
     personas: [],
     passCriteria: [],
-    gates: []
+    checkpoints: []
   }
   stages.value.push(stage)
 }
@@ -113,9 +113,9 @@ function addCriterion(stage: Stage): void {
   stage.passCriteria.push(criterion)
 }
 
-function addGate(stage: Stage): void {
-  const gate: Gate = { id: uid(), kind: 'human', description: '' }
-  stage.gates.push(gate)
+function addCheckpoint(stage: Stage): void {
+  const checkpoint: Checkpoint = { id: uid(), kind: 'human', description: '' }
+  stage.checkpoints.push(checkpoint)
 }
 
 function removeFrom<T>(arr: T[], index: number): void {
@@ -398,30 +398,30 @@ watch(
             </div>
           </div>
 
-          <!-- Gates -->
+          <!-- Checkpoints -->
           <div class="flex flex-col gap-2">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium">Gates</h3>
-              <Button variant="outline" size="sm" @click="addGate(stage)">Add gate</Button>
+              <h3 class="text-sm font-medium">Checkpoints</h3>
+              <Button variant="outline" size="sm" @click="addCheckpoint(stage)">Add checkpoint</Button>
             </div>
             <div
-              v-for="(gate, gIndex) in stage.gates"
-              :key="gate.id"
+              v-for="(checkpoint, gIndex) in stage.checkpoints"
+              :key="checkpoint.id"
               class="flex items-center gap-2"
             >
               <select
-                v-model="gate.kind"
+                v-model="checkpoint.kind"
                 class="h-9 rounded-md border border-input bg-background px-2 text-sm"
               >
                 <option v-for="k in GATE_KINDS" :key="k" :value="k">{{ k }}</option>
               </select>
               <input
-                v-model="gate.description"
+                v-model="checkpoint.description"
                 type="text"
-                placeholder="What this gate checks"
+                placeholder="What this checkpoint checks"
                 :class="[inputClass, 'flex-1']"
               />
-              <Button variant="ghost" size="sm" @click="removeFrom(stage.gates, gIndex)"
+              <Button variant="ghost" size="sm" @click="removeFrom(stage.checkpoints, gIndex)"
                 >Remove</Button
               >
             </div>

@@ -16,7 +16,7 @@ function body(name: string): ApproachDefBody {
         type: 'review',
         personas: [{ id: 'p1', name: 'Lead', role: 'Tech Lead', systemPrompt: 'Review', model: undefined }],
         passCriteria: [],
-        gates: [{ id: 'g1', kind: 'human', description: 'Approve' }]
+        checkpoints: [{ id: 'g1', kind: 'human', description: 'Approve' }]
       }
     ]
   }
@@ -49,7 +49,7 @@ describe('ApproachService', () => {
     const created = await service.create(body('Round trip'))
     const fetched = await service.get(created.id)
     expect(fetched?.stages[0]?.personas[0]?.role).toBe('Tech Lead')
-    expect(fetched?.stages[0]?.gates[0]?.kind).toBe('human')
+    expect(fetched?.stages[0]?.checkpoints[0]?.kind).toBe('human')
   })
 
   it('bumps the version on update and audits it', async () => {

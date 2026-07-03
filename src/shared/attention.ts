@@ -11,7 +11,7 @@
 import type { StoredEvent } from './events'
 
 /** A run's lifecycle status as far as the Desk lanes care. */
-export type InFlightStatus = 'pending' | 'running' | 'awaiting_gate'
+export type InFlightStatus = 'pending' | 'running' | 'awaiting_checkpoint'
 
 /** One brief currently in flight (a non-terminal run). */
 export interface BriefInFlight {
@@ -93,11 +93,11 @@ function reduce(events: StoredEvent[]): { runs: Map<string, RunAcc>; agents: Map
           run.currentStageName = String(p.stageName ?? run.currentStageName ?? '')
           run.escalation = null
           break
-        case 'run.gate_awaiting':
-          run.status = 'awaiting_gate'
+        case 'run.checkpoint_awaiting':
+          run.status = 'awaiting_checkpoint'
           run.checkpoint = { detail: String(p.description ?? ''), ts: event.ts }
           break
-        case 'run.gate_resolved':
+        case 'run.checkpoint_resolved':
         case 'run.stage_passed':
           run.status = 'running'
           run.checkpoint = null
@@ -151,7 +151,7 @@ function reduce(events: StoredEvent[]): { runs: Map<string, RunAcc>; agents: Map
 }
 
 function needsYouRun(run: RunAcc): boolean {
-  return (run.status === 'awaiting_gate' && run.checkpoint !== null) || run.escalation !== null
+  return (run.status === 'awaiting_checkpoint' && run.checkpoint !== null) || run.escalation !== null
 }
 
 /** Briefs currently in flight (non-terminal runs), most-recently-active first. */
@@ -181,7 +181,7 @@ export function needsYou(events: StoredEvent[]): AttentionItem[] {
 
   for (const run of runs.values()) {
     if (run.finished) continue
-    if (run.status === 'awaiting_gate' && run.checkpoint) {
+    if (run.status === 'awaiting_checkpoint' && run.checkpoint) {
       items.push({
         runId: run.runId,
         kind: 'checkpoint',

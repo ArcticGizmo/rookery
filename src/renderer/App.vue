@@ -69,7 +69,7 @@ function openNotification(n: NotificationItem): void {
 }
 
 function notificationIcon(kind: NotificationItem['kind']): string {
-  if (kind === 'gate') return '⏸'
+  if (kind === 'checkpoint') return '⏸'
   if (kind === 'update') return '⬆'
   return '⚠'
 }

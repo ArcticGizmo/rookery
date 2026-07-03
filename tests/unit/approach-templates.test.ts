@@ -22,13 +22,13 @@ describe('approach templates', () => {
         expect(result.ok).toBe(true)
       })
 
-      it('assigns unique ids across stages, personas, criteria, and gates', () => {
+      it('assigns unique ids across stages, personas, criteria, and checkpoints', () => {
         const body = instantiateTemplate(template, counterUid())
         const ids = body.stages.flatMap((s) => [
           s.id,
           ...s.personas.map((p) => p.id),
           ...s.passCriteria.map((c) => c.id),
-          ...s.gates.map((g) => g.id)
+          ...s.checkpoints.map((g) => g.id)
         ])
         expect(new Set(ids).size).toBe(ids.length)
       })

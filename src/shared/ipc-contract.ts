@@ -6,7 +6,7 @@ import type {
   AgentRunConfig,
   CreateBriefInput,
   CredentialStatus,
-  GateActionInput,
+  CheckpointActionInput,
   LandRunInput,
   Run,
   RunDetail,
@@ -55,7 +55,7 @@ export const IPC = {
   runsStart: 'runs:start',
   runsList: 'runs:list',
   runsGet: 'runs:get',
-  runsGate: 'runs:gate',
+  runsCheckpoint: 'runs:checkpoint',
   runsCancel: 'runs:cancel',
   runsInfra: 'runs:infra',
   runsLandTargets: 'runs:land-targets',
@@ -103,7 +103,7 @@ export interface IpcInvokeMap {
   'runs:start': { args: [input: StartRunInput]; result: Run }
   'runs:list': { args: []; result: Run[] }
   'runs:get': { args: [runId: string]; result: RunDetail | null }
-  'runs:gate': { args: [input: GateActionInput]; result: void }
+  'runs:checkpoint': { args: [input: CheckpointActionInput]; result: void }
   'runs:cancel': { args: [runId: string]; result: void }
   'runs:infra': { args: [runId: string]; result: RunInfra }
   'runs:land-targets': { args: [runId: string]; result: LandingTargets }

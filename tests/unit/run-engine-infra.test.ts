@@ -22,14 +22,14 @@ function approachBody(): ApproachDefBody {
     name: 'Feature with infra',
     description: '',
     stages: [
-      { id: 'setup', name: 'Provision', type: 'setup', personas: [], passCriteria: [], gates: [] },
+      { id: 'setup', name: 'Provision', type: 'setup', personas: [], passCriteria: [], checkpoints: [] },
       {
         id: 'impl',
         name: 'Implement',
         type: 'implementation',
         personas: [{ id: 'p', name: 'Dev', role: 'Implementer', systemPrompt: 'Build it.' }],
         passCriteria: [{ id: 'c', type: 'reviewer_approves', description: '' }],
-        gates: []
+        checkpoints: []
       }
     ]
   }

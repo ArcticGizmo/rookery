@@ -23,7 +23,7 @@ const PRESSURE_BAR: Record<PressureLevel, string> = {
 }
 const RUN_STATUS_CLASS: Record<string, string> = {
   running: 'bg-blue-500/15 text-blue-700',
-  awaiting_gate: 'bg-amber-500/15 text-amber-700'
+  awaiting_checkpoint: 'bg-amber-500/15 text-amber-700'
 }
 
 function barWidth(agent: ActiveAgent): string {

@@ -29,17 +29,17 @@ function log() {
 }
 
 describe('computeNotifications', () => {
-  it('surfaces a notification for each human gate awaiting', () => {
+  it('surfaces a notification for each human checkpoint awaiting', () => {
     const l = log()
-    l.add('run.gate_awaiting', { description: 'Approve the review' }, { runId: 'r1' })
+    l.add('run.checkpoint_awaiting', { description: 'Approve the review' }, { runId: 'r1' })
 
     const items = computeNotifications(l.events)
     expect(items).toHaveLength(1)
     expect(items[0]).toMatchObject({
       id: 1,
-      kind: 'gate',
+      kind: 'checkpoint',
       runId: 'r1',
-      title: 'Human gate awaiting',
+      title: 'Human checkpoint awaiting',
       body: 'Approve the review'
     })
   })
@@ -96,12 +96,12 @@ describe('computeNotifications', () => {
   it('ignores unrelated events and preserves chronological order', () => {
     const l = log()
     l.add('app.booted', { version: '0', platform: 'win32' })
-    l.add('run.gate_awaiting', { description: 'gate A' }, { runId: 'r1' })
+    l.add('run.checkpoint_awaiting', { description: 'checkpoint A' }, { runId: 'r1' })
     l.add('agent.context_pressure', { agentRunId: 'a1', percent: 95, level: 'high' }, { actor: 'agent', runId: 'r2' })
     l.add('run.finished', { runId: 'r1', status: 'passed' }, { runId: 'r1' })
 
     const items = computeNotifications(l.events)
-    expect(items.map((n) => n.kind)).toEqual(['gate', 'pressure'])
+    expect(items.map((n) => n.kind)).toEqual(['checkpoint', 'pressure'])
     expect(items.map((n) => n.id)).toEqual([2, 3])
   })
 })

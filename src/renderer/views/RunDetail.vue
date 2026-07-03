@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import type { GateDecision, LandingMethod, RunDetail, StageStatus } from '@shared/domain'
+import type { CheckpointDecision, LandingMethod, RunDetail, StageStatus } from '@shared/domain'
 import { type ChainTool, buildChainOfThought } from '@shared/chain-of-thought'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, RunInfra } from '@shared/infra'
@@ -39,10 +39,10 @@ const tearingDown = ref(false)
 const passed = computed(() => detail.value?.run.status === 'passed')
 
 const terminating = ref(false)
-// A run can be terminated while it's still doing work or paused at a gate.
+// A run can be terminated while it's still doing work or paused at a checkpoint.
 const canTerminate = computed(() => {
   const status = detail.value?.run.status
-  return status === 'running' || status === 'awaiting_gate'
+  return status === 'running' || status === 'awaiting_checkpoint'
 })
 
 async function terminate(): Promise<void> {
@@ -132,28 +132,28 @@ watch(
 const STAGE_CLASS: Record<StageStatus, string> = {
   pending: 'border-border text-muted-foreground',
   running: 'border-blue-500 text-blue-700',
-  awaiting_gate: 'border-amber-500 text-amber-700',
+  awaiting_checkpoint: 'border-amber-500 text-amber-700',
   passed: 'border-green-500 text-green-700',
   failed: 'border-red-500 text-red-600'
 }
 
-const awaitingGate = computed(() => detail.value?.run.status === 'awaiting_gate')
+const awaitingCheckpoint = computed(() => detail.value?.run.status === 'awaiting_checkpoint')
 
-const currentGate = computed(() => {
+const currentCheckpoint = computed(() => {
   const d = detail.value
   if (!d) return null
   const stage = d.approach.stages[d.run.currentStageIndex]
-  return stage?.gates.find((g) => g.kind === 'human') ?? null
+  return stage?.checkpoints.find((g) => g.kind === 'human') ?? null
 })
 
 // When a run is paused because verification exhausted its automatic retry budget
-// (Phase 6.3), surface the recorded issues in the gate banner so the human sees
+// (Phase 6.3), surface the recorded issues in the checkpoint banner so the human sees
 // what failed. Scan back to the most recent escalation since the last resolution.
 const verificationEscalation = computed<string | null>(() => {
-  if (!awaitingGate.value) return null
+  if (!awaitingCheckpoint.value) return null
   for (let i = runEvents.value.length - 1; i >= 0; i--) {
     const e = runEvents.value[i]!
-    if (e.type === 'run.gate_resolved') break
+    if (e.type === 'run.checkpoint_resolved') break
     if (e.type === 'run.verification_failed') {
       const p = e.payload as { issues?: string; routedBack?: boolean }
       if (!p.routedBack) return p.issues ?? ''
@@ -163,10 +163,10 @@ const verificationEscalation = computed<string | null>(() => {
 })
 
 // The artifacts the current stage's personas produced (latest iteration each),
-// shown at the gate so a human sees exactly what they're approving.
-const gateArtifacts = computed<{ personaName: string; role: string; artifact: string }[]>(() => {
+// shown at the checkpoint so a human sees exactly what they're approving.
+const checkpointArtifacts = computed<{ personaName: string; role: string; artifact: string }[]>(() => {
   const d = detail.value
-  if (!d || !awaitingGate.value) return []
+  if (!d || !awaitingCheckpoint.value) return []
   const idx = d.run.currentStageIndex
   const byPersona = new Map<string, { personaName: string; role: string; artifact: string }>()
   for (const e of runEvents.value) {
@@ -212,10 +212,10 @@ function activityLine(event: StoredEvent): string {
       return `${p.passed ? '✓' : '✗'} criterion ${p.criterionType}: ${p.detail}`
     case 'run.stage_output':
       return `📄 ${p.personaName} (${p.role}) produced output`
-    case 'run.gate_awaiting':
-      return `⏸ Awaiting human gate: ${p.description}`
-    case 'run.gate_resolved':
-      return `Gate ${p.decision} by ${p.by}${p.note ? ` — ${p.note}` : ''}`
+    case 'run.checkpoint_awaiting':
+      return `⏸ Awaiting human checkpoint: ${p.description}`
+    case 'run.checkpoint_resolved':
+      return `Checkpoint ${p.decision} by ${p.by}${p.note ? ` — ${p.note}` : ''}`
     case 'run.changes_requested':
       return `↩ Changes requested → ${stageName(Number(p.targetStageIndex))}: ${p.note}`
     case 'run.verification_failed':
@@ -296,7 +296,7 @@ function lineClass(type: string): string {
   if (type.endsWith('_failed') || type === 'agent.error') return 'text-red-600'
   if (type === 'agent.permission_denied') return 'text-red-600'
   if (type === 'run.cancelled') return 'text-red-600'
-  if (type === 'run.gate_awaiting' || type === 'run.changes_requested') return 'text-amber-700'
+  if (type === 'run.checkpoint_awaiting' || type === 'run.changes_requested') return 'text-amber-700'
   if (
     type === 'run.finished' ||
     type === 'run.stage_passed' ||
@@ -362,12 +362,12 @@ const INFRA_STATUS_CLASS: Record<string, string> = {
   failed: 'bg-red-500/15 text-red-600'
 }
 
-async function act(decision: GateDecision): Promise<void> {
+async function act(decision: CheckpointDecision): Promise<void> {
   if (!detail.value) return
   error.value = null
   acting.value = true
   try {
-    await runsStore.gate({
+    await runsStore.checkpoint({
       runId: props.id,
       decision,
       by: by.value.trim() || 'human',
@@ -436,13 +436,13 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Pending gate -->
+      <!-- Pending checkpoint -->
       <section
-        v-if="awaitingGate"
+        v-if="awaitingCheckpoint"
         class="flex flex-col gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-4"
       >
         <p class="text-sm font-medium text-amber-800">
-          Human gate: {{ currentGate?.description || 'Approve to continue' }}
+          Human checkpoint: {{ currentCheckpoint?.description || 'Approve to continue' }}
         </p>
         <p
           v-if="verificationEscalation"
@@ -452,10 +452,10 @@ onMounted(() => {
         </p>
 
         <!-- What you're approving: the artifacts this stage produced. -->
-        <div v-if="gateArtifacts.length" class="flex flex-col gap-2">
+        <div v-if="checkpointArtifacts.length" class="flex flex-col gap-2">
           <p class="text-xs font-medium text-amber-800">For your review:</p>
           <div
-            v-for="artifact in gateArtifacts"
+            v-for="artifact in checkpointArtifacts"
             :key="artifact.personaName"
             class="rounded-md border border-amber-500/40 bg-background p-3"
           >

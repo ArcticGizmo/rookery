@@ -24,7 +24,7 @@ export interface ActiveAgent {
 
 export interface ActiveRun {
   runId: string
-  status: 'running' | 'awaiting_gate'
+  status: 'running' | 'awaiting_checkpoint'
   currentStageName: string | null
   agentCount: number
   updatedTs: string
@@ -47,7 +47,7 @@ interface AgentAcc extends ActiveAgent {
 
 interface RunAcc {
   runId: string
-  status: 'running' | 'awaiting_gate'
+  status: 'running' | 'awaiting_checkpoint'
   currentStageName: string | null
   finished: boolean
   updatedTs: string
@@ -107,10 +107,10 @@ export function computeActivity(events: StoredEvent[]): ActivitySummary {
           run.status = 'running'
           run.currentStageName = String(p.stageName ?? run.currentStageName ?? '')
           break
-        case 'run.gate_awaiting':
-          run.status = 'awaiting_gate'
+        case 'run.checkpoint_awaiting':
+          run.status = 'awaiting_checkpoint'
           break
-        case 'run.gate_resolved':
+        case 'run.checkpoint_resolved':
         case 'run.stage_passed':
           run.status = 'running'
           break

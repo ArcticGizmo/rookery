@@ -48,7 +48,7 @@ const canStart = computed(
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-secondary text-secondary-foreground',
   running: 'bg-blue-500/15 text-blue-700',
-  awaiting_gate: 'bg-amber-500/15 text-amber-700',
+  awaiting_checkpoint: 'bg-amber-500/15 text-amber-700',
   passed: 'bg-green-500/15 text-green-700',
   failed: 'bg-red-500/15 text-red-600',
   cancelled: 'bg-secondary text-muted-foreground'

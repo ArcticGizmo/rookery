@@ -93,7 +93,7 @@ const EVALUATORS: Record<PassCriterion['type'], Evaluator> = {
   manual: async (criterion) => ({
     criterion,
     passed: true,
-    detail: 'Deferred to a human gate.'
+    detail: 'Deferred to a human checkpoint.'
   }),
 
   reviewer_approves: async (criterion, ctx) => {

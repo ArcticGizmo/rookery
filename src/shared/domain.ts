@@ -102,7 +102,7 @@ export type StageType = z.infer<typeof stageTypeSchema>
 
 /**
  * An automated pass criterion evaluated by the engine (Phase 4.5 supplies the
- * pluggable evaluators). `manual` defers the decision to a human gate.
+ * pluggable evaluators). `manual` defers the decision to a human checkpoint.
  */
 export const passCriterionTypeSchema = z.enum([
   'reviewer_approves',
@@ -119,17 +119,17 @@ export const passCriterionSchema = z.object({
 })
 export type PassCriterion = z.infer<typeof passCriterionSchema>
 
-/** A gate halts a stage until satisfied. Human gates require a person to act;
- * automated gates are satisfied by their stage's pass criteria. */
-export const gateKindSchema = z.enum(['human', 'automated'])
-export type GateKind = z.infer<typeof gateKindSchema>
+/** A checkpoint halts a stage until satisfied. Human checkpoints require a person to act;
+ * automated checkpoints are satisfied by their stage's pass criteria. */
+export const checkpointKindSchema = z.enum(['human', 'automated'])
+export type CheckpointKind = z.infer<typeof checkpointKindSchema>
 
-export const gateSchema = z.object({
+export const checkpointSchema = z.object({
   id: z.string().min(1),
-  kind: gateKindSchema,
+  kind: checkpointKindSchema,
   description: z.string().default('')
 })
-export type Gate = z.infer<typeof gateSchema>
+export type Checkpoint = z.infer<typeof checkpointSchema>
 
 /** Reasoning effort levels supported by the Agent SDK. */
 export const effortLevelSchema = z.enum(['low', 'medium', 'high', 'xhigh', 'max'])
@@ -161,7 +161,7 @@ export const stageSchema = z.object({
   type: stageTypeSchema,
   personas: z.array(agentPersonaSchema).default([]),
   passCriteria: z.array(passCriterionSchema).default([]),
-  gates: z.array(gateSchema).default([])
+  checkpoints: z.array(checkpointSchema).default([])
 })
 export type Stage = z.infer<typeof stageSchema>
 
@@ -224,14 +224,14 @@ export interface CredentialStatus {
 export const runStatusSchema = z.enum([
   'pending',
   'running',
-  'awaiting_gate',
+  'awaiting_checkpoint',
   'passed',
   'failed',
   'cancelled'
 ])
 export type RunStatus = z.infer<typeof runStatusSchema>
 
-export const stageStatusSchema = z.enum(['pending', 'running', 'awaiting_gate', 'passed', 'failed'])
+export const stageStatusSchema = z.enum(['pending', 'running', 'awaiting_checkpoint', 'passed', 'failed'])
 export type StageStatus = z.infer<typeof stageStatusSchema>
 
 /** A single execution of a approach over a work item. */
@@ -265,8 +265,8 @@ export interface RunDetail {
   approach: ApproachDef
 }
 
-export const gateDecisionSchema = z.enum(['approve', 'reject', 'request_changes'])
-export type GateDecision = z.infer<typeof gateDecisionSchema>
+export const checkpointDecisionSchema = z.enum(['approve', 'reject', 'request_changes'])
+export type CheckpointDecision = z.infer<typeof checkpointDecisionSchema>
 
 /**
  * How stage agents get write access during a run:
@@ -291,7 +291,7 @@ export const startRunInputSchema = z.object({
    * Feature-verification safeguard (Phase 6.3): how many times a failed
    * `verification` stage may automatically route the run back to the first stage
    * — carrying the recorded issues as feedback — before the engine stops looping
-   * and escalates to a human gate for intervention. Prevents a verify→fix death
+   * and escalates to a human checkpoint for intervention. Prevents a verify→fix death
    * cycle that silently burns tokens. Default 2.
    */
   maxVerificationCycles: z.number().int().positive().max(10).default(2),
@@ -325,16 +325,16 @@ export function resolveExecutionMode(input: {
   return input.executionMode ?? (input.infraTemplate ? 'infra' : 'read_only')
 }
 
-export const gateActionInputSchema = z.object({
+export const checkpointActionInputSchema = z.object({
   runId: z.string().min(1),
-  decision: gateDecisionSchema,
+  decision: checkpointDecisionSchema,
   /** Who acted (freeform, e.g. an email). */
   by: z.string().default('human'),
   note: z.string().default(''),
   /** For `request_changes`: stage index to route back to (default 0). */
   targetStageIndex: z.number().int().min(0).optional()
 })
-export type GateActionInput = z.infer<typeof gateActionInputSchema>
+export type CheckpointActionInput = z.infer<typeof checkpointActionInputSchema>
 
 // --- Landing changes (Phase 6.4) -------------------------------------------
 

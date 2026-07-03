@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { GateActionInput, Run, RunDetail, StartRunInput } from '@shared/domain'
+import type { CheckpointActionInput, Run, RunDetail, StartRunInput } from '@shared/domain'
 import { rookery } from '@renderer/lib/rookery'
 
 export const useRunsStore = defineStore('runs', () => {
@@ -26,8 +26,8 @@ export const useRunsStore = defineStore('runs', () => {
     return run
   }
 
-  function gate(input: GateActionInput): Promise<void> {
-    return rookery().runs.gate(input)
+  function checkpoint(input: CheckpointActionInput): Promise<void> {
+    return rookery().runs.checkpoint(input)
   }
 
   async function cancel(runId: string): Promise<void> {
@@ -35,5 +35,5 @@ export const useRunsStore = defineStore('runs', () => {
     await load()
   }
 
-  return { items, loading, load, get, start, gate, cancel }
+  return { items, loading, load, get, start, checkpoint, cancel }
 })

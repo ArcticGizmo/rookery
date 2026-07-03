@@ -87,13 +87,13 @@ describe('buildChainOfThought', () => {
     const items = buildChainOfThought(
       [
         ev('run.stage_entered', { stageName: 'Review', iteration: 1 }),
-        ev('run.gate_awaiting', { description: 'approve' })
+        ev('run.checkpoint_awaiting', { description: 'approve' })
       ],
       0
     )
     expect(items.map((i) => (i.kind === 'event' ? i.event.type : 'tool'))).toEqual([
       'run.stage_entered',
-      'run.gate_awaiting'
+      'run.checkpoint_awaiting'
     ])
   })
 })

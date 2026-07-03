@@ -2,14 +2,14 @@
  * Notification projection (Phase 6.5). Pure and derived entirely from the event
  * log — the store layers read/dismissed UI state on top; it never invents
  * attention state the log doesn't record. Surfaces the two things a human needs
- * to react to: a run awaiting a human gate (Phase 4.4), and an agent crossing
+ * to react to: a run awaiting a human checkpoint (Phase 4.4), and an agent crossing
  * into high context pressure (Phase 3.5).
  */
 
 import type { PressureLevel } from './context-pressure'
 import type { StoredEvent } from './events'
 
-export type NotificationKind = 'gate' | 'pressure' | 'update'
+export type NotificationKind = 'checkpoint' | 'pressure' | 'update'
 
 export interface NotificationItem {
   /** The triggering event's id — stable + unique, so read-state dedupes cleanly. */
@@ -27,7 +27,7 @@ function payloadOf(event: StoredEvent): Record<string, unknown> {
 
 /**
  * Reduce the event log to attention-worthy notifications, oldest first. Each
- * `run.gate_awaiting` is a distinct wait, so it maps 1:1. High context pressure
+ * `run.checkpoint_awaiting` is a distinct wait, so it maps 1:1. High context pressure
  * fires only on the *rising edge* — a turn that first crosses into `high` for an
  * agent — so a long run doesn't emit one per turn; a later turn back under high
  * re-arms it. A downloaded update (Phase 7.3) is the actionable "restart to
@@ -52,12 +52,12 @@ export function computeNotifications(events: StoredEvent[]): NotificationItem[] 
       continue
     }
 
-    if (event.type === 'run.gate_awaiting') {
+    if (event.type === 'run.checkpoint_awaiting') {
       items.push({
         id: event.id,
-        kind: 'gate',
+        kind: 'checkpoint',
         runId: event.runId,
-        title: 'Human gate awaiting',
+        title: 'Human checkpoint awaiting',
         body: String(p.description || 'A run needs your approval to continue.'),
         ts: event.ts
       })

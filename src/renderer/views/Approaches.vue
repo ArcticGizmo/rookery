@@ -25,7 +25,7 @@ onMounted(() => {
     <header class="flex items-center justify-between">
       <div class="flex flex-col gap-1">
         <h1 class="text-2xl font-bold tracking-tight">Approaches</h1>
-        <p class="text-sm text-muted-foreground">How work moves through stages and gates.</p>
+        <p class="text-sm text-muted-foreground">How work moves through stages and checkpoints.</p>
       </div>
       <RouterLink to="/approaches/new">
         <Button>New approach</Button>

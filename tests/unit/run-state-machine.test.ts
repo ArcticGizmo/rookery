@@ -66,12 +66,12 @@ describe('stage advancement', () => {
   })
 })
 
-describe('gates', () => {
+describe('checkpoints', () => {
   it('awaits, then approves and advances', () => {
     let s = reduceRun(threeStages(), { type: 'START' })
     s = reduceRun(s, { type: 'GATE_AWAIT' })
-    expect(s.status).toBe('awaiting_gate')
-    expect(statusOf(s, 0)).toBe('awaiting_gate')
+    expect(s.status).toBe('awaiting_checkpoint')
+    expect(statusOf(s, 0)).toBe('awaiting_checkpoint')
     s = reduceRun(s, { type: 'GATE_APPROVE' })
     expect(statusOf(s, 0)).toBe('passed')
     expect(statusOf(s, 1)).toBe('running')

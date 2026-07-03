@@ -10,7 +10,7 @@ function stageWith(type: PassCriterionType): Stage {
     type: 'review',
     personas: [],
     passCriteria: [{ id: 'c', type, description: '' }],
-    gates: []
+    checkpoints: []
   }
 }
 

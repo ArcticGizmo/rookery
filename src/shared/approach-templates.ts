@@ -9,7 +9,7 @@
  * immediately runnable.
  */
 
-import type { GateKind, PassCriterionType, StageType, ApproachDefBody } from './domain'
+import type { CheckpointKind, PassCriterionType, StageType, ApproachDefBody } from './domain'
 
 interface TemplatePersona {
   name: string
@@ -23,7 +23,7 @@ interface TemplateStage {
   type: StageType
   personas?: TemplatePersona[]
   passCriteria?: { type: PassCriterionType; description?: string }[]
-  gates?: { kind: GateKind; description?: string }[]
+  checkpoints?: { kind: CheckpointKind; description?: string }[]
 }
 
 export interface ApproachTemplate {
@@ -62,9 +62,9 @@ function standardStages(opts: {
       // A `review` stage runs read-only, before setup/implement — no code exists
       // yet, so a `reviewer_approves` check (which asks "does this fully satisfy
       // the spec?") can only ever reject and would fail the run at stage one.
-      // Defer the call to the human gate instead, exactly as the Plan stage does.
+      // Defer the call to the human checkpoint instead, exactly as the Plan stage does.
       passCriteria: [{ type: 'manual' }],
-      gates: [{ kind: 'human', description: 'Approve the review before planning' }]
+      checkpoints: [{ kind: 'human', description: 'Approve the review before planning' }]
     },
     {
       name: 'Plan',
@@ -78,7 +78,7 @@ function standardStages(opts: {
         }
       ],
       passCriteria: [{ type: 'manual' }],
-      gates: [{ kind: 'human', description: 'Approve the implementation plan' }]
+      checkpoints: [{ kind: 'human', description: 'Approve the implementation plan' }]
     },
     { name: 'Setup', type: 'setup' },
     {
@@ -93,7 +93,7 @@ function standardStages(opts: {
         }
       ],
       passCriteria: [{ type: 'reviewer_approves' }],
-      gates: [{ kind: 'human', description: 'Approve the implementation' }]
+      checkpoints: [{ kind: 'human', description: 'Approve the implementation' }]
     },
     {
       name: 'Verify',
@@ -107,7 +107,7 @@ function standardStages(opts: {
         }
       ],
       passCriteria: [{ type: 'tests_pass' }],
-      gates: [{ kind: 'human', description: 'Confirm the feature is done' }]
+      checkpoints: [{ kind: 'human', description: 'Confirm the feature is done' }]
     }
   ]
 }
@@ -163,7 +163,7 @@ export const WORKFLOW_TEMPLATES: ApproachTemplate[] = [
 
 /**
  * Copy a template into a fresh, editable approach body, assigning new ids to every
- * stage, persona, criterion, and gate. `uid` is injectable for testing; it
+ * stage, persona, criterion, and checkpoint. `uid` is injectable for testing; it
  * defaults to `crypto.randomUUID` (present in the renderer and Node ≥ 19).
  */
 export function instantiateTemplate(
@@ -190,7 +190,7 @@ export function instantiateTemplate(
         type: c.type,
         description: c.description ?? ''
       })),
-      gates: (stage.gates ?? []).map((g) => ({
+      checkpoints: (stage.checkpoints ?? []).map((g) => ({
         id: uid(),
         kind: g.kind,
         description: g.description ?? ''

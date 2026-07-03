@@ -27,9 +27,9 @@ function approachBody(): ApproachDefBody {
         type: 'review',
         personas: [{ id: 'p0', name: 'Lead', role: 'Tech Lead', systemPrompt: 'Review the spec.' }],
         passCriteria: [{ id: 'c0', type: 'reviewer_approves', description: '' }],
-        gates: [{ id: 'g0', kind: 'human', description: 'Approve the review' }]
+        checkpoints: [{ id: 'g0', kind: 'human', description: 'Approve the review' }]
       },
-      { id: 's1', name: 'Setup', type: 'setup', personas: [], passCriteria: [], gates: [] }
+      { id: 's1', name: 'Setup', type: 'setup', personas: [], passCriteria: [], checkpoints: [] }
     ]
   }
 }
@@ -51,11 +51,11 @@ function verdictQuery(verdict: string) {
 function hangingQuery(): QueryFn {
   return (() => {
     let release: () => void = () => {}
-    const gate = new Promise<void>((r) => (release = r))
+    const checkpoint = new Promise<void>((r) => (release = r))
     async function* gen(): AsyncGenerator<unknown> {
       yield msg.init('claude-opus-4-8')
       yield msg.assistant([{ type: 'text', text: 'thinking' }], { input_tokens: 10 })
-      await gate // hang until the run is cancelled (abort → close)
+      await checkpoint // hang until the run is cancelled (abort → close)
     }
     const iterator = gen()
     ;(iterator as unknown as { close: () => void }).close = () => release()
@@ -63,7 +63,7 @@ function hangingQuery(): QueryFn {
   }) as unknown as QueryFn
 }
 
-/** Review → verification approach: stage 0 always passes, verification gates on tests. */
+/** Review → verification approach: stage 0 always passes, verification checkpoints on tests. */
 function verificationApproach(): ApproachDefBody {
   return {
     name: 'Verified feature',
@@ -75,7 +75,7 @@ function verificationApproach(): ApproachDefBody {
         type: 'review',
         personas: [{ id: 'p0', name: 'Lead', role: 'Tech Lead', systemPrompt: 'Review.' }],
         passCriteria: [],
-        gates: []
+        checkpoints: []
       },
       {
         id: 's1',
@@ -83,7 +83,7 @@ function verificationApproach(): ApproachDefBody {
         type: 'verification',
         personas: [{ id: 'p1', name: 'Tester', role: 'Tester', systemPrompt: 'Verify.' }],
         passCriteria: [{ id: 'c1', type: 'tests_pass', description: '' }],
-        gates: []
+        checkpoints: []
       }
     ]
   }
@@ -167,14 +167,14 @@ describe('RunEngine', () => {
 
   afterEach(() => test.close())
 
-  it('runs to a human gate, then completes on approval', async () => {
+  it('runs to a human checkpoint, then completes on approval', async () => {
     const input = await setup('APPROVE — satisfies the spec')
     const run = await engine.start(input)
 
-    await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
-    expect((await runs.get(run.id))!.status).toBe('awaiting_gate')
+    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
+    expect((await runs.get(run.id))!.status).toBe('awaiting_checkpoint')
 
-    await engine.resolveGate({ runId: run.id, decision: 'approve', by: 'jon', note: '' })
+    await engine.resolveCheckpoint({ runId: run.id, decision: 'approve', by: 'jon', note: '' })
     const events = await waitFor(audit, (e) =>
       e.some(
         (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
@@ -182,17 +182,17 @@ describe('RunEngine', () => {
     )
 
     expect(has(events, 'run.criterion_evaluated')).toBe(true)
-    expect(has(events, 'run.gate_resolved')).toBe(true)
+    expect(has(events, 'run.checkpoint_resolved')).toBe(true)
     const detail = await runs.getDetail(run.id)
     expect(detail!.run.status).toBe('passed')
     expect(detail!.stages.every((s) => s.status === 'passed')).toBe(true)
   })
 
-  it("records each stage persona's artifact for gate review", async () => {
+  it("records each stage persona's artifact for checkpoint review", async () => {
     const input = await setup('APPROVE — satisfies the spec')
     await engine.start(input)
 
-    const events = await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
+    const events = await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
     const outputs = events.filter((e) => e.type === 'run.stage_output')
     expect(outputs.length).toBeGreaterThanOrEqual(1)
     const payload = outputs[0]!.payload as { personaName: string; artifact: string }
@@ -222,9 +222,9 @@ describe('RunEngine', () => {
   it('routes back to an earlier stage on request-changes', async () => {
     const input = await setup('APPROVE — ok')
     const run = await engine.start(input)
-    await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
+    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
 
-    await engine.resolveGate({
+    await engine.resolveCheckpoint({
       runId: run.id,
       decision: 'request_changes',
       by: 'jon',
@@ -237,7 +237,7 @@ describe('RunEngine', () => {
     // It re-enters stage 0 and, with an approving reviewer, completes.
     await waitFor(
       audit,
-      (e) => e.some((x) => x.type === 'run.gate_awaiting') // awaits the gate again after re-review
+      (e) => e.some((x) => x.type === 'run.checkpoint_awaiting') // awaits the checkpoint again after re-review
     )
   })
 
@@ -297,7 +297,7 @@ describe('RunEngine', () => {
     expect((await runs.get(run.id))!.status).toBe('passed')
   })
 
-  it('escalates to a human gate after exhausting the verification budget', async () => {
+  it('escalates to a human checkpoint after exhausting the verification budget', async () => {
     const input = await setupVerification(['FAIL — still broken'], { maxVerificationCycles: 2 })
     const run = await engine.start(input)
 
@@ -314,8 +314,8 @@ describe('RunEngine', () => {
     expect(vf.filter((e) => (e.payload as { routedBack: boolean }).routedBack)).toHaveLength(2)
     expect(vf.filter((e) => !(e.payload as { routedBack: boolean }).routedBack)).toHaveLength(1)
 
-    await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
-    expect((await runs.get(run.id))!.status).toBe('awaiting_gate')
+    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
+    expect((await runs.get(run.id))!.status).toBe('awaiting_checkpoint')
   })
 
   it('grants a fresh verification budget after human intervention', async () => {
@@ -323,10 +323,10 @@ describe('RunEngine', () => {
     const run = await engine.start(input)
 
     // One auto route-back, then escalate.
-    await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
+    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
 
     // A human requests changes → the automatic budget resets → verification can loop again.
-    await engine.resolveGate({
+    await engine.resolveCheckpoint({
       runId: run.id,
       decision: 'request_changes',
       by: 'jon',
@@ -336,7 +336,7 @@ describe('RunEngine', () => {
 
     const events = await waitFor(
       audit,
-      (e) => e.filter((x) => x.type === 'run.gate_awaiting').length >= 2
+      (e) => e.filter((x) => x.type === 'run.checkpoint_awaiting').length >= 2
     )
     const routedBack = events.filter(
       (e) =>
@@ -349,11 +349,11 @@ describe('RunEngine', () => {
 
   // --- Termination ---
 
-  it('terminates a run paused at a human gate', async () => {
+  it('terminates a run paused at a human checkpoint', async () => {
     const input = await setup('APPROVE — satisfies the spec')
     const run = await engine.start(input)
-    await waitFor(audit, (e) => has(e, 'run.gate_awaiting'))
-    expect((await runs.get(run.id))!.status).toBe('awaiting_gate')
+    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
+    expect((await runs.get(run.id))!.status).toBe('awaiting_checkpoint')
 
     await engine.cancel(run.id)
 
@@ -365,7 +365,7 @@ describe('RunEngine', () => {
     const cancelled = events.filter((e) => e.type === 'run.cancelled')
     expect(cancelled).toHaveLength(1)
     expect((cancelled[0]!.payload as { previousStatus: string }).previousStatus).toBe(
-      'awaiting_gate'
+      'awaiting_checkpoint'
     )
     expect((await runs.get(run.id))!.status).toBe('cancelled')
   })
@@ -436,14 +436,14 @@ describe('RunEngine', () => {
       name: 'Local edit',
       description: '',
       stages: [
-        { id: 'setup', name: 'Setup', type: 'setup', personas: [], passCriteria: [], gates: [] },
+        { id: 'setup', name: 'Setup', type: 'setup', personas: [], passCriteria: [], checkpoints: [] },
         {
           id: 'impl',
           name: 'Implement',
           type: 'implementation',
           personas: [{ id: 'p', name: 'Dev', role: 'Implementer', systemPrompt: 'Build it.' }],
           passCriteria: [{ id: 'c', type: 'reviewer_approves', description: '' }],
-          gates: []
+          checkpoints: []
         }
       ]
     }
@@ -524,7 +524,7 @@ describe('RunEngine', () => {
       new Date().toISOString()
     )
 
-    // Legitimately paused at a human gate — must survive a restart untouched.
+    // Legitimately paused at a human checkpoint — must survive a restart untouched.
     const gated = await runs.create(base)
     const gatedSnap = reduceRun(reduceRun(initRunSnapshot(stageIds), { type: 'START' }), {
       type: 'GATE_AWAIT'
@@ -536,7 +536,7 @@ describe('RunEngine', () => {
 
     expect((await runs.get(pending.id))!.status).toBe('failed')
     expect((await runs.get(running.id))!.status).toBe('failed')
-    expect((await runs.get(gated.id))!.status).toBe('awaiting_gate')
+    expect((await runs.get(gated.id))!.status).toBe('awaiting_checkpoint')
 
     const events = await audit.list({ limit: 1000 })
     const interruptedIds = events
