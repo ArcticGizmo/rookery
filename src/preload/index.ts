@@ -45,16 +45,16 @@ const api: RookeryApi = {
     start: (config) => ipcRenderer.invoke(IPC.agentStart, config),
     cancel: (agentRunId) => ipcRenderer.invoke(IPC.agentCancel, agentRunId)
   },
-  runs: {
+  flights: {
     start: (input) => ipcRenderer.invoke(IPC.runsStart, input),
     list: () => ipcRenderer.invoke(IPC.runsList),
-    get: (runId) => ipcRenderer.invoke(IPC.runsGet, runId),
+    get: (flightId) => ipcRenderer.invoke(IPC.runsGet, flightId),
     checkpoint: (input) => ipcRenderer.invoke(IPC.runsCheckpoint, input),
-    cancel: (runId) => ipcRenderer.invoke(IPC.runsCancel, runId),
-    infra: (runId) => ipcRenderer.invoke(IPC.runsInfra, runId),
-    landTargets: (runId) => ipcRenderer.invoke(IPC.runsLandTargets, runId),
+    cancel: (flightId) => ipcRenderer.invoke(IPC.runsCancel, flightId),
+    infra: (flightId) => ipcRenderer.invoke(IPC.runsInfra, flightId),
+    landTargets: (flightId) => ipcRenderer.invoke(IPC.runsLandTargets, flightId),
     land: (input) => ipcRenderer.invoke(IPC.runsLand, input),
-    teardown: (runId) => ipcRenderer.invoke(IPC.runsTeardown, runId)
+    teardown: (flightId) => ipcRenderer.invoke(IPC.runsTeardown, flightId)
   },
   update: {
     check: () => ipcRenderer.invoke(IPC.updateCheck),

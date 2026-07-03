@@ -54,14 +54,14 @@ export const router = createRouter({
       component: () => import('@renderer/views/AgentRun.vue')
     },
     {
-      path: '/runs',
-      name: 'runs',
-      component: () => import('@renderer/views/Runs.vue')
+      path: '/flights',
+      name: 'flights',
+      component: () => import('@renderer/views/Flights.vue')
     },
     {
-      path: '/runs/:id',
-      name: 'run-detail',
-      component: () => import('@renderer/views/RunDetail.vue'),
+      path: '/flights/:id',
+      name: 'flight-detail',
+      component: () => import('@renderer/views/FlightDetail.vue'),
       props: true
     },
     // Journey redesign reference surfaces (Phase J0). Not in the main nav.

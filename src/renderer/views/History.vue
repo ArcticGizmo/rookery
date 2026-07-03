@@ -10,7 +10,7 @@ const PAGE_SIZE = 100
 
 const actor = ref<'' | EventActor>('')
 const type = ref('')
-const runId = ref('')
+const flightId = ref('')
 const search = ref('')
 const since = ref('')
 const until = ref('')
@@ -33,7 +33,7 @@ function baseOptions(): ListEventsOptions {
     limit: PAGE_SIZE,
     actor: actor.value || undefined,
     type: type.value.trim() || undefined,
-    runId: runId.value.trim() || undefined,
+    flightId: flightId.value.trim() || undefined,
     search: search.value.trim() || undefined,
     since: toIso(since.value),
     until: toIso(until.value)
@@ -91,14 +91,14 @@ const ACTOR_CLASS: Record<string, string> = {
 
 // Re-query when filters change (debounced so typing doesn't spam the DB).
 let timer: ReturnType<typeof setTimeout> | null = null
-watch([actor, type, runId, search, since, until], () => {
+watch([actor, type, flightId, search, since, until], () => {
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => void query(), 250)
 })
 
 onMounted(() => {
   // Deep links (e.g. a run's "View all activity") pre-seed filters via the query.
-  if (typeof route.query.runId === 'string') runId.value = route.query.runId
+  if (typeof route.query.flightId === 'string') flightId.value = route.query.flightId
   if (typeof route.query.type === 'string') type.value = route.query.type
   void query()
 })
@@ -139,10 +139,10 @@ onMounted(() => {
         />
       </div>
       <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium" for="f-run">Run id</label>
+        <label class="text-xs font-medium" for="f-run">Flight id</label>
         <input
           id="f-run"
-          v-model="runId"
+          v-model="flightId"
           type="text"
           placeholder="Exact run id"
           class="h-9 rounded-md border border-input bg-background px-2 text-sm"
@@ -205,12 +205,12 @@ onMounted(() => {
             </span>
             <span class="flex-1 font-mono">{{ event.type }}</span>
             <RouterLink
-              v-if="event.runId"
-              :to="`/runs/${event.runId}`"
+              v-if="event.flightId"
+              :to="`/flights/${event.flightId}`"
               class="shrink-0 text-xs text-muted-foreground hover:underline"
               @click.stop
             >
-              run {{ event.runId.slice(0, 8) }}
+              run {{ event.flightId.slice(0, 8) }}
             </RouterLink>
           </button>
           <div v-if="expandedId === event.id" class="border-t border-border bg-muted/30 px-4 py-3">

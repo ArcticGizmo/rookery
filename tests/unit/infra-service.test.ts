@@ -32,7 +32,7 @@ describe('InfraService', () => {
     const { audit, service } = setup(new StubProvider())
     await service.provision('run-42', spec('rookery-42'))
     const events = await audit.list({ limit: 100 })
-    expect(events.every((e) => e.runId === 'run-42')).toBe(true)
+    expect(events.every((e) => e.flightId === 'run-42')).toBe(true)
   })
 
   it('emits infra.failed and throws when the provider errors', async () => {

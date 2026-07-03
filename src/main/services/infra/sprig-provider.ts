@@ -9,7 +9,7 @@ export interface CliResult {
   stderr: string
 }
 
-/** Runs the sprig CLI. Injected so the provider is unit-testable without sprig. */
+/** Flights the sprig CLI. Injected so the provider is unit-testable without sprig. */
 export type SprigCli = (args: string[]) => Promise<CliResult>
 
 const INSTALL_HINT = 'sprig CLI not found on PATH. Install it: npm i -g @ArcticGizmo/sprig'

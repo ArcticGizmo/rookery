@@ -8,7 +8,7 @@ export interface GitCliResult {
   stderr: string
 }
 
-/** Runs a `git` command in a cwd. Injected so the service is unit-testable. */
+/** Flights a `git` command in a cwd. Injected so the service is unit-testable. */
 export type GitCli = (args: string[], cwd: string) => Promise<GitCliResult>
 
 /** Thrown when `git` is not installed / not on PATH. */
@@ -84,22 +84,22 @@ export class LocalBranchService {
    * Emits `run.branch_ready` on success and `run.branch_failed` on any problem;
    * returns false on failure (the caller fails the setup stage).
    */
-  async prepare(runId: string, repo: string, repoPath: string, branch: string): Promise<boolean> {
+  async prepare(flightId: string, repo: string, repoPath: string, branch: string): Promise<boolean> {
     try {
       const inside = await this.git(['rev-parse', '--is-inside-work-tree'], repoPath)
       if (inside.code !== 0 || inside.stdout.trim() !== 'true') {
-        return this.fail(runId, repo, branch, `${repoPath} is not a git repository`)
+        return this.fail(flightId, repo, branch, `${repoPath} is not a git repository`)
       }
 
       // Already on the branch (e.g. a re-entered setup stage): accept as-is.
       if ((await this.currentBranch(repoPath)) === branch) {
-        return this.ready(runId, repo, branch, repoPath)
+        return this.ready(flightId, repo, branch, repoPath)
       }
 
       const status = await this.git(['status', '--porcelain'], repoPath)
       if (status.code === 0 && status.stdout.trim() !== '') {
         return this.fail(
-          runId,
+          flightId,
           repo,
           branch,
           `Working tree at ${repoPath} has uncommitted changes; commit, stash, or discard ` +
@@ -117,40 +117,40 @@ export class LocalBranchService {
           : await this.git(['checkout', '-b', branch], repoPath)
       if (checkout.code !== 0) {
         return this.fail(
-          runId,
+          flightId,
           repo,
           branch,
           checkout.stderr.trim() || checkout.stdout.trim() || 'git checkout failed'
         )
       }
 
-      return this.ready(runId, repo, branch, repoPath)
+      return this.ready(flightId, repo, branch, repoPath)
     } catch (error) {
-      return this.fail(runId, repo, branch, error instanceof Error ? error.message : String(error))
+      return this.fail(flightId, repo, branch, error instanceof Error ? error.message : String(error))
     }
   }
 
-  private async ready(runId: string, repo: string, branch: string, path: string): Promise<true> {
-    await this.emit(runId, {
-      type: 'run.branch_ready',
+  private async ready(flightId: string, repo: string, branch: string, path: string): Promise<true> {
+    await this.emit(flightId, {
+      type: 'flight.branch_ready',
       actor: 'system',
-      payload: { runId, repo, branch, path }
+      payload: { flightId, repo, branch, path }
     })
     return true
   }
 
-  private async fail(runId: string, repo: string, branch: string, message: string): Promise<false> {
-    await this.emit(runId, {
-      type: 'run.branch_failed',
+  private async fail(flightId: string, repo: string, branch: string, message: string): Promise<false> {
+    await this.emit(flightId, {
+      type: 'flight.branch_failed',
       actor: 'system',
-      payload: { runId, repo, branch, message }
+      payload: { flightId, repo, branch, message }
     })
     return false
   }
 
-  private async emit(runId: string, event: Parameters<AuditLog['append']>[0]): Promise<void> {
+  private async emit(flightId: string, event: Parameters<AuditLog['append']>[0]): Promise<void> {
     try {
-      await this.audit.append({ ...event, runId })
+      await this.audit.append({ ...event, flightId })
     } catch (error) {
       console.error('Failed to append local-branch event:', error)
     }

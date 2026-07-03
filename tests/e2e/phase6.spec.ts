@@ -36,7 +36,7 @@ test('activity dashboard and history browser (Phase 6.1/6.2)', async () => {
   // --- Activity dashboard: no active work on a fresh install ---
   await window.getByRole('link', { name: 'Activity' }).click()
   await expect(window.locator('h1')).toHaveText('Activity')
-  await expect(window.getByText('No active runs.')).toBeVisible()
+  await expect(window.getByText('No active flights.')).toBeVisible()
 
   // --- History browser: the boot event is searchable ---
   await window.getByRole('link', { name: 'History' }).click()

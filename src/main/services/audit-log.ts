@@ -18,7 +18,7 @@ export class AuditLog {
       ts: new Date().toISOString(),
       type: event.type,
       actor: event.actor,
-      runId: event.runId ?? null,
+      flightId: event.flightId ?? null,
       stageId: event.stageId ?? null,
       payload: event.payload
     })

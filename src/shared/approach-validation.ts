@@ -1,5 +1,5 @@
 /**
- * Structural validation for approach definitions (Phase 2.5). Runs before a run
+ * Structural validation for approach definitions (Phase 2.5). Flights before a run
  * can start. Pure and dependency-light so it can be used in the renderer (inline
  * builder errors) and the main process (guard before persisting / running).
  *

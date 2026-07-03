@@ -11,7 +11,7 @@ function log() {
     add(
       type: string,
       payload: Record<string, unknown>,
-      opts: { actor?: StoredEvent['actor']; runId?: string; stageId?: string } = {}
+      opts: { actor?: StoredEvent['actor']; flightId?: string; stageId?: string } = {}
     ) {
       id += 1
       events.push({
@@ -19,7 +19,7 @@ function log() {
         ts: `2026-07-01T00:00:${String(id).padStart(2, '0')}.000Z`,
         type: type as StoredEvent['type'],
         actor: opts.actor ?? 'system',
-        runId: opts.runId ?? null,
+        flightId: opts.flightId ?? null,
         stageId: opts.stageId ?? null,
         payload
       })
@@ -29,16 +29,16 @@ function log() {
 }
 
 describe('briefsInFlight', () => {
-  it('lists non-terminal runs with their current stage and carries the work item', () => {
+  it('lists non-terminal flights with their current stage and carries the work item', () => {
     const l = log()
-    l.add('run.created', { runId: 'r1', briefId: 'w1' }, { runId: 'r1', actor: 'human' })
-    l.add('run.started', { runId: 'r1' }, { runId: 'r1' })
-    l.add('run.stage_entered', { stageName: 'Build' }, { runId: 'r1', stageId: 's1' })
+    l.add('flight.created', { flightId: 'r1', briefId: 'w1' }, { flightId: 'r1', actor: 'human' })
+    l.add('flight.started', { flightId: 'r1' }, { flightId: 'r1' })
+    l.add('flight.stage_entered', { stageName: 'Build' }, { flightId: 'r1', stageId: 's1' })
 
     const flights = briefsInFlight(l.events)
     expect(flights).toHaveLength(1)
     expect(flights[0]).toMatchObject({
-      runId: 'r1',
+      flightId: 'r1',
       briefId: 'w1',
       status: 'running',
       currentStageName: 'Build',
@@ -46,22 +46,22 @@ describe('briefsInFlight', () => {
     })
   })
 
-  it('excludes finished, cancelled, and interrupted runs', () => {
+  it('excludes finished, cancelled, and interrupted flights', () => {
     const l = log()
-    l.add('run.started', { runId: 'done' }, { runId: 'done' })
-    l.add('run.finished', { runId: 'done', status: 'passed' }, { runId: 'done' })
-    l.add('run.started', { runId: 'gone' }, { runId: 'gone' })
-    l.add('run.cancelled', { runId: 'gone', previousStatus: 'running' }, { runId: 'gone', actor: 'human' })
-    l.add('run.started', { runId: 'live' }, { runId: 'live' })
+    l.add('flight.started', { flightId: 'done' }, { flightId: 'done' })
+    l.add('flight.finished', { flightId: 'done', status: 'passed' }, { flightId: 'done' })
+    l.add('flight.started', { flightId: 'gone' }, { flightId: 'gone' })
+    l.add('flight.cancelled', { flightId: 'gone', previousStatus: 'running' }, { flightId: 'gone', actor: 'human' })
+    l.add('flight.started', { flightId: 'live' }, { flightId: 'live' })
 
-    expect(briefsInFlight(l.events).map((f) => f.runId)).toEqual(['live'])
+    expect(briefsInFlight(l.events).map((f) => f.flightId)).toEqual(['live'])
   })
 
   it('marks a run awaiting a human checkpoint as needsYou', () => {
     const l = log()
-    l.add('run.started', { runId: 'r' }, { runId: 'r' })
-    l.add('run.stage_entered', { stageName: 'Review' }, { runId: 'r' })
-    l.add('run.checkpoint_awaiting', { checkpointId: 'g', description: 'Approve the reviewed brief' }, { runId: 'r' })
+    l.add('flight.started', { flightId: 'r' }, { flightId: 'r' })
+    l.add('flight.stage_entered', { stageName: 'Review' }, { flightId: 'r' })
+    l.add('flight.checkpoint_awaiting', { checkpointId: 'g', description: 'Approve the reviewed brief' }, { flightId: 'r' })
 
     const [flight] = briefsInFlight(l.events)
     expect(flight).toMatchObject({ status: 'awaiting_checkpoint', needsYou: true })
@@ -69,25 +69,25 @@ describe('briefsInFlight', () => {
 
   it('sorts most-recently-active first', () => {
     const l = log()
-    l.add('run.started', { runId: 'old' }, { runId: 'old' })
-    l.add('run.started', { runId: 'new' }, { runId: 'new' })
-    l.add('run.stage_entered', { stageName: 'X' }, { runId: 'old' }) // old becomes most recent
+    l.add('flight.started', { flightId: 'old' }, { flightId: 'old' })
+    l.add('flight.started', { flightId: 'new' }, { flightId: 'new' })
+    l.add('flight.stage_entered', { stageName: 'X' }, { flightId: 'old' }) // old becomes most recent
 
-    expect(briefsInFlight(l.events).map((f) => f.runId)).toEqual(['old', 'new'])
+    expect(briefsInFlight(l.events).map((f) => f.flightId)).toEqual(['old', 'new'])
   })
 })
 
 describe('needsYou', () => {
   it('surfaces a held checkpoint with its stage and description', () => {
     const l = log()
-    l.add('run.started', { runId: 'r' }, { runId: 'r' })
-    l.add('run.stage_entered', { stageName: 'Plan' }, { runId: 'r' })
-    l.add('run.checkpoint_awaiting', { checkpointId: 'g', description: 'Approve the plan' }, { runId: 'r' })
+    l.add('flight.started', { flightId: 'r' }, { flightId: 'r' })
+    l.add('flight.stage_entered', { stageName: 'Plan' }, { flightId: 'r' })
+    l.add('flight.checkpoint_awaiting', { checkpointId: 'g', description: 'Approve the plan' }, { flightId: 'r' })
 
     const items = needsYou(l.events)
     expect(items).toHaveLength(1)
     expect(items[0]).toMatchObject({
-      runId: 'r',
+      flightId: 'r',
       kind: 'checkpoint',
       title: 'Checkpoint · Plan',
       detail: 'Approve the plan'
@@ -96,10 +96,10 @@ describe('needsYou', () => {
 
   it('clears a checkpoint once resolved', () => {
     const l = log()
-    l.add('run.started', { runId: 'r' }, { runId: 'r' })
-    l.add('run.checkpoint_awaiting', { checkpointId: 'g', description: 'Sign off' }, { runId: 'r' })
-    l.add('run.checkpoint_resolved', { decision: 'approve', by: 'me', note: '' }, { runId: 'r', actor: 'human' })
-    l.add('run.stage_entered', { stageName: 'Build' }, { runId: 'r' })
+    l.add('flight.started', { flightId: 'r' }, { flightId: 'r' })
+    l.add('flight.checkpoint_awaiting', { checkpointId: 'g', description: 'Sign off' }, { flightId: 'r' })
+    l.add('flight.checkpoint_resolved', { decision: 'approve', by: 'me', note: '' }, { flightId: 'r', actor: 'human' })
+    l.add('flight.stage_entered', { stageName: 'Build' }, { flightId: 'r' })
 
     expect(needsYou(l.events)).toHaveLength(0)
     expect(briefsInFlight(l.events)[0].needsYou).toBe(false)
@@ -107,12 +107,12 @@ describe('needsYou', () => {
 
   it('escalates a verification failure only when the route-back budget is spent', () => {
     const l = log()
-    l.add('run.started', { runId: 'r' }, { runId: 'r' })
+    l.add('flight.started', { flightId: 'r' }, { flightId: 'r' })
     // Auto route-back — handled without the human.
-    l.add('run.verification_failed', { issues: 'flaky', routedBack: true, cycle: 1, maxCycles: 2 }, { runId: 'r' })
+    l.add('flight.verification_failed', { issues: 'flaky', routedBack: true, cycle: 1, maxCycles: 2 }, { flightId: 'r' })
     expect(needsYou(l.events)).toHaveLength(0)
     // Budget spent — now it needs a human.
-    l.add('run.verification_failed', { issues: 'tests still red', routedBack: false, cycle: 2, maxCycles: 2 }, { runId: 'r' })
+    l.add('flight.verification_failed', { issues: 'tests still red', routedBack: false, cycle: 2, maxCycles: 2 }, { flightId: 'r' })
     const items = needsYou(l.events)
     expect(items).toHaveLength(1)
     expect(items[0]).toMatchObject({ kind: 'verification', detail: 'tests still red' })
@@ -120,20 +120,20 @@ describe('needsYou', () => {
 
   it('flags an active agent at high context pressure, but not once it finishes', () => {
     const l = log()
-    l.add('run.started', { runId: 'r' }, { runId: 'r' })
-    l.add('agent.spawned', { agentRunId: 'a', personaName: 'Dev', model: 'm' }, { runId: 'r', actor: 'agent' })
-    l.add('agent.context_pressure', { agentRunId: 'a', percent: 93, level: 'high' }, { runId: 'r', actor: 'agent' })
+    l.add('flight.started', { flightId: 'r' }, { flightId: 'r' })
+    l.add('agent.spawned', { agentRunId: 'a', personaName: 'Dev', model: 'm' }, { flightId: 'r', actor: 'agent' })
+    l.add('agent.context_pressure', { agentRunId: 'a', percent: 93, level: 'high' }, { flightId: 'r', actor: 'agent' })
     expect(needsYou(l.events).filter((i) => i.kind === 'pressure')).toHaveLength(1)
 
-    l.add('agent.finished', { agentRunId: 'a' }, { runId: 'r', actor: 'agent' })
+    l.add('agent.finished', { agentRunId: 'a' }, { flightId: 'r', actor: 'agent' })
     expect(needsYou(l.events).filter((i) => i.kind === 'pressure')).toHaveLength(0)
   })
 
-  it('ignores attention for terminal runs', () => {
+  it('ignores attention for terminal flights', () => {
     const l = log()
-    l.add('run.started', { runId: 'r' }, { runId: 'r' })
-    l.add('run.checkpoint_awaiting', { checkpointId: 'g', description: 'x' }, { runId: 'r' })
-    l.add('run.finished', { runId: 'r', status: 'cancelled' }, { runId: 'r' })
+    l.add('flight.started', { flightId: 'r' }, { flightId: 'r' })
+    l.add('flight.checkpoint_awaiting', { checkpointId: 'g', description: 'x' }, { flightId: 'r' })
+    l.add('flight.finished', { flightId: 'r', status: 'cancelled' }, { flightId: 'r' })
     expect(needsYou(l.events)).toHaveLength(0)
   })
 })

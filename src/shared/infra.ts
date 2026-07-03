@@ -62,7 +62,7 @@ export type RunInfraStatus = 'none' | 'provisioning' | 'up' | 'down' | 'failed'
  * provider is, whether its tooling is installed, and the live instance state.
  */
 export interface RunInfra {
-  runId: string
+  flightId: string
   /** Configured provider name (e.g. 'sprig', 'stub', or 'none'). */
   provider: string
   /** Whether the provider's backing tooling resolves (e.g. sprig on PATH). */

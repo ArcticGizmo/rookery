@@ -34,8 +34,8 @@ test.afterAll(async () => {
 test('run start form exposes infra template + teardown controls (Phase 5.5)', async () => {
   const window = await app.firstWindow()
 
-  await window.getByRole('link', { name: 'Runs' }).click()
-  await expect(window.locator('h1')).toHaveText('Runs')
+  await window.getByRole('link', { name: 'Flights' }).click()
+  await expect(window.locator('h1')).toHaveText('Flights')
   await expect(window.getByRole('heading', { name: 'Start a run' })).toBeVisible()
 
   // Infra wiring is surfaced on the start form.

@@ -7,7 +7,7 @@ export interface CriterionContext {
   cwd?: string | null
   /** Outputs produced by this stage's agents in the current iteration. */
   agentResults: AgentResult[]
-  /** Run a checker/reviewer agent to completion (injected → testable). */
+  /** Flight a checker/reviewer agent to completion (injected → testable). */
   runAgent: (
     persona: AgentPersona,
     prompt: string,
@@ -117,7 +117,7 @@ const EVALUATORS: Record<DoneCriterion['type'], Evaluator> = {
 
   tests_pass: async (criterion, ctx) => {
     const prompt =
-      `Run the project's automated test suite in the working directory and report the outcome. ` +
+      `Flight the project's automated test suite in the working directory and report the outcome. ` +
       `Reply PASS on the first line if every test passes, otherwise FAIL followed by which failed.`
     // `acceptEdits` (not `bypassPermissions`) so the security deny backstop still
     // applies — the tester persona allow-lists Bash for running the suite.

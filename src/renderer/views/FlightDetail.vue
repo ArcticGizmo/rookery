@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import type { CheckpointDecision, LandingMethod, RunDetail, StageStatus } from '@shared/domain'
+import type { CheckpointDecision, LandingMethod, FlightDetail, StageStatus } from '@shared/domain'
 import { type ChainTool, buildChainOfThought } from '@shared/chain-of-thought'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, RunInfra } from '@shared/infra'
@@ -8,21 +8,21 @@ import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
-import { useRunsStore } from '@renderer/stores/runs'
+import { useFlightsStore } from '@renderer/stores/flights'
 import { rookery } from '@renderer/lib/rookery'
 
 const props = defineProps<{ id: string }>()
-const runsStore = useRunsStore()
+const runsStore = useFlightsStore()
 
 // Load this run's events straight from the backend (paginated) and live-tail
 // them, so a run's full history is shown even after a restart — the shared
 // events store's buffer may not hold an older run's events.
 const { events: runEvents, reload: reloadEvents } = useScopedEvents(
-  () => ({ runId: props.id }),
-  (event) => event.runId === props.id
+  () => ({ flightId: props.id }),
+  (event) => event.flightId === props.id
 )
 
-const detail = ref<RunDetail | null>(null)
+const detail = ref<FlightDetail | null>(null)
 const infra = ref<RunInfra | null>(null)
 const landing = ref<LandingTargets | null>(null)
 const notFound = ref(false)
@@ -65,14 +65,14 @@ async function refresh(): Promise<void> {
   if (!d) notFound.value = true
   else detail.value = d
   try {
-    infra.value = await rookery().runs.infra(props.id)
+    infra.value = await rookery().flights.infra(props.id)
   } catch {
     infra.value = null
   }
   // Landing is only relevant once a run has succeeded (Phase 6.4).
   if (d?.run.status === 'passed') {
     try {
-      landing.value = await rookery().runs.landTargets(props.id)
+      landing.value = await rookery().flights.landTargets(props.id)
     } catch {
       landing.value = null
     }
@@ -85,8 +85,8 @@ async function landRepo(repo: string, method: LandingMethod): Promise<void> {
   landingError.value = null
   landingAction.value = `${repo}:${method}`
   try {
-    await rookery().runs.land({
-      runId: props.id,
+    await rookery().flights.land({
+      flightId: props.id,
       repo,
       method,
       by: by.value.trim() || 'human'
@@ -103,7 +103,7 @@ async function teardownInfra(): Promise<void> {
   landingError.value = null
   tearingDown.value = true
   try {
-    await rookery().runs.teardown(props.id)
+    await rookery().flights.teardown(props.id)
     await refresh()
   } catch (e) {
     landingError.value = e instanceof Error ? e.message : String(e)
@@ -153,8 +153,8 @@ const verificationEscalation = computed<string | null>(() => {
   if (!awaitingCheckpoint.value) return null
   for (let i = runEvents.value.length - 1; i >= 0; i--) {
     const e = runEvents.value[i]!
-    if (e.type === 'run.checkpoint_resolved') break
-    if (e.type === 'run.verification_failed') {
+    if (e.type === 'flight.checkpoint_resolved') break
+    if (e.type === 'flight.verification_failed') {
       const p = e.payload as { issues?: string; routedBack?: boolean }
       if (!p.routedBack) return p.issues ?? ''
     }
@@ -170,7 +170,7 @@ const checkpointArtifacts = computed<{ personaName: string; role: string; artifa
   const idx = d.run.currentStageIndex
   const byPersona = new Map<string, { personaName: string; role: string; artifact: string }>()
   for (const e of runEvents.value) {
-    if (e.type !== 'run.stage_output') continue
+    if (e.type !== 'flight.stage_output') continue
     const p = e.payload as {
       stageIndex: number
       personaId: string
@@ -198,45 +198,45 @@ function stageName(index: number): string {
 function activityLine(event: StoredEvent): string {
   const p = event.payload as Record<string, unknown>
   switch (event.type) {
-    case 'run.created':
-      return 'Run created'
-    case 'run.started':
-      return 'Run started'
-    case 'run.stage_entered':
+    case 'flight.created':
+      return 'Flight created'
+    case 'flight.started':
+      return 'Flight started'
+    case 'flight.stage_entered':
       return `→ ${p.stageName} (iteration ${p.iteration})`
-    case 'run.stage_passed':
+    case 'flight.stage_passed':
       return `✓ Stage passed: ${stageName(Number(p.stageIndex))}`
-    case 'run.stage_failed':
+    case 'flight.stage_failed':
       return `✗ Stage failed: ${p.reason}`
-    case 'run.criterion_evaluated':
+    case 'flight.criterion_evaluated':
       return `${p.passed ? '✓' : '✗'} criterion ${p.criterionType}: ${p.detail}`
-    case 'run.stage_output':
+    case 'flight.stage_output':
       return `📄 ${p.personaName} (${p.role}) produced output`
-    case 'run.checkpoint_awaiting':
+    case 'flight.checkpoint_awaiting':
       return `⏸ Awaiting human checkpoint: ${p.description}`
-    case 'run.checkpoint_resolved':
+    case 'flight.checkpoint_resolved':
       return `Checkpoint ${p.decision} by ${p.by}${p.note ? ` — ${p.note}` : ''}`
-    case 'run.changes_requested':
+    case 'flight.changes_requested':
       return `↩ Changes requested → ${stageName(Number(p.targetStageIndex))}: ${p.note}`
-    case 'run.verification_failed':
+    case 'flight.verification_failed':
       return p.routedBack
         ? `↺ Verification failed (${p.cycle}/${p.maxCycles}) — routing back with issues: ${p.issues}`
         : `⚠ Verification failed — escalated for human intervention: ${p.issues}`
-    case 'run.finished':
-      return `■ Run ${p.status}`
-    case 'run.cancelled':
-      return `⏹ Run terminated by human (was ${p.previousStatus})`
-    case 'run.branch_ready':
+    case 'flight.finished':
+      return `■ Flight ${p.status}`
+    case 'flight.cancelled':
+      return `⏹ Flight terminated by human (was ${p.previousStatus})`
+    case 'flight.branch_ready':
       return `🌿 Branch ready: ${p.repo} on ${p.branch}`
-    case 'run.branch_failed':
+    case 'flight.branch_failed':
       return `✖ Branch prep failed (${p.repo}): ${p.message}`
-    case 'run.landing_started':
+    case 'flight.landing_started':
       return `⚑ Landing ${p.repo} via ${p.method} (by ${p.by})`
-    case 'run.landed':
+    case 'flight.landed':
       return `✅ Landed ${p.repo} via ${p.method}${
         p.prUrl ? `: ${p.prUrl}` : p.mergedInto ? ` → ${p.mergedInto}` : ''
       }`
-    case 'run.landing_failed':
+    case 'flight.landing_failed':
       return `✖ Landing ${p.repo} failed: ${p.message}`
     case 'agent.spawned':
       return `▶ ${p.personaName} (${p.model})`
@@ -268,7 +268,7 @@ function activityLine(event: StoredEvent): string {
 // Compact chain-of-thought: the recent, meaningful moments (agent messages,
 // paired tool calls, transitions). The full log lives on the History page.
 const chain = computed(() => buildChainOfThought(runEvents.value, 5))
-const historyLink = computed(() => `/history?runId=${props.id}`)
+const historyLink = computed(() => `/history?flightId=${props.id}`)
 
 // Tool detail is collapsed by default; a new Set is assigned on toggle so Vue
 // reliably re-renders.
@@ -292,27 +292,27 @@ function toolInput(tool: ChainTool): string {
 
 function lineClass(type: string): string {
   // Verification failures loop back or escalate — attention, not terminal failure.
-  if (type === 'run.verification_failed') return 'text-amber-700'
+  if (type === 'flight.verification_failed') return 'text-amber-700'
   if (type.endsWith('_failed') || type === 'agent.error') return 'text-red-600'
   if (type === 'agent.permission_denied') return 'text-red-600'
-  if (type === 'run.cancelled') return 'text-red-600'
-  if (type === 'run.checkpoint_awaiting' || type === 'run.changes_requested') return 'text-amber-700'
+  if (type === 'flight.cancelled') return 'text-red-600'
+  if (type === 'flight.checkpoint_awaiting' || type === 'flight.changes_requested') return 'text-amber-700'
   if (
-    type === 'run.finished' ||
-    type === 'run.stage_passed' ||
-    type === 'run.landed' ||
-    type === 'run.branch_ready' ||
+    type === 'flight.finished' ||
+    type === 'flight.stage_passed' ||
+    type === 'flight.landed' ||
+    type === 'flight.branch_ready' ||
     type === 'infra.up'
   )
     return 'text-green-700'
   if (type === 'agent.tool_use') return 'text-blue-700'
   if (type === 'agent.tool_result' || type === 'agent.task') return 'text-muted-foreground'
   if (type === 'infra.provisioning' || type === 'infra.down') return 'text-purple-700'
-  if (type.startsWith('run.')) return 'text-muted-foreground'
+  if (type.startsWith('flight.')) return 'text-muted-foreground'
   return ''
 }
 
-// Prefer the live instance from `runs.infra`; fall back to the last infra.up
+// Prefer the live instance from `flights.infra`; fall back to the last infra.up
 // event payload so worktree paths remain visible after teardown.
 const lastInfraUp = computed(() => {
   for (let i = runEvents.value.length - 1; i >= 0; i--) {
@@ -368,7 +368,7 @@ async function act(decision: CheckpointDecision): Promise<void> {
   acting.value = true
   try {
     await runsStore.checkpoint({
-      runId: props.id,
+      flightId: props.id,
       decision,
       by: by.value.trim() || 'human',
       note: note.value,
@@ -391,14 +391,14 @@ onMounted(() => {
 <template>
   <div class="flex flex-col gap-6">
     <header class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold tracking-tight">Run</h1>
-      <RouterLink to="/runs" class="text-sm text-muted-foreground hover:underline"
-        >← All runs</RouterLink
+      <h1 class="text-2xl font-bold tracking-tight">Flight</h1>
+      <RouterLink to="/flights" class="text-sm text-muted-foreground hover:underline"
+        >← All flights</RouterLink
       >
     </header>
 
     <p v-if="notFound" class="rounded-md border border-border p-4 text-sm text-muted-foreground">
-      Run not found.
+      Flight not found.
     </p>
 
     <template v-else-if="detail">

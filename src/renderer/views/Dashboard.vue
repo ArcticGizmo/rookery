@@ -30,8 +30,8 @@ function barWidth(agent: ActiveAgent): string {
   return `${Math.min(100, Math.max(2, agent.contextPercent))}%`
 }
 
-function runLabel(runId: string | null): string {
-  return runId ? runId.slice(0, 8) : 'standalone'
+function runLabel(flightId: string | null): string {
+  return flightId ? flightId.slice(0, 8) : 'standalone'
 }
 
 onMounted(() => {
@@ -66,22 +66,22 @@ onMounted(() => {
       <template v-if="activity.warnCount"> · {{ activity.warnCount }} warning</template>.
     </div>
 
-    <!-- Active runs -->
+    <!-- Active flights -->
     <section class="flex flex-col gap-2">
-      <h2 class="text-sm font-semibold">Active runs ({{ activity.runs.length }})</h2>
+      <h2 class="text-sm font-semibold">Active flights ({{ activity.flights.length }})</h2>
       <div class="rounded-md border border-border">
         <p v-if="!loaded" class="p-4 text-sm text-muted-foreground">Loading…</p>
-        <p v-else-if="activity.runs.length === 0" class="p-4 text-sm text-muted-foreground">
-          No active runs.
+        <p v-else-if="activity.flights.length === 0" class="p-4 text-sm text-muted-foreground">
+          No active flights.
         </p>
         <ul v-else class="divide-y divide-border">
-          <li v-for="run in activity.runs" :key="run.runId">
+          <li v-for="run in activity.flights" :key="run.flightId">
             <RouterLink
-              :to="`/runs/${run.runId}`"
+              :to="`/flights/${run.flightId}`"
               class="flex items-center justify-between px-4 py-3 hover:bg-accent"
             >
               <span class="flex items-center gap-3">
-                <span class="font-mono text-sm">{{ runLabel(run.runId) }}</span>
+                <span class="font-mono text-sm">{{ runLabel(run.flightId) }}</span>
                 <span v-if="run.currentStageName" class="text-xs text-muted-foreground">
                   {{ run.currentStageName }}
                 </span>
@@ -116,11 +116,11 @@ onMounted(() => {
                 <span class="font-medium">{{ agent.personaName }}</span>
                 <span class="text-xs text-muted-foreground">{{ agent.model }}</span>
                 <RouterLink
-                  v-if="agent.runId"
-                  :to="`/runs/${agent.runId}`"
+                  v-if="agent.flightId"
+                  :to="`/flights/${agent.flightId}`"
                   class="text-xs text-muted-foreground hover:underline"
                 >
-                  · run {{ runLabel(agent.runId) }}
+                  · run {{ runLabel(agent.flightId) }}
                 </RouterLink>
               </span>
               <span class="text-xs text-muted-foreground">{{ agent.lastActivity }}</span>

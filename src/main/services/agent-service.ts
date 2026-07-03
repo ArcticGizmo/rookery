@@ -9,7 +9,7 @@ import type { AppendInput, AuditLog } from './audit-log'
 
 /** Optional audit scope so agent events can be tied to an orchestration run. */
 export interface AgentScope {
-  runId?: string | null
+  flightId?: string | null
   stageId?: string | null
 }
 
@@ -19,12 +19,12 @@ interface RunState {
   model: string
   /** Serializes audit appends so events land in emission order. */
   tail: Promise<unknown>
-  /** Run/stage this agent belongs to (null for standalone single-agent runs). */
-  scope: { runId: string | null; stageId: string | null }
+  /** Flight/stage this agent belongs to (null for standalone single-agent flights). */
+  scope: { flightId: string | null; stageId: string | null }
 }
 
 /**
- * Runs single agents via the Agent SDK and projects their activity into the
+ * Flights single agents via the Agent SDK and projects their activity into the
  * audit log (Phase 3.4–3.6). Holds no credentials; `queryFn` is injected so the
  * translation logic is unit-testable without spawning the CLI.
  */
@@ -47,7 +47,7 @@ export class AgentService {
   }
 
   /**
-   * Run an agent to completion, projecting its activity to the audit log and
+   * Flight an agent to completion, projecting its activity to the audit log and
    * resolving with the collected result. Used by the orchestration engine to
    * drive stage agents and criterion checks.
    */
@@ -95,7 +95,7 @@ export class AgentService {
       handle: { done: Promise.resolve(), cancel: () => {} },
       model: config.persona.model ?? 'default',
       tail: Promise.resolve(),
-      scope: { runId: scope?.runId ?? null, stageId: scope?.stageId ?? null }
+      scope: { flightId: scope?.flightId ?? null, stageId: scope?.stageId ?? null }
     }
     this.active.set(agentRunId, state)
 
@@ -134,9 +134,9 @@ export class AgentService {
 
   /** Cancel every active agent belonging to a run (used when a run is terminated).
    * Snapshots the matching ids first, since `cancel` mutates the active map. */
-  cancelByRun(runId: string): void {
+  cancelByRun(flightId: string): void {
     const ids = [...this.active.entries()]
-      .filter(([, state]) => state.scope.runId === runId)
+      .filter(([, state]) => state.scope.flightId === flightId)
       .map(([agentRunId]) => agentRunId)
     for (const agentRunId of ids) this.cancel(agentRunId)
   }
@@ -263,7 +263,7 @@ export class AgentService {
   private enqueue(state: RunState, event: AppendInput): void {
     const scoped: AppendInput = {
       ...event,
-      runId: event.runId ?? state.scope.runId,
+      flightId: event.flightId ?? state.scope.flightId,
       stageId: event.stageId ?? state.scope.stageId
     }
     state.tail = state.tail

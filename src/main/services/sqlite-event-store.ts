@@ -15,7 +15,7 @@ export class SqliteEventStore implements EventStore {
         ts: event.ts,
         type: event.type,
         actor: event.actor,
-        runId: event.runId,
+        flightId: event.flightId,
         stageId: event.stageId,
         payload: event.payload
       })
@@ -30,7 +30,7 @@ export class SqliteEventStore implements EventStore {
     const conditions: SQL[] = []
     if (options.afterId !== undefined) conditions.push(gt(events.id, options.afterId))
     if (options.beforeId !== undefined) conditions.push(lt(events.id, options.beforeId))
-    if (options.runId) conditions.push(eq(events.runId, options.runId))
+    if (options.flightId) conditions.push(eq(events.flightId, options.flightId))
     if (options.stageId) conditions.push(eq(events.stageId, options.stageId))
     if (options.actor) conditions.push(eq(events.actor, options.actor))
     if (options.type) conditions.push(like(events.type, `${options.type}%`))
@@ -55,7 +55,7 @@ function toStored(row: EventRow): StoredEvent {
     ts: row.ts,
     type: row.type as StoredEvent['type'],
     actor: row.actor as EventActor,
-    runId: row.runId,
+    flightId: row.flightId,
     stageId: row.stageId,
     payload: row.payload
   }

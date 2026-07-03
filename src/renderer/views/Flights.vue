@@ -2,15 +2,15 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRouter } from 'vue-router'
-import type { RunExecutionMode } from '@shared/domain'
+import type { FlightExecutionMode } from '@shared/domain'
 import { validateApproach } from '@shared/approach-validation'
 import Button from '@renderer/components/ui/button/Button.vue'
-import { useRunsStore } from '@renderer/stores/runs'
+import { useFlightsStore } from '@renderer/stores/flights'
 import { useBriefsStore } from '@renderer/stores/briefs'
 import { useApproachesStore } from '@renderer/stores/approaches'
 
 const router = useRouter()
-const runsStore = useRunsStore()
+const runsStore = useFlightsStore()
 const briefsStore = useBriefsStore()
 const approachesStore = useApproachesStore()
 
@@ -22,7 +22,7 @@ const briefId = ref('')
 const approachId = ref('')
 const maxIterations = ref(3)
 const maxVerificationCycles = ref(2)
-const executionMode = ref<RunExecutionMode>('read_only')
+const executionMode = ref<FlightExecutionMode>('read_only')
 const workBranch = ref('')
 const infraTemplate = ref('')
 const teardownOnComplete = ref(true)
@@ -78,7 +78,7 @@ async function start(): Promise<void> {
         executionMode.value === 'local_branch' ? workBranch.value.trim() || undefined : undefined,
       teardownOnComplete: teardownOnComplete.value
     })
-    await router.push(`/runs/${run.id}`)
+    await router.push(`/flights/${run.id}`)
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -96,7 +96,7 @@ onMounted(() => {
 <template>
   <div class="flex flex-col gap-6">
     <header class="flex flex-col gap-1">
-      <h1 class="text-2xl font-bold tracking-tight">Runs</h1>
+      <h1 class="text-2xl font-bold tracking-tight">Flights</h1>
       <p class="text-sm text-muted-foreground">Execute a approach over a work item.</p>
     </header>
 
@@ -197,8 +197,8 @@ onMounted(() => {
       </div>
 
       <p v-if="executionMode === 'local_branch'" class="text-xs text-muted-foreground">
-        Runs on the work item's own repo checkout — no sprig or Docker. Edits unlock once a
-        <span class="font-mono">setup</span> stage runs, and the working tree must be clean to
+        Flights on the work item's own repo checkout — no sprig or Docker. Edits unlock once a
+        <span class="font-mono">setup</span> stage flights, and the working tree must be clean to
         start. Changes are left on the branch for you to review and land manually.
       </p>
       <p v-else-if="executionMode === 'read_only'" class="text-xs text-muted-foreground">
@@ -215,14 +215,14 @@ onMounted(() => {
       </div>
     </section>
 
-    <!-- Runs list -->
+    <!-- Flights list -->
     <div class="rounded-md border border-border">
       <p v-if="loading" class="p-4 text-sm text-muted-foreground">Loading…</p>
-      <p v-else-if="items.length === 0" class="p-4 text-sm text-muted-foreground">No runs yet.</p>
+      <p v-else-if="items.length === 0" class="p-4 text-sm text-muted-foreground">No flights yet.</p>
       <ul v-else class="divide-y divide-border">
         <li v-for="run in items" :key="run.id">
           <RouterLink
-            :to="`/runs/${run.id}`"
+            :to="`/flights/${run.id}`"
             class="flex items-center justify-between px-4 py-3 hover:bg-accent"
           >
             <span class="flex items-center gap-3">

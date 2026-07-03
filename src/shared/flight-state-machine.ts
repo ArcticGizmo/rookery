@@ -8,18 +8,18 @@
  * `next` (advance) and `back` (request-changes) transitions between stages.
  */
 
-import type { RunStatus, StageStatus } from './domain'
+import type { FlightStatus, StageStatus } from './domain'
 
 export interface StageSnapshot {
   stageId: string
   index: number
   status: StageStatus
-  /** 1-based; bumps each time the stage (re)runs. */
+  /** 1-based; bumps each time the stage (re)flights. */
   iteration: number
 }
 
 export interface RunSnapshot {
-  status: RunStatus
+  status: FlightStatus
   currentStageIndex: number
   stages: StageSnapshot[]
 }
@@ -35,9 +35,9 @@ export type RunAction =
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
 
-const TERMINAL: readonly RunStatus[] = ['passed', 'failed', 'cancelled']
+const TERMINAL: readonly FlightStatus[] = ['passed', 'failed', 'cancelled']
 
-export function isTerminal(status: RunStatus): boolean {
+export function isTerminal(status: FlightStatus): boolean {
   return TERMINAL.includes(status)
 }
 
@@ -144,7 +144,7 @@ export function reduceRun(snapshot: RunSnapshot, action: RunAction): RunSnapshot
     case 'REQUEST_CHANGES': {
       const target = action.targetIndex
       if (target < 0 || target >= snapshot.stages.length) return snapshot
-      // Reset the target and every stage after it; the target re-runs.
+      // Reset the target and every stage after it; the target re-flights.
       const stages = snapshot.stages.map((s) => {
         if (s.index < target) return s
         if (s.index === target) {

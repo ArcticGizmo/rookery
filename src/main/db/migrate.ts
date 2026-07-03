@@ -58,7 +58,7 @@ export function assertForwardCompatible(applied: number, bundled: number): void 
 
 /**
  * Apply pending migrations from `migrationsFolder`, after checking the DB isn't
- * ahead of this build (see the policy note above). Runs on boot, before the
+ * ahead of this build (see the policy note above). Flights on boot, before the
  * window loads; a thrown incompatibility surfaces via the fatal-startup handler
  * in `main/index.ts`. The caller resolves the folder (project root in dev,
  * bundled resources when packaged) so this stays free of Electron and testable.

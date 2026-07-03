@@ -33,7 +33,7 @@ export type AppEvent =
       payload: { approachId: string; name: string; version: number }
     }
   | { type: 'approach.deleted'; actor: 'human'; payload: { approachId: string } }
-  // Phase 3 — single-agent runs (Claude Agent SDK).
+  // Phase 3 — single-agent flights (Claude Agent SDK).
   | {
       type: 'agent.spawned'
       actor: 'agent'
@@ -134,18 +134,18 @@ export type AppEvent =
     }
   | { type: 'agent.error'; actor: 'agent'; payload: { agentRunId: string; message: string } }
   | { type: 'agent.cancelled'; actor: 'human'; payload: { agentRunId: string } }
-  // Phase 4 — orchestration runs.
+  // Phase 4 — orchestration flights.
   | {
-      type: 'run.created'
+      type: 'flight.created'
       actor: 'human'
-      payload: { runId: string; briefId: string; approachId: string; approachVersion: number }
+      payload: { flightId: string; briefId: string; approachId: string; approachVersion: number }
     }
-  | { type: 'run.started'; actor: 'system'; payload: { runId: string } }
+  | { type: 'flight.started'; actor: 'system'; payload: { flightId: string } }
   | {
-      type: 'run.stage_entered'
+      type: 'flight.stage_entered'
       actor: 'system'
       payload: {
-        runId: string
+        flightId: string
         stageId: string
         stageName: string
         stageIndex: number
@@ -153,20 +153,20 @@ export type AppEvent =
       }
     }
   | {
-      type: 'run.stage_passed'
+      type: 'flight.stage_passed'
       actor: 'system'
-      payload: { runId: string; stageId: string; stageIndex: number }
+      payload: { flightId: string; stageId: string; stageIndex: number }
     }
   | {
-      type: 'run.stage_failed'
+      type: 'flight.stage_failed'
       actor: 'system'
-      payload: { runId: string; stageId: string; stageIndex: number; reason: string }
+      payload: { flightId: string; stageId: string; stageIndex: number; reason: string }
     }
   | {
-      type: 'run.criterion_evaluated'
+      type: 'flight.criterion_evaluated'
       actor: 'system'
       payload: {
-        runId: string
+        flightId: string
         stageId: string
         criterionId: string
         criterionType: string
@@ -177,10 +177,10 @@ export type AppEvent =
   // The consolidated artifact a stage's persona produced this iteration — what a
   // human reviews at the stage's checkpoint (rendered as markdown in the run view).
   | {
-      type: 'run.stage_output'
+      type: 'flight.stage_output'
       actor: 'agent'
       payload: {
-        runId: string
+        flightId: string
         stageId: string
         stageIndex: number
         personaId: string
@@ -191,26 +191,26 @@ export type AppEvent =
       }
     }
   | {
-      type: 'run.checkpoint_awaiting'
+      type: 'flight.checkpoint_awaiting'
       actor: 'system'
-      payload: { runId: string; stageId: string; checkpointId: string; description: string }
+      payload: { flightId: string; stageId: string; checkpointId: string; description: string }
     }
   | {
-      type: 'run.checkpoint_resolved'
+      type: 'flight.checkpoint_resolved'
       actor: 'human'
-      payload: { runId: string; stageId: string; decision: string; by: string; note: string }
+      payload: { flightId: string; stageId: string; decision: string; by: string; note: string }
     }
   | {
-      type: 'run.changes_requested'
+      type: 'flight.changes_requested'
       actor: 'human'
-      payload: { runId: string; targetStageIndex: number; by: string; note: string }
+      payload: { flightId: string; targetStageIndex: number; by: string; note: string }
     }
   // Phase 6.3 — feature-verification stage: issues found end-to-end.
   | {
-      type: 'run.verification_failed'
+      type: 'flight.verification_failed'
       actor: 'system'
       payload: {
-        runId: string
+        flightId: string
         stageId: string
         stageIndex: number
         /** Human-readable issues found, from the stage's failed pass criteria. */
@@ -223,43 +223,43 @@ export type AppEvent =
         routedBack: boolean
       }
     }
-  | { type: 'run.finished'; actor: 'system'; payload: { runId: string; status: string } }
+  | { type: 'flight.finished'; actor: 'system'; payload: { flightId: string; status: string } }
   // A human terminated an in-flight run from the run view (records intent; the
   // engine then cancels live agents and emits `run.finished` with `cancelled`).
   | {
-      type: 'run.cancelled'
+      type: 'flight.cancelled'
       actor: 'human'
-      payload: { runId: string; previousStatus: string }
+      payload: { flightId: string; previousStatus: string }
     }
   // Local-branch execution mode: the setup stage checked out a branch on the
   // work item's own repo checkout so agents can edit without sprig/Docker.
   | {
-      type: 'run.branch_ready'
+      type: 'flight.branch_ready'
       actor: 'system'
-      payload: { runId: string; repo: string; branch: string; path: string }
+      payload: { flightId: string; repo: string; branch: string; path: string }
     }
   | {
-      type: 'run.branch_failed'
+      type: 'flight.branch_failed'
       actor: 'system'
-      payload: { runId: string; repo: string; branch: string; message: string }
+      payload: { flightId: string; repo: string; branch: string; message: string }
     }
   // Phase 7.1 — a run left mid-flight by a crash/unclean shutdown, reconciled on boot.
   | {
-      type: 'run.interrupted'
+      type: 'flight.interrupted'
       actor: 'system'
-      payload: { runId: string; previousStatus: string; reason: string }
+      payload: { flightId: string; previousStatus: string; reason: string }
     }
   // Phase 6.4 — landing changes: how a successful run's change reaches main.
   | {
-      type: 'run.landing_started'
+      type: 'flight.landing_started'
       actor: 'human'
-      payload: { runId: string; repo: string; method: string; by: string }
+      payload: { flightId: string; repo: string; method: string; by: string }
     }
   | {
-      type: 'run.landed'
+      type: 'flight.landed'
       actor: 'human'
       payload: {
-        runId: string
+        flightId: string
         repo: string
         method: string
         /** PR URL (method `pr`), when reported. */
@@ -271,21 +271,21 @@ export type AppEvent =
       }
     }
   | {
-      type: 'run.landing_failed'
+      type: 'flight.landing_failed'
       actor: 'system'
-      payload: { runId: string; repo: string; method: string; message: string }
+      payload: { flightId: string; repo: string; method: string; message: string }
     }
   // Phase 5 — infrastructure (worktrees + docker via InfraProvider / sprig).
   | {
       type: 'infra.provisioning'
       actor: 'system'
-      payload: { runId: string; provider: string; instanceName: string; template: string }
+      payload: { flightId: string; provider: string; instanceName: string; template: string }
     }
   | {
       type: 'infra.up'
       actor: 'system'
       payload: {
-        runId: string
+        flightId: string
         provider: string
         instanceName: string
         worktrees: { repo: string; path: string; branch: string | null }[]
@@ -296,17 +296,17 @@ export type AppEvent =
   | {
       type: 'infra.down'
       actor: 'system'
-      payload: { runId: string; provider: string; instanceName: string; removed: boolean }
+      payload: { flightId: string; provider: string; instanceName: string; removed: boolean }
     }
   | {
       type: 'infra.failed'
       actor: 'system'
-      payload: { runId: string; provider: string; instanceName: string; message: string }
+      payload: { flightId: string; provider: string; instanceName: string; message: string }
     }
 
 /** Optional scoping fields common to every appended event. */
 export interface EventScope {
-  runId?: string | null
+  flightId?: string | null
   stageId?: string | null
 }
 
@@ -316,7 +316,7 @@ export interface StoredEvent {
   ts: string
   type: AppEvent['type']
   actor: EventActor
-  runId: string | null
+  flightId: string | null
   stageId: string | null
   payload: unknown
 }
@@ -331,7 +331,7 @@ export interface ListEventsOptions {
   /** Sort order by id. Defaults to `'asc'` (chronological). */
   order?: 'asc' | 'desc'
   /** Filter to a single run. */
-  runId?: string
+  flightId?: string
   /** Filter to a single stage. */
   stageId?: string
   /** Filter by actor. */

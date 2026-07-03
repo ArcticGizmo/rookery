@@ -17,7 +17,7 @@ const { theme, toggle: toggleTheme } = useTheme()
 
 const links = [
   { to: '/dashboard', label: 'Activity' },
-  { to: '/runs', label: 'Runs' },
+  { to: '/flights', label: 'Flights' },
   { to: '/briefs', label: 'Work items' },
   { to: '/approaches', label: 'Approaches' },
   { to: '/agent-run', label: 'Agent run' },
@@ -34,7 +34,7 @@ const isDev = import.meta.env.DEV
 async function resetAllData(): Promise<void> {
   if (resetting.value) return
   const ok = window.confirm(
-    'Delete ALL local data — work items, runs, approaches, and the event log?\n\nThis cannot be undone.'
+    'Delete ALL local data — work items, flights, approaches, and the event log?\n\nThis cannot be undone.'
   )
   if (!ok) return
   resetting.value = true
@@ -62,9 +62,9 @@ function openNotification(n: NotificationItem): void {
     void rookery().update.install()
     return
   }
-  if (n.runId) {
-    notifications.markRunRead(n.runId)
-    void router.push(`/runs/${n.runId}`)
+  if (n.flightId) {
+    notifications.markFlightRead(n.flightId)
+    void router.push(`/flights/${n.flightId}`)
   }
 }
 

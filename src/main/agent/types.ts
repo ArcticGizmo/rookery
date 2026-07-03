@@ -1,6 +1,6 @@
 import type { Options, Query, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 
-/** The Agent SDK `query()` function signature — injected so runs are testable. */
+/** The Agent SDK `query()` function signature — injected so flights are testable. */
 export type QueryFn = (args: {
   prompt: string | AsyncIterable<SDKUserMessage>
   options?: Options

@@ -28,7 +28,7 @@ export interface LandingTarget {
 
 /** Whether a run can be landed, and the per-repo targets if so. */
 export interface LandingTargets {
-  runId: string
+  flightId: string
   /** Configured landing provider name (e.g. 'git', 'stub', or 'none'). */
   provider: string
   /** Whether the provider's backing tooling resolves (e.g. git/gh on PATH). */

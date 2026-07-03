@@ -15,7 +15,7 @@ export interface NotificationItem {
   /** The triggering event's id — stable + unique, so read-state dedupes cleanly. */
   id: number
   kind: NotificationKind
-  runId: string | null
+  flightId: string | null
   title: string
   body: string
   ts: string
@@ -44,7 +44,7 @@ export function computeNotifications(events: StoredEvent[]): NotificationItem[] 
       items.push({
         id: event.id,
         kind: 'update',
-        runId: null,
+        flightId: null,
         title: 'Update ready',
         body: `Version ${String(p.version ?? '')} has been downloaded. Restart Rookery to install it.`,
         ts: event.ts
@@ -52,11 +52,11 @@ export function computeNotifications(events: StoredEvent[]): NotificationItem[] 
       continue
     }
 
-    if (event.type === 'run.checkpoint_awaiting') {
+    if (event.type === 'flight.checkpoint_awaiting') {
       items.push({
         id: event.id,
         kind: 'checkpoint',
-        runId: event.runId,
+        flightId: event.flightId,
         title: 'Human checkpoint awaiting',
         body: String(p.description || 'A run needs your approval to continue.'),
         ts: event.ts
@@ -72,7 +72,7 @@ export function computeNotifications(events: StoredEvent[]): NotificationItem[] 
         items.push({
           id: event.id,
           kind: 'pressure',
-          runId: event.runId,
+          flightId: event.flightId,
           title: 'High context pressure',
           body: `An agent is at ${Number(p.percent ?? 0)}% of its context window — output quality may degrade.`,
           ts: event.ts

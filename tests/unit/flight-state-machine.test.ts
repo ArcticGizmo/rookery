@@ -4,7 +4,7 @@ import {
   initRunSnapshot,
   isTerminal,
   reduceRun
-} from '../../src/shared/run-state-machine'
+} from '../../src/shared/flight-state-machine'
 
 function threeStages(): RunSnapshot {
   return initRunSnapshot(['s0', 's1', 's2'])
@@ -22,7 +22,7 @@ describe('initRunSnapshot', () => {
 })
 
 describe('START', () => {
-  it('runs the first stage', () => {
+  it('flights the first stage', () => {
     const s = reduceRun(threeStages(), { type: 'START' })
     expect(s.status).toBe('running')
     expect(statusOf(s, 0)).toBe('running')
@@ -105,7 +105,7 @@ describe('REQUEST_CHANGES', () => {
 })
 
 describe('RETRY', () => {
-  it('re-runs the current stage and bumps iteration', () => {
+  it('re-flights the current stage and bumps iteration', () => {
     let s = reduceRun(threeStages(), { type: 'START' })
     s = reduceRun(s, { type: 'RETRY' })
     expect(statusOf(s, 0)).toBe('running')

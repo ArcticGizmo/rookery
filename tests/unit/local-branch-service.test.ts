@@ -65,8 +65,8 @@ describe('LocalBranchService', () => {
     // A branch that doesn't exist is created with -b.
     expect(calls).toContainEqual(['checkout', '-b', BRANCH])
     const evs = await events()
-    expect(evs.map((e) => e.type)).toContain('run.branch_ready')
-    expect(evs.find((e) => e.type === 'run.branch_ready')?.payload).toMatchObject({
+    expect(evs.map((e) => e.type)).toContain('flight.branch_ready')
+    expect(evs.find((e) => e.type === 'flight.branch_ready')?.payload).toMatchObject({
       repo: REPO,
       branch: BRANCH,
       path: PATH
@@ -90,9 +90,9 @@ describe('LocalBranchService', () => {
     // Never checks out over uncommitted work.
     expect(calls.some((c) => c[0] === 'checkout')).toBe(false)
     const evs = await events()
-    expect(evs.map((e) => e.type)).toContain('run.branch_failed')
+    expect(evs.map((e) => e.type)).toContain('flight.branch_failed')
     expect(
-      (evs.find((e) => e.type === 'run.branch_failed')?.payload as { message: string }).message
+      (evs.find((e) => e.type === 'flight.branch_failed')?.payload as { message: string }).message
     ).toMatch(/uncommitted changes/)
   })
 
@@ -105,7 +105,7 @@ describe('LocalBranchService', () => {
     // No clean-tree check and no checkout when already on the branch.
     expect(calls.some((c) => c.join(' ') === 'status --porcelain')).toBe(false)
     expect(calls.some((c) => c[0] === 'checkout')).toBe(false)
-    expect((await events()).map((e) => e.type)).toContain('run.branch_ready')
+    expect((await events()).map((e) => e.type)).toContain('flight.branch_ready')
   })
 
   it('fails cleanly when the path is not a git repository', async () => {
@@ -113,7 +113,7 @@ describe('LocalBranchService', () => {
     const svc = new LocalBranchService(audit, git)
 
     expect(await svc.prepare(RUN, REPO, PATH, BRANCH)).toBe(false)
-    expect((await events()).map((e) => e.type)).toContain('run.branch_failed')
+    expect((await events()).map((e) => e.type)).toContain('flight.branch_failed')
   })
 
   it('reports git availability', async () => {

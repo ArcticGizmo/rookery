@@ -7,11 +7,11 @@ import { instanceNameForRun } from '../../src/main/services/infra'
 import { StubProvider } from '../../src/main/services/infra/stub-provider'
 import { StubLandingProvider } from '../../src/main/services/landing/stub-landing-provider'
 import { LandingService } from '../../src/main/services/landing-service'
-import { RunStore } from '../../src/main/services/run-store'
+import { FlightStore } from '../../src/main/services/flight-store'
 import { SpecService } from '../../src/main/services/spec-service'
 import { BriefService } from '../../src/main/services/brief-service'
 import { ApproachService } from '../../src/main/services/approach-service'
-import { initRunSnapshot } from '../../src/shared/run-state-machine'
+import { initRunSnapshot } from '../../src/shared/flight-state-machine'
 import { makeTestDb, type TestDb } from './helpers/test-db'
 
 function approachBody(): ApproachDefBody {
@@ -25,7 +25,7 @@ function approachBody(): ApproachDefBody {
 describe('LandingService (Phase 6.4)', () => {
   let test: TestDb
   let audit: AuditLog
-  let runs: RunStore
+  let flights: FlightStore
   let briefs: BriefService
   let approaches: ApproachService
   let infra: InfraService
@@ -43,7 +43,7 @@ describe('LandingService (Phase 6.4)', () => {
     })
     const wf = await approaches.create(approachBody())
     const body = { name: wf.name, description: wf.description, stages: wf.stages }
-    const run = await runs.create({
+    const run = await flights.create({
       briefId: wi.brief.id,
       approachId: wf.id,
       approachVersion: wf.version,
@@ -54,7 +54,7 @@ describe('LandingService (Phase 6.4)', () => {
       teardownOnComplete: false
     })
     const snap = initRunSnapshot(body.stages.map((s) => s.id))
-    await runs.persistSnapshot(run.id, { ...snap, status: 'passed' }, new Date().toISOString())
+    await flights.persistSnapshot(run.id, { ...snap, status: 'passed' }, new Date().toISOString())
     if (opts.infra) {
       await provider.create({
         name: instanceNameForRun(run.id),
@@ -70,14 +70,14 @@ describe('LandingService (Phase 6.4)', () => {
   beforeEach(async () => {
     test = await makeTestDb()
     audit = new AuditLog(new InMemoryEventStore())
-    runs = new RunStore(test.db)
+    flights = new FlightStore(test.db)
     const specs = new SpecService(test.db, audit)
     briefs = new BriefService(test.db, audit, specs)
     approaches = new ApproachService(test.db, audit)
     provider = new StubProvider('/wt', ['api'])
     infra = new InfraService(provider, audit)
     landingProvider = new StubLandingProvider()
-    landing = new LandingService(landingProvider, audit, infra, briefs, runs)
+    landing = new LandingService(landingProvider, audit, infra, briefs, flights)
   })
 
   afterEach(() => test.close())
@@ -99,15 +99,15 @@ describe('LandingService (Phase 6.4)', () => {
   it('opens a PR for a repo and audits the outcome', async () => {
     const run = await passedRun()
 
-    const result = await landing.land({ runId: run.id, repo: 'api', method: 'pr', by: 'jon' })
+    const result = await landing.land({ flightId: run.id, repo: 'api', method: 'pr', by: 'jon' })
     expect(result.prUrl).toContain('example.test')
     expect(landingProvider.calls).toHaveLength(1)
     expect(landingProvider.calls[0]!.worktreePath).toBe(`/wt/${instanceNameForRun(run.id)}/api`)
     expect(landingProvider.calls[0]!.title).toBe('My feature')
 
-    const events = await audit.list({ runId: run.id, limit: 100 })
-    expect(events.some((e) => e.type === 'run.landing_started')).toBe(true)
-    expect(events.some((e) => e.type === 'run.landed')).toBe(true)
+    const events = await audit.list({ flightId: run.id, limit: 100 })
+    expect(events.some((e) => e.type === 'flight.landing_started')).toBe(true)
+    expect(events.some((e) => e.type === 'flight.landed')).toBe(true)
 
     // The repo now shows as landed.
     const after = await landing.targets(run.id)
@@ -116,14 +116,14 @@ describe('LandingService (Phase 6.4)', () => {
 
   it('merges directly when asked', async () => {
     const run = await passedRun()
-    const result = await landing.land({ runId: run.id, repo: 'api', method: 'merge', by: 'jon' })
+    const result = await landing.land({ flightId: run.id, repo: 'api', method: 'merge', by: 'jon' })
     expect(result.method).toBe('merge')
     expect(result.mergedInto).toBe('main')
   })
 
   it('refuses to land a repo not part of the run', async () => {
     const run = await passedRun()
-    await expect(landing.land({ runId: run.id, repo: 'web', method: 'pr', by: 'jon' })).rejects.toThrow(
+    await expect(landing.land({ flightId: run.id, repo: 'web', method: 'pr', by: 'jon' })).rejects.toThrow(
       /not part of/
     )
   })

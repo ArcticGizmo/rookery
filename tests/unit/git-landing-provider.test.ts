@@ -25,7 +25,7 @@ function makeCli(
 
 function spec(overrides: Partial<LandingSpec> = {}): LandingSpec {
   return {
-    runId: 'r1',
+    flightId: 'r1',
     repo: 'api',
     method: 'pr',
     worktreePath: '/wt/api',
@@ -50,7 +50,7 @@ describe('GitLandingProvider', () => {
     expect(await missing.available()).toBe(false)
   })
 
-  it('openPr pushes the branch then runs gh pr create, returning the PR url', async () => {
+  it('openPr pushes the branch then flights gh pr create, returning the PR url', async () => {
     const { cli, calls } = makeCli((cmd) =>
       cmd === 'gh' ? ok('https://github.com/x/api/pull/7\n') : ok()
     )

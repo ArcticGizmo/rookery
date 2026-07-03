@@ -7,12 +7,12 @@ import type {
   CreateBriefInput,
   CredentialStatus,
   CheckpointActionInput,
-  LandRunInput,
-  Run,
-  RunDetail,
+  LandFlightInput,
+  Flight,
+  FlightDetail,
   SpecDiff,
   SpecVersion,
-  StartRunInput,
+  StartFlightInput,
   UpdateBriefInput,
   Brief,
   BriefDetail,
@@ -47,20 +47,20 @@ export const IPC = {
   approachesCreate: 'approaches:create',
   approachesUpdate: 'approaches:update',
   approachesDelete: 'approaches:delete',
-  // Single-agent runs
+  // Single-agent flights
   agentCredentials: 'agent:credentials',
   agentStart: 'agent:start',
   agentCancel: 'agent:cancel',
-  // Orchestration runs
-  runsStart: 'runs:start',
-  runsList: 'runs:list',
-  runsGet: 'runs:get',
-  runsCheckpoint: 'runs:checkpoint',
-  runsCancel: 'runs:cancel',
-  runsInfra: 'runs:infra',
-  runsLandTargets: 'runs:land-targets',
-  runsLand: 'runs:land',
-  runsTeardown: 'runs:teardown',
+  // Orchestration flights
+  runsStart: 'flights:start',
+  runsList: 'flights:list',
+  runsGet: 'flights:get',
+  runsCheckpoint: 'flights:checkpoint',
+  runsCancel: 'flights:cancel',
+  runsInfra: 'flights:infra',
+  runsLandTargets: 'flights:land-targets',
+  runsLand: 'flights:land',
+  runsTeardown: 'flights:teardown',
   // Auto-update
   updateCheck: 'update:check',
   updateInstall: 'update:install',
@@ -100,15 +100,15 @@ export interface IpcInvokeMap {
   'agent:start': { args: [config: AgentRunConfig]; result: { agentRunId: string } }
   'agent:cancel': { args: [agentRunId: string]; result: void }
 
-  'runs:start': { args: [input: StartRunInput]; result: Run }
-  'runs:list': { args: []; result: Run[] }
-  'runs:get': { args: [runId: string]; result: RunDetail | null }
-  'runs:checkpoint': { args: [input: CheckpointActionInput]; result: void }
-  'runs:cancel': { args: [runId: string]; result: void }
-  'runs:infra': { args: [runId: string]; result: RunInfra }
-  'runs:land-targets': { args: [runId: string]; result: LandingTargets }
-  'runs:land': { args: [input: LandRunInput]; result: LandingResult }
-  'runs:teardown': { args: [runId: string]; result: void }
+  'flights:start': { args: [input: StartFlightInput]; result: Flight }
+  'flights:list': { args: []; result: Flight[] }
+  'flights:get': { args: [flightId: string]; result: FlightDetail | null }
+  'flights:checkpoint': { args: [input: CheckpointActionInput]; result: void }
+  'flights:cancel': { args: [flightId: string]; result: void }
+  'flights:infra': { args: [flightId: string]; result: RunInfra }
+  'flights:land-targets': { args: [flightId: string]; result: LandingTargets }
+  'flights:land': { args: [input: LandFlightInput]; result: LandingResult }
+  'flights:teardown': { args: [flightId: string]; result: void }
 
   'update:check': { args: []; result: void }
   'update:install': { args: []; result: void }

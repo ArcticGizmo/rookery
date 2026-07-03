@@ -62,9 +62,9 @@ export const useNotificationsStore = defineStore('notifications', () => {
   }
 
   /** Mark every notification for a run read (e.g. when the user opens it). */
-  function markRunRead(runId: string): void {
+  function markFlightRead(flightId: string): void {
     const next = new Set(readIds.value)
-    for (const n of items.value) if (n.runId === runId) next.add(n.id)
+    for (const n of items.value) if (n.flightId === flightId) next.add(n.id)
     readIds.value = next
   }
 
@@ -114,7 +114,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     isRead,
     markRead,
     markAllRead,
-    markRunRead,
+    markFlightRead,
     enableOs,
     disableOs
   }

@@ -8,7 +8,7 @@ import type { LandingResult } from '@shared/landing'
  * other without a working-tree conflict.
  */
 export interface LandingSpec {
-  runId: string
+  flightId: string
   repo: string
   method: LandingMethod
   /** The run's isolated worktree for this repo (feature branch checked out). */

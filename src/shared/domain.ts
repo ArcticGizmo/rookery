@@ -184,7 +184,7 @@ export const approachDefSchema = approachDefBodySchema.extend({
 })
 export type ApproachDef = z.infer<typeof approachDefSchema>
 
-// --- Single-agent runs (Phase 3) -------------------------------------------
+// --- Single-agent flights (Phase 3) -------------------------------------------
 
 /** How the Agent SDK handles tool-permission decisions during a run. */
 export const permissionModeSchema = z.enum([
@@ -205,7 +205,7 @@ export const agentRunConfigSchema = z.object({
   cwd: z.string().nullish(),
   /**
    * Permission mode. Defaults to `plan` (read-only, no tool execution) — the
-   * safe choice until Phase 5 runs agents inside isolated worktrees. Choose
+   * safe choice until Phase 5 flights agents inside isolated worktrees. Choose
    * `bypassPermissions` for autonomous editing/execution.
    */
   permissionMode: permissionModeSchema.default('plan')
@@ -219,9 +219,9 @@ export interface CredentialStatus {
   source: string | null
 }
 
-// --- Runs / orchestration (Phase 4) ----------------------------------------
+// --- Flights / orchestration (Phase 4) ----------------------------------------
 
-export const runStatusSchema = z.enum([
+export const flightStatusSchema = z.enum([
   'pending',
   'running',
   'awaiting_checkpoint',
@@ -229,18 +229,18 @@ export const runStatusSchema = z.enum([
   'failed',
   'cancelled'
 ])
-export type RunStatus = z.infer<typeof runStatusSchema>
+export type FlightStatus = z.infer<typeof flightStatusSchema>
 
 export const stageStatusSchema = z.enum(['pending', 'running', 'awaiting_checkpoint', 'passed', 'failed'])
 export type StageStatus = z.infer<typeof stageStatusSchema>
 
 /** A single execution of a approach over a work item. */
-export interface Run {
+export interface Flight {
   id: string
   briefId: string
   approachId: string
   approachVersion: number
-  status: RunStatus
+  status: FlightStatus
   currentStageIndex: number
   createdAt: string
   updatedAt: string
@@ -249,7 +249,7 @@ export interface Run {
 /** The execution record for one stage within a run (may re-run: `iteration`). */
 export interface StageExecution {
   id: string
-  runId: string
+  flightId: string
   stageId: string
   stageIndex: number
   status: StageStatus
@@ -259,8 +259,8 @@ export interface StageExecution {
 }
 
 /** Aggregate for the run view: the run, its stage executions, and the approach. */
-export interface RunDetail {
-  run: Run
+export interface FlightDetail {
+  run: Flight
   stages: StageExecution[]
   approach: ApproachDef
 }
@@ -279,10 +279,10 @@ export type CheckpointDecision = z.infer<typeof checkpointDecisionSchema>
  *   the configured provider (`infraTemplate`), and agents run with `acceptEdits`
  *   inside it.
  */
-export const runExecutionModeSchema = z.enum(['read_only', 'local_branch', 'infra'])
-export type RunExecutionMode = z.infer<typeof runExecutionModeSchema>
+export const flightExecutionModeSchema = z.enum(['read_only', 'local_branch', 'infra'])
+export type FlightExecutionMode = z.infer<typeof flightExecutionModeSchema>
 
-export const startRunInputSchema = z.object({
+export const startFlightInputSchema = z.object({
   briefId: z.string().min(1),
   approachId: z.string().min(1),
   /** Max implementer→reviewer iterations per stage before failing (default 3). */
@@ -307,26 +307,26 @@ export const startRunInputSchema = z.object({
   /** Tear the run's infra down when the run reaches a terminal state (default true). */
   teardownOnComplete: z.boolean().default(true),
   /**
-   * Execution mode (see {@link runExecutionModeSchema}). Omitted ⇒ resolved by the
+   * Execution mode (see {@link flightExecutionModeSchema}). Omitted ⇒ resolved by the
    * engine for backward compatibility: `infra` when an `infraTemplate` is set,
    * otherwise `read_only`.
    */
-  executionMode: runExecutionModeSchema.optional(),
+  executionMode: flightExecutionModeSchema.optional(),
   /** Branch to create/checkout on the repo for `local_branch` mode (required then). */
   workBranch: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.string().optional())
 })
-export type StartRunInput = z.infer<typeof startRunInputSchema>
+export type StartFlightInput = z.infer<typeof startFlightInputSchema>
 
 /** Resolve the effective execution mode, honoring the legacy infra-template default. */
 export function resolveExecutionMode(input: {
-  executionMode?: RunExecutionMode
+  executionMode?: FlightExecutionMode
   infraTemplate?: string | null
-}): RunExecutionMode {
+}): FlightExecutionMode {
   return input.executionMode ?? (input.infraTemplate ? 'infra' : 'read_only')
 }
 
 export const checkpointActionInputSchema = z.object({
-  runId: z.string().min(1),
+  flightId: z.string().min(1),
   decision: checkpointDecisionSchema,
   /** Who acted (freeform, e.g. an email). */
   by: z.string().default('human'),
@@ -343,8 +343,8 @@ export const landingMethodSchema = z.enum(['pr', 'merge'])
 export type LandingMethod = z.infer<typeof landingMethodSchema>
 
 /** Land one impacted repo of a successful run (per-repo, human-directed). */
-export const landRunInputSchema = z.object({
-  runId: z.string().min(1),
+export const landFlightInputSchema = z.object({
+  flightId: z.string().min(1),
   /** Repo alias (matches a provisioned worktree). */
   repo: z.string().min(1),
   method: landingMethodSchema,
@@ -355,4 +355,4 @@ export const landRunInputSchema = z.object({
   /** PR body (method `pr`). */
   body: z.string().optional()
 })
-export type LandRunInput = z.infer<typeof landRunInputSchema>
+export type LandFlightInput = z.infer<typeof landFlightInputSchema>

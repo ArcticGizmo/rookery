@@ -22,7 +22,7 @@ export interface ScopedEvents {
  * history even after a restart, when those events were never streamed into the
  * shared store.
  *
- * `options()` supplies the backend filter (e.g. `{ runId }`); `matches()` decides
+ * `options()` supplies the backend filter (e.g. `{ flightId }`); `matches()` decides
  * which live appends belong to this scope. Both are called lazily so a changing
  * scope (a route param) stays correct across {@link reload}.
  *

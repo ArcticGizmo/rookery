@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { ListEventsOptions, StoredEvent } from '../../src/shared/events'
 import { useScopedEvents } from '../../src/renderer/composables/use-scoped-events'
 
-function ev(id: number, runId: string | null, type = 'run.stage_entered'): StoredEvent {
-  return { id, ts: `t${id}`, type: type as StoredEvent['type'], actor: 'system', runId, stageId: null, payload: {} }
+function ev(id: number, flightId: string | null, type = 'flight.stage_entered'): StoredEvent {
+  return { id, ts: `t${id}`, type: type as StoredEvent['type'], actor: 'system', flightId, stageId: null, payload: {} }
 }
 
 /** A fake `window.rookery` whose event log is a fixed array, with a live emitter. */
@@ -17,7 +17,7 @@ function installFakeApi(all: StoredEvent[]) {
     const afterId = options?.afterId ?? 0
     const limit = options?.limit ?? 500
     let rows = all.filter((e) => e.id > afterId)
-    if (options?.runId) rows = rows.filter((e) => e.runId === options.runId)
+    if (options?.flightId) rows = rows.filter((e) => e.flightId === options.flightId)
     rows.sort((a, b) => a.id - b.id)
     return Promise.resolve(rows.slice(0, limit))
   }
@@ -60,17 +60,17 @@ function useInComponent(options: () => ListEventsOptions, matches: (e: StoredEve
 }
 
 describe('useScopedEvents', () => {
-  let runId = 'r1'
+  let flightId = 'r1'
 
   afterEach(() => {
-    runId = 'r1'
+    flightId = 'r1'
   })
 
   it('backfills a scope from the backend, oldest-first', async () => {
     installFakeApi([ev(1, 'r1'), ev(2, 'r2'), ev(3, 'r1'), ev(4, 'r1')])
     const { wrapper, get } = useInComponent(
-      () => ({ runId }),
-      (e) => e.runId === runId
+      () => ({ flightId }),
+      (e) => e.flightId === flightId
     )
     await nextTick()
     await nextTick()
@@ -85,8 +85,8 @@ describe('useScopedEvents', () => {
     const many = Array.from({ length: 1200 }, (_, i) => ev(i + 1, 'r1'))
     installFakeApi(many)
     const { wrapper, get } = useInComponent(
-      () => ({ runId }),
-      (e) => e.runId === runId
+      () => ({ flightId }),
+      (e) => e.flightId === flightId
     )
     await nextTick()
     // A few ticks for the pagination loop to resolve.
@@ -101,8 +101,8 @@ describe('useScopedEvents', () => {
   it('appends matching live events and ignores others', async () => {
     const api = installFakeApi([ev(1, 'r1')])
     const { wrapper, get } = useInComponent(
-      () => ({ runId }),
-      (e) => e.runId === runId
+      () => ({ flightId }),
+      (e) => e.flightId === flightId
     )
     await nextTick()
     await nextTick()
@@ -119,8 +119,8 @@ describe('useScopedEvents', () => {
   it('does not double-count an event present in both backfill and live stream', async () => {
     const api = installFakeApi([ev(1, 'r1'), ev(2, 'r1')])
     const { wrapper, get } = useInComponent(
-      () => ({ runId }),
-      (e) => e.runId === runId
+      () => ({ flightId }),
+      (e) => e.flightId === flightId
     )
     await nextTick()
     await nextTick()
@@ -136,14 +136,14 @@ describe('useScopedEvents', () => {
   it('reloads a fresh scope when the source changes', async () => {
     installFakeApi([ev(1, 'r1'), ev(2, 'r2'), ev(3, 'r2')])
     const { wrapper, get } = useInComponent(
-      () => ({ runId }),
-      (e) => e.runId === runId
+      () => ({ flightId }),
+      (e) => e.flightId === flightId
     )
     await nextTick()
     await nextTick()
     expect(get().events.value.map((e) => e.id)).toEqual([1])
 
-    runId = 'r2'
+    flightId = 'r2'
     await get().reload()
     expect(get().events.value.map((e) => e.id)).toEqual([2, 3])
     wrapper.unmount()

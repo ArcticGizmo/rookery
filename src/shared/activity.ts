@@ -12,8 +12,8 @@ export interface ActiveAgent {
   agentRunId: string
   personaName: string
   model: string
-  /** Owning run/stage (null for standalone single-agent runs). */
-  runId: string | null
+  /** Owning run/stage (null for standalone single-agent flights). */
+  flightId: string | null
   stageId: string | null
   contextPercent: number
   contextLevel: PressureLevel
@@ -23,7 +23,7 @@ export interface ActiveAgent {
 }
 
 export interface ActiveRun {
-  runId: string
+  flightId: string
   status: 'running' | 'awaiting_checkpoint'
   currentStageName: string | null
   agentCount: number
@@ -31,7 +31,7 @@ export interface ActiveRun {
 }
 
 export interface ActivitySummary {
-  runs: ActiveRun[]
+  flights: ActiveRun[]
   agents: ActiveAgent[]
   /** Highest context-usage percent across active agents (0 when none). */
   maxContextPercent: number
@@ -46,7 +46,7 @@ interface AgentAcc extends ActiveAgent {
 }
 
 interface RunAcc {
-  runId: string
+  flightId: string
   status: 'running' | 'awaiting_checkpoint'
   currentStageName: string | null
   finished: boolean
@@ -81,17 +81,17 @@ function activityLabel(event: StoredEvent): string {
   }
 }
 
-/** Reduce the event log to the set of currently-active runs and agents. */
+/** Reduce the event log to the set of currently-active flights and agents. */
 export function computeActivity(events: StoredEvent[]): ActivitySummary {
-  const runs = new Map<string, RunAcc>()
+  const flights = new Map<string, RunAcc>()
   const agents = new Map<string, AgentAcc>()
 
   for (const event of events) {
-    // --- Runs ---
-    if (event.runId && event.type.startsWith('run.')) {
+    // --- Flights ---
+    if (event.flightId && event.type.startsWith('flight.')) {
       const p = payloadOf(event)
-      const run = runs.get(event.runId) ?? {
-        runId: event.runId,
+      const run = flights.get(event.flightId) ?? {
+        flightId: event.flightId,
         status: 'running' as const,
         currentStageName: null,
         finished: false,
@@ -99,26 +99,26 @@ export function computeActivity(events: StoredEvent[]): ActivitySummary {
       }
       run.updatedTs = event.ts
       switch (event.type) {
-        case 'run.started':
+        case 'flight.started':
           run.status = 'running'
           run.finished = false
           break
-        case 'run.stage_entered':
+        case 'flight.stage_entered':
           run.status = 'running'
           run.currentStageName = String(p.stageName ?? run.currentStageName ?? '')
           break
-        case 'run.checkpoint_awaiting':
+        case 'flight.checkpoint_awaiting':
           run.status = 'awaiting_checkpoint'
           break
-        case 'run.checkpoint_resolved':
-        case 'run.stage_passed':
+        case 'flight.checkpoint_resolved':
+        case 'flight.stage_passed':
           run.status = 'running'
           break
-        case 'run.finished':
+        case 'flight.finished':
           run.finished = true
           break
       }
-      runs.set(event.runId, run)
+      flights.set(event.flightId, run)
     }
 
     // --- Agents ---
@@ -132,7 +132,7 @@ export function computeActivity(events: StoredEvent[]): ActivitySummary {
           agentRunId,
           personaName: String(p.personaName ?? 'agent'),
           model: String(p.model ?? 'default'),
-          runId: event.runId,
+          flightId: event.flightId,
           stageId: event.stageId,
           contextPercent: 0,
           contextLevel: 'ok',
@@ -166,7 +166,7 @@ export function computeActivity(events: StoredEvent[]): ActivitySummary {
       agentRunId: a.agentRunId,
       personaName: a.personaName,
       model: a.model,
-      runId: a.runId,
+      flightId: a.flightId,
       stageId: a.stageId,
       contextPercent: a.contextPercent,
       contextLevel: a.contextLevel,
@@ -175,13 +175,13 @@ export function computeActivity(events: StoredEvent[]): ActivitySummary {
     }))
     .sort((a, b) => (a.lastActivityTs < b.lastActivityTs ? 1 : -1))
 
-  const activeRuns: ActiveRun[] = [...runs.values()]
+  const activeFlights: ActiveRun[] = [...flights.values()]
     .filter((r) => !r.finished)
     .map((r) => ({
-      runId: r.runId,
+      flightId: r.flightId,
       status: r.status,
       currentStageName: r.currentStageName,
-      agentCount: activeAgents.filter((a) => a.runId === r.runId).length,
+      agentCount: activeAgents.filter((a) => a.flightId === r.flightId).length,
       updatedTs: r.updatedTs
     }))
     .sort((a, b) => (a.updatedTs < b.updatedTs ? 1 : -1))
@@ -189,7 +189,7 @@ export function computeActivity(events: StoredEvent[]): ActivitySummary {
   const maxContextPercent = activeAgents.reduce((max, a) => Math.max(max, a.contextPercent), 0)
 
   return {
-    runs: activeRuns,
+    flights: activeFlights,
     agents: activeAgents,
     maxContextPercent,
     pressureLevel: activeAgents.length ? levelForPercent(maxContextPercent) : 'ok',

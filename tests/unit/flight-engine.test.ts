@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { StartRunInput, ApproachDefBody } from '../../src/shared/domain'
+import type { StartFlightInput, ApproachDefBody } from '../../src/shared/domain'
 import type { StoredEvent } from '../../src/shared/events'
 import { AgentService } from '../../src/main/services/agent-service'
 import { AuditLog } from '../../src/main/services/audit-log'
 import { InfraService } from '../../src/main/services/infra-service'
 import { type GitCli, LocalBranchService } from '../../src/main/services/local-branch-service'
-import { RunStore } from '../../src/main/services/run-store'
+import { FlightStore } from '../../src/main/services/flight-store'
 import { SpecService } from '../../src/main/services/spec-service'
 import { BriefService } from '../../src/main/services/brief-service'
 import { ApproachService } from '../../src/main/services/approach-service'
-import { RunEngine } from '../../src/main/engine/run-engine'
-import { initRunSnapshot, reduceRun } from '../../src/shared/run-state-machine'
+import { FlightEngine } from '../../src/main/engine/flight-engine'
+import { initRunSnapshot, reduceRun } from '../../src/shared/flight-state-machine'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import type { QueryFn } from '../../src/main/agent/types'
 import { makeTestDb, type TestDb } from './helpers/test-db'
@@ -126,11 +126,11 @@ async function waitFor(
 
 const has = (events: StoredEvent[], type: string) => events.some((e) => e.type === type)
 
-describe('RunEngine', () => {
+describe('FlightEngine', () => {
   let test: TestDb
   let audit: AuditLog
-  let engine: RunEngine
-  let runs: RunStore
+  let engine: FlightEngine
+  let flights: FlightStore
   let briefs: BriefService
   let approaches: ApproachService
 
@@ -138,11 +138,11 @@ describe('RunEngine', () => {
     const specs = new SpecService(test.db, audit)
     briefs = new BriefService(test.db, audit, specs)
     approaches = new ApproachService(test.db, audit)
-    runs = new RunStore(test.db)
+    flights = new FlightStore(test.db)
     const agents = new AgentService(audit, verdictQuery(verdict))
     const infra = new InfraService(null, audit)
-    engine = new RunEngine(
-      runs,
+    engine = new FlightEngine(
+      flights,
       audit,
       agents,
       briefs,
@@ -167,23 +167,23 @@ describe('RunEngine', () => {
 
   afterEach(() => test.close())
 
-  it('runs to a human checkpoint, then completes on approval', async () => {
+  it('flights to a human checkpoint, then completes on approval', async () => {
     const input = await setup('APPROVE — satisfies the spec')
     const run = await engine.start(input)
 
-    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
-    expect((await runs.get(run.id))!.status).toBe('awaiting_checkpoint')
+    await waitFor(audit, (e) => has(e, 'flight.checkpoint_awaiting'))
+    expect((await flights.get(run.id))!.status).toBe('awaiting_checkpoint')
 
-    await engine.resolveCheckpoint({ runId: run.id, decision: 'approve', by: 'jon', note: '' })
+    await engine.resolveCheckpoint({ flightId: run.id, decision: 'approve', by: 'jon', note: '' })
     const events = await waitFor(audit, (e) =>
       e.some(
-        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+        (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'passed'
       )
     )
 
-    expect(has(events, 'run.criterion_evaluated')).toBe(true)
-    expect(has(events, 'run.checkpoint_resolved')).toBe(true)
-    const detail = await runs.getDetail(run.id)
+    expect(has(events, 'flight.criterion_evaluated')).toBe(true)
+    expect(has(events, 'flight.checkpoint_resolved')).toBe(true)
+    const detail = await flights.getDetail(run.id)
     expect(detail!.run.status).toBe('passed')
     expect(detail!.stages.every((s) => s.status === 'passed')).toBe(true)
   })
@@ -192,8 +192,8 @@ describe('RunEngine', () => {
     const input = await setup('APPROVE — satisfies the spec')
     await engine.start(input)
 
-    const events = await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
-    const outputs = events.filter((e) => e.type === 'run.stage_output')
+    const events = await waitFor(audit, (e) => has(e, 'flight.checkpoint_awaiting'))
+    const outputs = events.filter((e) => e.type === 'flight.stage_output')
     expect(outputs.length).toBeGreaterThanOrEqual(1)
     const payload = outputs[0]!.payload as { personaName: string; artifact: string }
     expect(payload.personaName).toBe('Lead')
@@ -206,38 +206,38 @@ describe('RunEngine', () => {
 
     const events = await waitFor(audit, (e) =>
       e.some(
-        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'failed'
+        (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'failed'
       )
     )
 
     // Stage re-entered for a second iteration before failing.
     const entered = events.filter(
-      (e) => e.type === 'run.stage_entered' && (e.payload as { stageId: string }).stageId === 's0'
+      (e) => e.type === 'flight.stage_entered' && (e.payload as { stageId: string }).stageId === 's0'
     )
     expect(entered.length).toBeGreaterThanOrEqual(2)
-    expect(has(events, 'run.stage_failed')).toBe(true)
-    expect((await runs.get(run.id))!.status).toBe('failed')
+    expect(has(events, 'flight.stage_failed')).toBe(true)
+    expect((await flights.get(run.id))!.status).toBe('failed')
   })
 
   it('routes back to an earlier stage on request-changes', async () => {
     const input = await setup('APPROVE — ok')
     const run = await engine.start(input)
-    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
+    await waitFor(audit, (e) => has(e, 'flight.checkpoint_awaiting'))
 
     await engine.resolveCheckpoint({
-      runId: run.id,
+      flightId: run.id,
       decision: 'request_changes',
       by: 'jon',
       note: 'Tighten the spec',
       targetStageIndex: 0
     })
 
-    const events = await waitFor(audit, (e) => has(e, 'run.changes_requested'))
-    expect(events.some((e) => e.type === 'run.changes_requested')).toBe(true)
+    const events = await waitFor(audit, (e) => has(e, 'flight.changes_requested'))
+    expect(events.some((e) => e.type === 'flight.changes_requested')).toBe(true)
     // It re-enters stage 0 and, with an approving reviewer, completes.
     await waitFor(
       audit,
-      (e) => e.some((x) => x.type === 'run.checkpoint_awaiting') // awaits the checkpoint again after re-review
+      (e) => e.some((x) => x.type === 'flight.checkpoint_awaiting') // awaits the checkpoint again after re-review
     )
   })
 
@@ -245,16 +245,16 @@ describe('RunEngine', () => {
 
   async function setupVerification(
     checkerVerdicts: string[],
-    overrides: Partial<StartRunInput> = {}
+    overrides: Partial<StartFlightInput> = {}
   ) {
     const specs = new SpecService(test.db, audit)
     briefs = new BriefService(test.db, audit, specs)
     approaches = new ApproachService(test.db, audit)
-    runs = new RunStore(test.db)
+    flights = new FlightStore(test.db)
     const agents = new AgentService(audit, verificationQuery(checkerVerdicts))
     const infra = new InfraService(null, audit)
-    engine = new RunEngine(
-      runs,
+    engine = new FlightEngine(
+      flights,
       audit,
       agents,
       briefs,
@@ -280,21 +280,21 @@ describe('RunEngine', () => {
 
     const events = await waitFor(audit, (e) =>
       e.some(
-        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+        (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'passed'
       )
     )
 
-    const vf = events.filter((e) => e.type === 'run.verification_failed')
+    const vf = events.filter((e) => e.type === 'flight.verification_failed')
     expect(vf).toHaveLength(1)
     expect((vf[0]!.payload as { routedBack: boolean }).routedBack).toBe(true)
     expect((vf[0]!.payload as { issues: string }).issues).toContain('button is broken')
 
     // Routed back to the first stage (re-entered ≥ twice) and finished passed.
     const s0Entries = events.filter(
-      (e) => e.type === 'run.stage_entered' && (e.payload as { stageId: string }).stageId === 's0'
+      (e) => e.type === 'flight.stage_entered' && (e.payload as { stageId: string }).stageId === 's0'
     )
     expect(s0Entries.length).toBeGreaterThanOrEqual(2)
-    expect((await runs.get(run.id))!.status).toBe('passed')
+    expect((await flights.get(run.id))!.status).toBe('passed')
   })
 
   it('escalates to a human checkpoint after exhausting the verification budget', async () => {
@@ -304,18 +304,18 @@ describe('RunEngine', () => {
     const events = await waitFor(audit, (e) =>
       e.some(
         (x) =>
-          x.type === 'run.verification_failed' &&
+          x.type === 'flight.verification_failed' &&
           (x.payload as { routedBack: boolean }).routedBack === false
       )
     )
 
-    const vf = events.filter((e) => e.type === 'run.verification_failed')
+    const vf = events.filter((e) => e.type === 'flight.verification_failed')
     // Two automatic route-backs, then the escalation.
     expect(vf.filter((e) => (e.payload as { routedBack: boolean }).routedBack)).toHaveLength(2)
     expect(vf.filter((e) => !(e.payload as { routedBack: boolean }).routedBack)).toHaveLength(1)
 
-    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
-    expect((await runs.get(run.id))!.status).toBe('awaiting_checkpoint')
+    await waitFor(audit, (e) => has(e, 'flight.checkpoint_awaiting'))
+    expect((await flights.get(run.id))!.status).toBe('awaiting_checkpoint')
   })
 
   it('grants a fresh verification budget after human intervention', async () => {
@@ -323,11 +323,11 @@ describe('RunEngine', () => {
     const run = await engine.start(input)
 
     // One auto route-back, then escalate.
-    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
+    await waitFor(audit, (e) => has(e, 'flight.checkpoint_awaiting'))
 
     // A human requests changes → the automatic budget resets → verification can loop again.
     await engine.resolveCheckpoint({
-      runId: run.id,
+      flightId: run.id,
       decision: 'request_changes',
       by: 'jon',
       note: 'have another go',
@@ -336,15 +336,15 @@ describe('RunEngine', () => {
 
     const events = await waitFor(
       audit,
-      (e) => e.filter((x) => x.type === 'run.checkpoint_awaiting').length >= 2
+      (e) => e.filter((x) => x.type === 'flight.checkpoint_awaiting').length >= 2
     )
     const routedBack = events.filter(
       (e) =>
-        e.type === 'run.verification_failed' && (e.payload as { routedBack: boolean }).routedBack
+        e.type === 'flight.verification_failed' && (e.payload as { routedBack: boolean }).routedBack
     )
     // One route-back before the first escalation, another after intervention.
     expect(routedBack.length).toBeGreaterThanOrEqual(2)
-    expect(has(events, 'run.changes_requested')).toBe(true)
+    expect(has(events, 'flight.changes_requested')).toBe(true)
   })
 
   // --- Termination ---
@@ -352,33 +352,33 @@ describe('RunEngine', () => {
   it('terminates a run paused at a human checkpoint', async () => {
     const input = await setup('APPROVE — satisfies the spec')
     const run = await engine.start(input)
-    await waitFor(audit, (e) => has(e, 'run.checkpoint_awaiting'))
-    expect((await runs.get(run.id))!.status).toBe('awaiting_checkpoint')
+    await waitFor(audit, (e) => has(e, 'flight.checkpoint_awaiting'))
+    expect((await flights.get(run.id))!.status).toBe('awaiting_checkpoint')
 
     await engine.cancel(run.id)
 
     const events = await waitFor(audit, (e) =>
       e.some(
-        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'cancelled'
+        (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'cancelled'
       )
     )
-    const cancelled = events.filter((e) => e.type === 'run.cancelled')
+    const cancelled = events.filter((e) => e.type === 'flight.cancelled')
     expect(cancelled).toHaveLength(1)
     expect((cancelled[0]!.payload as { previousStatus: string }).previousStatus).toBe(
       'awaiting_checkpoint'
     )
-    expect((await runs.get(run.id))!.status).toBe('cancelled')
+    expect((await flights.get(run.id))!.status).toBe('cancelled')
   })
 
   it('terminates an in-flight run and cancels its live agent', async () => {
     const specs = new SpecService(test.db, audit)
     briefs = new BriefService(test.db, audit, specs)
     approaches = new ApproachService(test.db, audit)
-    runs = new RunStore(test.db)
+    flights = new FlightStore(test.db)
     const agents = new AgentService(audit, hangingQuery())
     const infra = new InfraService(null, audit)
-    engine = new RunEngine(
-      runs,
+    engine = new FlightEngine(
+      flights,
       audit,
       agents,
       briefs,
@@ -397,23 +397,23 @@ describe('RunEngine', () => {
 
     // Wait until the agent is actually running (drive loop is live, awaiting it).
     await waitFor(audit, (e) => has(e, 'agent.spawned'))
-    expect((await runs.get(run.id))!.status).toBe('running')
+    expect((await flights.get(run.id))!.status).toBe('running')
 
     await engine.cancel(run.id)
 
     const events = await waitFor(audit, (e) =>
       e.some(
-        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'cancelled'
+        (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'cancelled'
       )
     )
     // The live agent was cancelled, and the run recorded exactly one finish.
     expect(has(events, 'agent.cancelled')).toBe(true)
-    expect(has(events, 'run.cancelled')).toBe(true)
+    expect(has(events, 'flight.cancelled')).toBe(true)
     expect(
-      events.filter((e) => e.type === 'run.finished').length,
+      events.filter((e) => e.type === 'flight.finished').length,
       'run should finalize exactly once (no double finalize)'
     ).toBe(1)
-    expect((await runs.get(run.id))!.status).toBe('cancelled')
+    expect((await flights.get(run.id))!.status).toBe('cancelled')
   })
 
   // --- Local-branch execution mode ---
@@ -453,11 +453,11 @@ describe('RunEngine', () => {
     const specs = new SpecService(test.db, audit)
     briefs = new BriefService(test.db, audit, specs)
     approaches = new ApproachService(test.db, audit)
-    runs = new RunStore(test.db)
+    flights = new FlightStore(test.db)
     const agents = new AgentService(audit, verdictQuery('APPROVE — looks good'))
     const infra = new InfraService(null, audit)
-    engine = new RunEngine(
-      runs,
+    engine = new FlightEngine(
+      flights,
       audit,
       agents,
       briefs,
@@ -481,12 +481,12 @@ describe('RunEngine', () => {
 
     const events = await waitFor(audit, (e) =>
       e.some(
-        (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+        (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'passed'
       )
     )
-    expect(has(events, 'run.branch_ready')).toBe(true)
-    expect(has(events, 'run.branch_failed')).toBe(false)
-    expect((await runs.get(run.id))!.status).toBe('passed')
+    expect(has(events, 'flight.branch_ready')).toBe(true)
+    expect(has(events, 'flight.branch_failed')).toBe(false)
+    expect((await flights.get(run.id))!.status).toBe('passed')
   })
 
   it('rejects local-branch mode without a work branch', async () => {
@@ -498,7 +498,7 @@ describe('RunEngine', () => {
 
   // --- Phase 7.1: crash recovery ---
 
-  it('recovers interrupted runs on boot and leaves gated runs intact', async () => {
+  it('recovers interrupted flights on boot and leaves gated flights intact', async () => {
     const input = await setup('APPROVE')
     const body = approachBody()
     const stageIds = body.stages.map((s) => s.id)
@@ -514,40 +514,40 @@ describe('RunEngine', () => {
     }
 
     // Created but never advanced (crashed before START persisted).
-    const pending = await runs.create(base)
+    const pending = await flights.create(base)
 
     // Crashed mid-drive: persisted as `running` with no live drive loop.
-    const running = await runs.create(base)
-    await runs.persistSnapshot(
+    const running = await flights.create(base)
+    await flights.persistSnapshot(
       running.id,
       reduceRun(initRunSnapshot(stageIds), { type: 'START' }),
       new Date().toISOString()
     )
 
     // Legitimately paused at a human checkpoint — must survive a restart untouched.
-    const gated = await runs.create(base)
+    const gated = await flights.create(base)
     const gatedSnap = reduceRun(reduceRun(initRunSnapshot(stageIds), { type: 'START' }), {
       type: 'GATE_AWAIT'
     })
-    await runs.persistSnapshot(gated.id, gatedSnap, new Date().toISOString())
+    await flights.persistSnapshot(gated.id, gatedSnap, new Date().toISOString())
 
-    const recovered = await engine.recoverInterruptedRuns()
+    const recovered = await engine.recoverInterruptedFlights()
     expect(recovered).toBe(2)
 
-    expect((await runs.get(pending.id))!.status).toBe('failed')
-    expect((await runs.get(running.id))!.status).toBe('failed')
-    expect((await runs.get(gated.id))!.status).toBe('awaiting_checkpoint')
+    expect((await flights.get(pending.id))!.status).toBe('failed')
+    expect((await flights.get(running.id))!.status).toBe('failed')
+    expect((await flights.get(gated.id))!.status).toBe('awaiting_checkpoint')
 
     const events = await audit.list({ limit: 1000 })
     const interruptedIds = events
-      .filter((e) => e.type === 'run.interrupted')
-      .map((e) => (e.payload as { runId: string }).runId)
+      .filter((e) => e.type === 'flight.interrupted')
+      .map((e) => (e.payload as { flightId: string }).flightId)
       .sort()
     expect(interruptedIds).toEqual([pending.id, running.id].sort())
 
     // Each recovered run also emits a terminal run.finished(failed); the gated run does not.
     const finishedFailed = events.filter(
-      (e) => e.type === 'run.finished' && (e.payload as { status: string }).status === 'failed'
+      (e) => e.type === 'flight.finished' && (e.payload as { status: string }).status === 'failed'
     )
     expect(finishedFailed).toHaveLength(2)
   })

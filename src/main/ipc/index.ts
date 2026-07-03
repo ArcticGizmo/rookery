@@ -6,16 +6,16 @@ import type {
   AgentRunConfig,
   CreateBriefInput,
   CheckpointActionInput,
-  LandRunInput,
-  StartRunInput,
+  LandFlightInput,
+  StartFlightInput,
   UpdateBriefInput,
   ApproachDefBody
 } from '@shared/domain'
-import type { RunEngine } from '../engine/run-engine'
+import type { FlightEngine } from '../engine/flight-engine'
 import type { AgentService } from '../services/agent-service'
 import type { AuditLog } from '../services/audit-log'
 import type { LandingService } from '../services/landing-service'
-import type { RunStore } from '../services/run-store'
+import type { FlightStore } from '../services/flight-store'
 import type { SpecService } from '../services/spec-service'
 import type { UpdateService } from '../services/update-service'
 import type { BriefService } from '../services/brief-service'
@@ -29,8 +29,8 @@ export interface IpcServices {
   specs: SpecService
   approaches: ApproachService
   agent: AgentService
-  runs: RunStore
-  engine: RunEngine
+  flights: FlightStore
+  engine: FlightEngine
   landing: LandingService
   workspace: WorkspaceService
   /** Optional: absent in contexts without auto-update (e.g. some tests). */
@@ -46,7 +46,7 @@ export function registerIpc(services: IpcServices): void {
     specs,
     approaches,
     agent,
-    runs,
+    flights,
     engine,
     landing,
     workspace,
@@ -97,27 +97,27 @@ export function registerIpc(services: IpcServices): void {
   )
   ipcMain.handle(IPC.approachesDelete, (_event, id: string) => approaches.delete(id))
 
-  // Single-agent runs
+  // Single-agent flights
   ipcMain.handle(IPC.agentCredentials, () => agent.credentials())
   ipcMain.handle(IPC.agentStart, (_event, config: AgentRunConfig) => agent.start(config))
   ipcMain.handle(IPC.agentCancel, (_event, agentRunId: string) => agent.cancel(agentRunId))
 
-  // Orchestration runs
-  ipcMain.handle(IPC.runsStart, (_event, input: StartRunInput) => engine.start(input))
-  ipcMain.handle(IPC.runsList, () => runs.list())
-  ipcMain.handle(IPC.runsGet, (_event, runId: string) => runs.getDetail(runId))
+  // Orchestration flights
+  ipcMain.handle(IPC.runsStart, (_event, input: StartFlightInput) => engine.start(input))
+  ipcMain.handle(IPC.runsList, () => flights.list())
+  ipcMain.handle(IPC.runsGet, (_event, flightId: string) => flights.getDetail(flightId))
   ipcMain.handle(IPC.runsCheckpoint, (_event, input: CheckpointActionInput) => engine.resolveCheckpoint(input))
-  ipcMain.handle(IPC.runsCancel, (_event, runId: string) => engine.cancel(runId))
-  ipcMain.handle(IPC.runsInfra, (_event, runId: string) => engine.runInfra(runId))
-  ipcMain.handle(IPC.runsLandTargets, (_event, runId: string) => landing.targets(runId))
-  ipcMain.handle(IPC.runsLand, (_event, input: LandRunInput) => landing.land(input))
-  ipcMain.handle(IPC.runsTeardown, (_event, runId: string) => engine.teardownInfra(runId))
+  ipcMain.handle(IPC.runsCancel, (_event, flightId: string) => engine.cancel(flightId))
+  ipcMain.handle(IPC.runsInfra, (_event, flightId: string) => engine.runInfra(flightId))
+  ipcMain.handle(IPC.runsLandTargets, (_event, flightId: string) => landing.targets(flightId))
+  ipcMain.handle(IPC.runsLand, (_event, input: LandFlightInput) => landing.land(input))
+  ipcMain.handle(IPC.runsTeardown, (_event, flightId: string) => engine.teardownInfra(flightId))
 
   // Auto-update: no-op when the service isn't wired (e.g. unpackaged dev).
   ipcMain.handle(IPC.updateCheck, () => update?.check())
   ipcMain.handle(IPC.updateInstall, () => update?.install())
 
-  // Debug tooling: cancel any live runs (stopping their agents), then wipe every
+  // Debug tooling: cancel any live flights (stopping their agents), then wipe every
   // table. Checkpointd to dev builds in the renderer, which only exposes the button
   // when `import.meta.env.DEV` is set.
   ipcMain.handle(IPC.debugResetData, async () => {

@@ -2,7 +2,7 @@ import type { InfraInstance, InfraInstanceSpec, InfraInstanceState } from '@shar
 
 /**
  * The infrastructure port (Phase 5.1). Provisions isolated worktrees + docker
- * infra so concurrent runs don't collide. `SprigProvider` (shells out to the
+ * infra so concurrent flights don't collide. `SprigProvider` (shells out to the
  * `sprig` CLI) is the v1 implementation; `StubProvider` backs tests and infra-
  * free dev. The orchestration engine only ever talks to this interface, so a
  * native backend can be slotted in later without touching the engine.

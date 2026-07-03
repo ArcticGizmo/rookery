@@ -1,14 +1,14 @@
-import { type LandRunInput, landRunInputSchema } from '@shared/domain'
+import { type LandFlightInput, landFlightInputSchema } from '@shared/domain'
 import type { LandingResult, LandingTarget, LandingTargets } from '@shared/landing'
 import type { AuditLog } from './audit-log'
 import { instanceNameForRun } from './infra'
 import type { InfraService } from './infra-service'
-import type { RunStore } from './run-store'
+import type { FlightStore } from './flight-store'
 import type { BriefService } from './brief-service'
 import type { LandingProvider, LandingSpec } from './landing'
 
 /**
- * Run-facing wrapper over a `LandingProvider` (Phase 6.4). Resolves which repos
+ * Flight-facing wrapper over a `LandingProvider` (Phase 6.4). Resolves which repos
  * of a successful run can be landed (from its live worktrees), turns a human's
  * per-repo PR/merge decision into an audited operation
  * (`run.landing_started`/`run.landed`/`run.landing_failed`), and centralizes the
@@ -21,7 +21,7 @@ export class LandingService {
     private readonly audit: AuditLog,
     private readonly infra: InfraService,
     private readonly briefs: BriefService,
-    private readonly runs: RunStore
+    private readonly flights: FlightStore
   ) {}
 
   isConfigured(): boolean {
@@ -37,10 +37,10 @@ export class LandingService {
    * completed successfully and still has live, provisioned worktrees (the work
    * was done inside them); otherwise `canLand` is false with a reason.
    */
-  async targets(runId: string): Promise<LandingTargets> {
+  async targets(flightId: string): Promise<LandingTargets> {
     const provider = this.providerName()
     const unavailable = (reason: string): LandingTargets => ({
-      runId,
+      flightId,
       provider,
       providerAvailable: false,
       canLand: false,
@@ -48,13 +48,13 @@ export class LandingService {
       targets: []
     })
 
-    const run = await this.runs.get(runId)
-    if (!run) return unavailable('Run not found.')
+    const run = await this.flights.get(flightId)
+    if (!run) return unavailable('Flight not found.')
     if (run.status !== 'passed') {
       return unavailable('Landing is available once the run has completed successfully.')
     }
 
-    const rc = await this.runs.getContext(runId)
+    const rc = await this.flights.getContext(flightId)
     if (!rc?.infraTemplate) {
       return unavailable(
         'This run provisioned no infrastructure, so there are no worktrees to land.'
@@ -62,7 +62,7 @@ export class LandingService {
     }
     if (!this.infra.isConfigured()) return unavailable('No infrastructure provider is configured.')
 
-    const instanceName = instanceNameForRun(runId)
+    const instanceName = instanceNameForRun(flightId)
     const instance = await this.infra.info(instanceName).catch(() => null)
     if (!instance) {
       return unavailable('The run’s infrastructure has been torn down; there is nothing to land.')
@@ -70,7 +70,7 @@ export class LandingService {
 
     const detail = await this.briefs.get(rc.briefId)
     const repoByName = new Map((detail?.repos ?? []).map((r) => [r.name, r]))
-    const landedRepos = await this.landedRepos(runId)
+    const landedRepos = await this.landedRepos(flightId)
 
     const targets: LandingTarget[] = instance.worktrees.map((w) => {
       const repo = repoByName.get(w.repo)
@@ -86,7 +86,7 @@ export class LandingService {
     })
 
     return {
-      runId,
+      flightId,
       provider,
       providerAvailable: this.provider ? await this.provider.available() : false,
       canLand: true,
@@ -96,12 +96,12 @@ export class LandingService {
   }
 
   /** Land one repo of a run via the chosen method, auditing the outcome. */
-  async land(raw: LandRunInput): Promise<LandingResult> {
-    const input = landRunInputSchema.parse(raw)
+  async land(raw: LandFlightInput): Promise<LandingResult> {
+    const input = landFlightInputSchema.parse(raw)
     const provider = this.provider
     if (!provider) throw new Error('No landing provider is configured.')
 
-    const resolved = await this.targets(input.runId)
+    const resolved = await this.targets(input.flightId)
     if (!resolved.canLand) throw new Error(resolved.reason ?? 'This run cannot be landed.')
     const target = resolved.targets.find((t) => t.repo === input.repo)
     if (!target) throw new Error(`Repo "${input.repo}" is not part of this run’s infrastructure.`)
@@ -110,9 +110,9 @@ export class LandingService {
       throw new Error(`Landing provider "${provider.name}" is not available on this machine.`)
     }
 
-    const detail = await this.briefs.get((await this.runs.getContext(input.runId))!.briefId)
+    const detail = await this.briefs.get((await this.flights.getContext(input.flightId))!.briefId)
     const spec: LandingSpec = {
-      runId: input.runId,
+      flightId: input.flightId,
       repo: target.repo,
       method: input.method,
       worktreePath: target.worktreePath,
@@ -121,25 +121,25 @@ export class LandingService {
       base: target.base,
       remoteUrl: target.remoteUrl,
       title: input.title || detail?.brief.title || `Land ${target.branch}`,
-      body: input.body || `Landing ${target.branch} from Rookery run ${input.runId}.`
+      body: input.body || `Landing ${target.branch} from Rookery run ${input.flightId}.`
     }
 
     await this.emit({
-      type: 'run.landing_started',
+      type: 'flight.landing_started',
       actor: 'human',
-      runId: input.runId,
-      payload: { runId: input.runId, repo: target.repo, method: input.method, by: input.by }
+      flightId: input.flightId,
+      payload: { flightId: input.flightId, repo: target.repo, method: input.method, by: input.by }
     })
 
     try {
       const result =
         input.method === 'pr' ? await provider.openPr(spec) : await provider.merge(spec)
       await this.emit({
-        type: 'run.landed',
+        type: 'flight.landed',
         actor: 'human',
-        runId: input.runId,
+        flightId: input.flightId,
         payload: {
-          runId: input.runId,
+          flightId: input.flightId,
           repo: result.repo,
           method: result.method,
           prUrl: result.prUrl,
@@ -152,18 +152,18 @@ export class LandingService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       await this.emit({
-        type: 'run.landing_failed',
+        type: 'flight.landing_failed',
         actor: 'system',
-        runId: input.runId,
-        payload: { runId: input.runId, repo: target.repo, method: input.method, message }
+        flightId: input.flightId,
+        payload: { flightId: input.flightId, repo: target.repo, method: input.method, message }
       })
       throw error
     }
   }
 
   /** Repos already landed in this run (from the log), so the UI can mark them. */
-  private async landedRepos(runId: string): Promise<Set<string>> {
-    const events = await this.audit.list({ runId, type: 'run.landed', limit: 1000 })
+  private async landedRepos(flightId: string): Promise<Set<string>> {
+    const events = await this.audit.list({ flightId, type: 'flight.landed', limit: 1000 })
     return new Set(events.map((e) => String((e.payload as { repo?: string }).repo ?? '')))
   }
 

@@ -50,7 +50,7 @@ export function getDb(): Db {
  */
 export async function resetAllData(db: Db): Promise<void> {
   await db.delete(schema.stageExecutions)
-  await db.delete(schema.runs)
+  await db.delete(schema.flights)
   await db.delete(schema.specVersions)
   await db.delete(schema.repos)
   await db.delete(schema.briefs)

@@ -52,7 +52,7 @@ export class ApproachService {
     await this.audit.append({
       type: 'approach.created',
       actor: 'human',
-      runId: null,
+      flightId: null,
       stageId: null,
       payload: { approachId: id, name: body.name, version: 1 }
     })
@@ -74,7 +74,7 @@ export class ApproachService {
     await this.audit.append({
       type: 'approach.updated',
       actor: 'human',
-      runId: null,
+      flightId: null,
       stageId: null,
       payload: { approachId: id, name: body.name, version }
     })
@@ -88,7 +88,7 @@ export class ApproachService {
     await this.audit.append({
       type: 'approach.deleted',
       actor: 'human',
-      runId: null,
+      flightId: null,
       stageId: null,
       payload: { approachId: id }
     })

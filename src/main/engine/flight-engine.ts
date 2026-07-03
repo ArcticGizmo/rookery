@@ -2,14 +2,14 @@ import {
   type AgentPersona,
   type CheckpointActionInput,
   type PermissionMode,
-  type Run,
-  type RunExecutionMode,
+  type Flight,
+  type FlightExecutionMode,
   type Stage,
-  type StartRunInput,
+  type StartFlightInput,
   type ApproachDefBody,
   checkpointActionInputSchema,
   resolveExecutionMode,
-  startRunInputSchema
+  startFlightInputSchema
 } from '@shared/domain'
 import type { AppEvent } from '@shared/events'
 import type { RunInfra, RunInfraStatus } from '@shared/infra'
@@ -19,14 +19,14 @@ import {
   isTerminal,
   reduceRun,
   type RunAction
-} from '@shared/run-state-machine'
+} from '@shared/flight-state-machine'
 import type { AgentResult } from '../agent/types'
 import type { AgentService } from '../services/agent-service'
 import type { AuditLog } from '../services/audit-log'
 import type { InfraService } from '../services/infra-service'
 import type { LocalBranchService } from '../services/local-branch-service'
 import { instanceNameForRun } from '../services/infra'
-import type { RunStore } from '../services/run-store'
+import type { FlightStore } from '../services/flight-store'
 import type { BriefService } from '../services/brief-service'
 import type { ApproachService } from '../services/approach-service'
 import { evaluateCriteria } from './criteria'
@@ -48,7 +48,7 @@ interface RunCtx {
   /** Tear infra down when the run finishes. */
   teardownOnComplete: boolean
   /** How stage agents get write access (drives what the setup stage provisions). */
-  executionMode: RunExecutionMode
+  executionMode: FlightExecutionMode
   /** Branch to create/checkout on the repo for `local_branch` mode. */
   workBranch: string | null
   /** Deterministic infra instance name for this run. */
@@ -87,7 +87,7 @@ function buildImplPrompt(
 
 /**
  * The orchestration engine (Phase 4.3/4.6). Drives the pure run state machine:
- * runs each stage's agents, evaluates pass criteria, loops on failure up to
+ * flights each stage's agents, evaluates pass criteria, loops on failure up to
  * `maxIterations`, halts at human checkpoints, and advances — auditing every
  * transition. Stage agents run read-only (`plan`) until a `setup` stage
  * provisions an isolated worktree (Phase 5.4), after which implementer agents run
@@ -95,13 +95,13 @@ function buildImplPrompt(
  * gated by the persona allow-list and the security deny backstop (never
  * `bypassPermissions` by default; see the Phase 5 security pass and plan §6 Q8).
  */
-export class RunEngine {
+export class FlightEngine {
   private readonly driving = new Set<string>()
-  /** Runs a human has asked to terminate; observed by the drive/stage loops. */
+  /** Flights a human has asked to terminate; observed by the drive/stage loops. */
   private readonly cancelled = new Set<string>()
 
   constructor(
-    private readonly runs: RunStore,
+    private readonly flights: FlightStore,
     private readonly audit: AuditLog,
     private readonly agents: AgentService,
     private readonly briefs: BriefService,
@@ -110,8 +110,8 @@ export class RunEngine {
     private readonly localBranch: LocalBranchService
   ) {}
 
-  async start(rawInput: StartRunInput): Promise<Run> {
-    const input = startRunInputSchema.parse(rawInput)
+  async start(rawInput: StartFlightInput): Promise<Flight> {
+    const input = startFlightInputSchema.parse(rawInput)
     const wf = await this.approaches.get(input.approachId)
     if (!wf) throw new Error(`Approach ${input.approachId} not found`)
     const detail = await this.briefs.get(input.briefId)
@@ -128,7 +128,7 @@ export class RunEngine {
     }
 
     const body: ApproachDefBody = { name: wf.name, description: wf.description, stages: wf.stages }
-    const run = await this.runs.create({
+    const run = await this.flights.create({
       briefId: input.briefId,
       approachId: wf.id,
       approachVersion: wf.version,
@@ -141,10 +141,10 @@ export class RunEngine {
       workBranch: input.workBranch?.trim() ?? null
     })
     await this.emit(run.id, {
-      type: 'run.created',
+      type: 'flight.created',
       actor: 'human',
       payload: {
-        runId: run.id,
+        flightId: run.id,
         briefId: input.briefId,
         approachId: wf.id,
         approachVersion: wf.version
@@ -153,7 +153,7 @@ export class RunEngine {
 
     let snapshot = initRunSnapshot(body.stages.map((s) => s.id))
     snapshot = await this.apply(run.id, snapshot, { type: 'START' })
-    await this.emit(run.id, { type: 'run.started', actor: 'system', payload: { runId: run.id } })
+    await this.emit(run.id, { type: 'flight.started', actor: 'system', payload: { flightId: run.id } })
 
     const ctx = await this.buildContext(run.id)
     if (ctx) void this.drive(run.id, snapshot, ctx)
@@ -161,39 +161,39 @@ export class RunEngine {
   }
 
   /**
-   * Reconcile runs left mid-flight by a crash or unclean shutdown (Phase 7.1).
+   * Reconcile flights left mid-flight by a crash or unclean shutdown (Phase 7.1).
    * The in-memory `drive` loop does not survive a restart, so any run still
    * persisted as `running` or `pending` is orphaned — nothing is advancing it.
    * Fail those cleanly with an audited reason so the log stays honest and the UI
-   * never shows a phantom "running" run. `awaiting_checkpoint` runs are a legitimate
+   * never shows a phantom "running" run. `awaiting_checkpoint` flights are a legitimate
    * pause for a human and survive a restart untouched (resolving the checkpoint
-   * rebuilds their context). Returns the number of runs recovered.
+   * rebuilds their context). Returns the number of flights recovered.
    *
-   * Runs on boot, before the window loads. Infra is intentionally left as-is:
+   * Flights on boot, before the window loads. Infra is intentionally left as-is:
    * its real state after a crash is unknown, so teardown is left to the user
    * rather than guessed at here.
    */
-  async recoverInterruptedRuns(): Promise<number> {
-    const all = await this.runs.list()
+  async recoverInterruptedFlights(): Promise<number> {
+    const all = await this.flights.list()
     const orphaned = all.filter((r) => r.status === 'running' || r.status === 'pending')
     for (const run of orphaned) {
-      const snapshot = await this.runs.loadSnapshot(run.id)
+      const snapshot = await this.flights.loadSnapshot(run.id)
       if (!snapshot) continue
       const failed = reduceRun(snapshot, { type: 'STAGE_FAILED' })
-      await this.runs.persistSnapshot(run.id, failed, new Date().toISOString())
+      await this.flights.persistSnapshot(run.id, failed, new Date().toISOString())
       await this.emit(run.id, {
-        type: 'run.interrupted',
+        type: 'flight.interrupted',
         actor: 'system',
         payload: {
-          runId: run.id,
+          flightId: run.id,
           previousStatus: run.status,
           reason: 'Interrupted by an app restart or unclean shutdown; failed on recovery.'
         }
       })
       await this.emit(run.id, {
-        type: 'run.finished',
+        type: 'flight.finished',
         actor: 'system',
-        payload: { runId: run.id, status: 'failed' }
+        payload: { flightId: run.id, status: 'failed' }
       })
     }
     return orphaned.length
@@ -202,23 +202,23 @@ export class RunEngine {
   /** Resolve a pending human checkpoint (Phase 4.4) or request changes (Phase 4.7). */
   async resolveCheckpoint(rawInput: CheckpointActionInput): Promise<void> {
     const input = checkpointActionInputSchema.parse(rawInput)
-    const run = await this.runs.get(input.runId)
-    if (!run) throw new Error(`Run ${input.runId} not found`)
-    if (run.status !== 'awaiting_checkpoint') throw new Error('Run is not awaiting a checkpoint')
+    const run = await this.flights.get(input.flightId)
+    if (!run) throw new Error(`Flight ${input.flightId} not found`)
+    if (run.status !== 'awaiting_checkpoint') throw new Error('Flight is not awaiting a checkpoint')
 
-    let snapshot = await this.runs.loadSnapshot(input.runId)
-    const ctx = await this.buildContext(input.runId)
-    if (!snapshot || !ctx) throw new Error('Run state missing')
+    let snapshot = await this.flights.loadSnapshot(input.flightId)
+    const ctx = await this.buildContext(input.flightId)
+    if (!snapshot || !ctx) throw new Error('Flight state missing')
     const gatedIndex = snapshot.currentStageIndex
     const stage = ctx.body.stages[gatedIndex]
 
     await this.emit(
-      input.runId,
+      input.flightId,
       {
-        type: 'run.checkpoint_resolved',
+        type: 'flight.checkpoint_resolved',
         actor: 'human',
         payload: {
-          runId: input.runId,
+          flightId: input.flightId,
           stageId: stage?.id ?? '',
           decision: input.decision,
           by: input.by,
@@ -229,31 +229,31 @@ export class RunEngine {
     )
 
     if (input.decision === 'approve') {
-      snapshot = await this.apply(input.runId, snapshot, { type: 'GATE_APPROVE' })
+      snapshot = await this.apply(input.flightId, snapshot, { type: 'GATE_APPROVE' })
       if (stage) {
         await this.emit(
-          input.runId,
+          input.flightId,
           {
-            type: 'run.stage_passed',
+            type: 'flight.stage_passed',
             actor: 'system',
-            payload: { runId: input.runId, stageId: stage.id, stageIndex: gatedIndex }
+            payload: { flightId: input.flightId, stageId: stage.id, stageIndex: gatedIndex }
           },
           stage.id
         )
       }
     } else if (input.decision === 'reject') {
-      snapshot = await this.apply(input.runId, snapshot, { type: 'GATE_REJECT' })
+      snapshot = await this.apply(input.flightId, snapshot, { type: 'GATE_REJECT' })
     } else {
       const targetIndex = input.targetStageIndex ?? 0
-      snapshot = await this.apply(input.runId, snapshot, { type: 'REQUEST_CHANGES', targetIndex })
+      snapshot = await this.apply(input.flightId, snapshot, { type: 'REQUEST_CHANGES', targetIndex })
       // Human intervention resets the automatic verification budget (Phase 6.3), so
       // an escalated run gets a fresh set of route-backs after a person steps in.
       ctx.verificationCycles = 0
-      await this.emit(input.runId, {
-        type: 'run.changes_requested',
+      await this.emit(input.flightId, {
+        type: 'flight.changes_requested',
         actor: 'human',
         payload: {
-          runId: input.runId,
+          flightId: input.flightId,
           targetStageIndex: targetIndex,
           by: input.by,
           note: input.note
@@ -262,9 +262,9 @@ export class RunEngine {
     }
 
     if (snapshot.status === 'running') {
-      void this.drive(input.runId, snapshot, ctx)
+      void this.drive(input.flightId, snapshot, ctx)
     } else if (isTerminal(snapshot.status)) {
-      await this.finalize(input.runId, ctx, snapshot.status)
+      await this.finalize(input.flightId, ctx, snapshot.status)
     }
   }
 
@@ -280,28 +280,28 @@ export class RunEngine {
    * finalizes — avoiding a double finalize. A paused run (e.g. `awaiting_checkpoint`)
    * has no loop, so we apply CANCEL and finalize here.
    */
-  async cancel(runId: string): Promise<void> {
-    const run = await this.runs.get(runId)
-    if (!run) throw new Error(`Run ${runId} not found`)
+  async cancel(flightId: string): Promise<void> {
+    const run = await this.flights.get(flightId)
+    if (!run) throw new Error(`Flight ${flightId} not found`)
     if (isTerminal(run.status)) return
 
-    this.cancelled.add(runId)
-    this.agents.cancelByRun(runId)
-    await this.emit(runId, {
-      type: 'run.cancelled',
+    this.cancelled.add(flightId)
+    this.agents.cancelByRun(flightId)
+    await this.emit(flightId, {
+      type: 'flight.cancelled',
       actor: 'human',
-      payload: { runId, previousStatus: run.status }
+      payload: { flightId, previousStatus: run.status }
     })
 
-    if (this.driving.has(runId)) return // active loop finalizes and clears the flag
+    if (this.driving.has(flightId)) return // active loop finalizes and clears the flag
 
-    const snapshot = await this.runs.loadSnapshot(runId)
-    const ctx = await this.buildContext(runId)
+    const snapshot = await this.flights.loadSnapshot(flightId)
+    const ctx = await this.buildContext(flightId)
     if (snapshot && ctx) {
-      const next = await this.apply(runId, snapshot, { type: 'CANCEL' })
-      await this.finalize(runId, ctx, next.status)
+      const next = await this.apply(flightId, snapshot, { type: 'CANCEL' })
+      await this.finalize(flightId, ctx, next.status)
     }
-    this.cancelled.delete(runId)
+    this.cancelled.delete(flightId)
   }
 
   /**
@@ -309,10 +309,10 @@ export class RunEngine {
    * data-reset tool so live agents are stopped before their rows are wiped —
    * otherwise a still-running drive loop would keep emitting events into the
    * freshly-cleared log. Best-effort: a failure to cancel one run must not stop
-   * the others (or the reset). Returns the number of runs cancelled.
+   * the others (or the reset). Returns the number of flights cancelled.
    */
   async cancelAllInFlight(): Promise<number> {
-    const all = await this.runs.list()
+    const all = await this.flights.list()
     const inFlight = all.filter((r) => !isTerminal(r.status))
     for (const run of inFlight) {
       await this.cancel(run.id).catch((error) =>
@@ -323,11 +323,11 @@ export class RunEngine {
   }
 
   /** Live infrastructure status for a run, for the run view (Phase 5.5). */
-  async runInfra(runId: string): Promise<RunInfra> {
+  async runInfra(flightId: string): Promise<RunInfra> {
     const provider = this.infra.providerName()
     if (!this.infra.isConfigured()) {
       return {
-        runId,
+        flightId,
         provider,
         providerAvailable: false,
         instanceName: null,
@@ -335,22 +335,22 @@ export class RunEngine {
         instance: null
       }
     }
-    const instanceName = instanceNameForRun(runId)
+    const instanceName = instanceNameForRun(flightId)
     const providerAvailable = await this.infra.available()
     const instance = providerAvailable
       ? await this.infra.info(instanceName).catch(() => null)
       : null
     let status: RunInfraStatus = 'none'
     if (instance) status = instance.state === 'up' ? 'up' : 'down'
-    return { runId, provider, providerAvailable, instanceName, status, instance }
+    return { flightId, provider, providerAvailable, instanceName, status, instance }
   }
 
-  private async buildContext(runId: string): Promise<RunCtx | null> {
-    const rc = await this.runs.getContext(runId)
+  private async buildContext(flightId: string): Promise<RunCtx | null> {
+    const rc = await this.flights.getContext(flightId)
     if (!rc) return null
     const detail = await this.briefs.get(rc.briefId)
     const spec = detail?.currentSpec?.content ?? ''
-    const instanceName = instanceNameForRun(runId)
+    const instanceName = instanceNameForRun(flightId)
 
     const ctx: RunCtx = {
       body: rc.body,
@@ -372,20 +372,20 @@ export class RunEngine {
       isolated: false,
       // Read cwd lazily so it reflects the worktree once setup provisions it.
       runAgent: (persona, prompt, mode) =>
-        this.agents.run({ persona, prompt, cwd: ctx.cwd, permissionMode: mode }, { runId })
+        this.agents.run({ persona, prompt, cwd: ctx.cwd, permissionMode: mode }, { flightId })
     }
 
     // Rehydrate the verification safeguard from the log (the source of truth) so it
     // survives a pause — e.g. a human checkpoint — that rebuilds this context. A human
     // `request_changes` resets the automatic budget: only route-backs recorded
     // after the most recent one count toward the cap.
-    const events = await this.audit.list({ runId, limit: 1000 })
+    const events = await this.audit.list({ flightId, limit: 1000 })
     const baselineId = events.reduce(
-      (max, e) => (e.type === 'run.changes_requested' && e.id > max ? e.id : max),
+      (max, e) => (e.type === 'flight.changes_requested' && e.id > max ? e.id : max),
       0
     )
     for (const e of events) {
-      if (e.type !== 'run.verification_failed') continue
+      if (e.type !== 'flight.verification_failed') continue
       const p = e.payload as { issues?: string; routedBack?: boolean }
       ctx.verificationFeedback = p.issues ?? ctx.verificationFeedback
       if (p.routedBack && e.id > baselineId) ctx.verificationCycles += 1
@@ -411,19 +411,19 @@ export class RunEngine {
   }
 
   /**
-   * Ensure the run's infra is provisioned before a `setup` stage runs (Phase
+   * Ensure the run's infra is provisioned before a `setup` stage flights (Phase
    * 5.4). No-op when the run requested no template or no provider is configured.
    * Reuses an existing instance (e.g. on a re-entered setup stage) rather than
    * recreating it. On success, points stage agents at the worktree; returns
    * false if provisioning failed (the caller fails the stage).
    */
-  private async ensureInfra(runId: string, ctx: RunCtx): Promise<boolean> {
+  private async ensureInfra(flightId: string, ctx: RunCtx): Promise<boolean> {
     if (!ctx.infraTemplate || !this.infra.isConfigured()) return true
     const existing = await this.infra.info(ctx.instanceName).catch(() => null)
     try {
       const instance =
         existing ??
-        (await this.infra.provision(runId, {
+        (await this.infra.provision(flightId, {
           name: ctx.instanceName,
           template: ctx.infraTemplate,
           branch: ctx.instanceName,
@@ -442,16 +442,16 @@ export class RunEngine {
   }
 
   /**
-   * Prepare a `local_branch` run's write path before its `setup` stage runs:
+   * Prepare a `local_branch` run's write path before its `setup` stage flights:
    * check out the run's branch on the work item's own repo checkout so implementer
    * agents can edit in place — no sprig or Docker. On success, isolation is on and
    * agents edit the real checkout on that branch; returns false (failing the
    * stage) if the branch couldn't be prepared (e.g. dirty tree, missing git).
    */
-  private async ensureLocalBranch(runId: string, ctx: RunCtx): Promise<boolean> {
+  private async ensureLocalBranch(flightId: string, ctx: RunCtx): Promise<boolean> {
     if (!ctx.workBranch || !ctx.cwd) return false
     const repo = ctx.repos[0] ?? 'repo'
-    const ok = await this.localBranch.prepare(runId, repo, ctx.cwd, ctx.workBranch)
+    const ok = await this.localBranch.prepare(flightId, repo, ctx.cwd, ctx.workBranch)
     if (ok) ctx.isolated = true
     return ok
   }
@@ -461,9 +461,9 @@ export class RunEngine {
    * isolated worktree (`infra`), a branch on the real checkout (`local_branch`),
    * or nothing (`read_only`). Returns false if provisioning failed.
    */
-  private ensureSetup(runId: string, ctx: RunCtx): Promise<boolean> {
-    if (ctx.executionMode === 'infra') return this.ensureInfra(runId, ctx)
-    if (ctx.executionMode === 'local_branch') return this.ensureLocalBranch(runId, ctx)
+  private ensureSetup(flightId: string, ctx: RunCtx): Promise<boolean> {
+    if (ctx.executionMode === 'infra') return this.ensureInfra(flightId, ctx)
+    if (ctx.executionMode === 'local_branch') return this.ensureLocalBranch(flightId, ctx)
     return Promise.resolve(true)
   }
 
@@ -471,14 +471,14 @@ export class RunEngine {
    * Emit run.finished and tear down the run's infra when configured to. A
    * *successful* run defers teardown (Phase 6.4): its worktrees + branches must
    * survive so a human can land the change (open a PR / merge). Teardown then
-   * happens on demand via `teardownInfra`. Failed/cancelled runs tear down
+   * happens on demand via `teardownInfra`. Failed/cancelled flights tear down
    * immediately as before.
    */
-  private async finalize(runId: string, ctx: RunCtx, status: string): Promise<void> {
-    await this.emit(runId, {
-      type: 'run.finished',
+  private async finalize(flightId: string, ctx: RunCtx, status: string): Promise<void> {
+    await this.emit(flightId, {
+      type: 'flight.finished',
       actor: 'system',
-      payload: { runId, status }
+      payload: { flightId, status }
     })
     if (
       status !== 'passed' &&
@@ -486,7 +486,7 @@ export class RunEngine {
       ctx.teardownOnComplete &&
       this.infra.isConfigured()
     ) {
-      await this.infra.teardown(runId, ctx.instanceName, { remove: true })
+      await this.infra.teardown(flightId, ctx.instanceName, { remove: true })
     }
   }
 
@@ -496,38 +496,38 @@ export class RunEngine {
    * since success defers automatic teardown. No-op when the run requested no
    * infra or no provider is configured. Idempotent.
    */
-  async teardownInfra(runId: string): Promise<void> {
-    const ctx = await this.buildContext(runId)
-    if (!ctx) throw new Error(`Run ${runId} not found`)
+  async teardownInfra(flightId: string): Promise<void> {
+    const ctx = await this.buildContext(flightId)
+    if (!ctx) throw new Error(`Flight ${flightId} not found`)
     if (ctx.infraTemplate && this.infra.isConfigured()) {
-      await this.infra.teardown(runId, ctx.instanceName, { remove: true })
+      await this.infra.teardown(flightId, ctx.instanceName, { remove: true })
     }
   }
 
-  private async drive(runId: string, initial: RunSnapshot, ctx: RunCtx): Promise<void> {
-    if (this.driving.has(runId)) return
-    this.driving.add(runId)
+  private async drive(flightId: string, initial: RunSnapshot, ctx: RunCtx): Promise<void> {
+    if (this.driving.has(flightId)) return
+    this.driving.add(flightId)
     let snapshot = initial
     try {
       while (snapshot.status === 'running') {
-        if (this.cancelled.has(runId)) {
-          snapshot = await this.apply(runId, snapshot, { type: 'CANCEL' })
+        if (this.cancelled.has(flightId)) {
+          snapshot = await this.apply(flightId, snapshot, { type: 'CANCEL' })
           break
         }
         const index = snapshot.currentStageIndex
         const stage = ctx.body.stages[index]
         if (!stage) {
-          snapshot = await this.apply(runId, snapshot, { type: 'STAGE_FAILED' })
+          snapshot = await this.apply(flightId, snapshot, { type: 'STAGE_FAILED' })
           break
         }
 
         await this.emit(
-          runId,
+          flightId,
           {
-            type: 'run.stage_entered',
+            type: 'flight.stage_entered',
             actor: 'system',
             payload: {
-              runId,
+              flightId,
               stageId: stage.id,
               stageName: stage.name,
               stageIndex: index,
@@ -540,15 +540,15 @@ export class RunEngine {
         // A setup stage provisions the run's write path first: an isolated
         // worktree (infra), a branch on the real checkout (local_branch), or
         // nothing (read_only).
-        if (stage.type === 'setup' && !(await this.ensureSetup(runId, ctx))) {
-          snapshot = await this.apply(runId, snapshot, { type: 'STAGE_FAILED' })
+        if (stage.type === 'setup' && !(await this.ensureSetup(flightId, ctx))) {
+          snapshot = await this.apply(flightId, snapshot, { type: 'STAGE_FAILED' })
           await this.emit(
-            runId,
+            flightId,
             {
-              type: 'run.stage_failed',
+              type: 'flight.stage_failed',
               actor: 'system',
               payload: {
-                runId,
+                flightId,
                 stageId: stage.id,
                 stageIndex: index,
                 reason:
@@ -562,27 +562,27 @@ export class RunEngine {
           continue
         }
 
-        const outcome = await this.runStage(runId, snapshot, stage, ctx)
+        const outcome = await this.runStage(flightId, snapshot, stage, ctx)
         snapshot = outcome.snapshot
 
         // A termination request during the stage (agents already cancelled) wins
         // over whatever the stage would otherwise have concluded.
-        if (this.cancelled.has(runId)) {
-          snapshot = await this.apply(runId, snapshot, { type: 'CANCEL' })
+        if (this.cancelled.has(flightId)) {
+          snapshot = await this.apply(flightId, snapshot, { type: 'CANCEL' })
           break
         }
 
         if (outcome.passed) {
           const checkpoint = humanCheckpoint(stage)
           if (checkpoint) {
-            snapshot = await this.apply(runId, snapshot, { type: 'GATE_AWAIT' })
+            snapshot = await this.apply(flightId, snapshot, { type: 'GATE_AWAIT' })
             await this.emit(
-              runId,
+              flightId,
               {
-                type: 'run.checkpoint_awaiting',
+                type: 'flight.checkpoint_awaiting',
                 actor: 'system',
                 payload: {
-                  runId,
+                  flightId,
                   stageId: stage.id,
                   checkpointId: checkpoint.id,
                   description: checkpoint.description
@@ -592,13 +592,13 @@ export class RunEngine {
             )
             return // pause for a human
           }
-          snapshot = await this.apply(runId, snapshot, { type: 'STAGE_PASSED' })
+          snapshot = await this.apply(flightId, snapshot, { type: 'STAGE_PASSED' })
           await this.emit(
-            runId,
+            flightId,
             {
-              type: 'run.stage_passed',
+              type: 'flight.stage_passed',
               actor: 'system',
-              payload: { runId, stageId: stage.id, stageIndex: index }
+              payload: { flightId, stageId: stage.id, stageIndex: index }
             },
             stage.id
           )
@@ -611,12 +611,12 @@ export class RunEngine {
           const escalate = ctx.verificationCycles >= ctx.maxVerificationCycles
           ctx.verificationFeedback = outcome.reason
           await this.emit(
-            runId,
+            flightId,
             {
-              type: 'run.verification_failed',
+              type: 'flight.verification_failed',
               actor: 'system',
               payload: {
-                runId,
+                flightId,
                 stageId: stage.id,
                 stageIndex: index,
                 issues: outcome.reason,
@@ -630,7 +630,7 @@ export class RunEngine {
 
           if (!escalate) {
             ctx.verificationCycles += 1
-            snapshot = await this.apply(runId, snapshot, {
+            snapshot = await this.apply(flightId, snapshot, {
               type: 'REQUEST_CHANGES',
               targetIndex: 0
             })
@@ -638,14 +638,14 @@ export class RunEngine {
           }
 
           // Budget spent — pause for human intervention (reuses the checkpoint machinery).
-          snapshot = await this.apply(runId, snapshot, { type: 'GATE_AWAIT' })
+          snapshot = await this.apply(flightId, snapshot, { type: 'GATE_AWAIT' })
           await this.emit(
-            runId,
+            flightId,
             {
-              type: 'run.checkpoint_awaiting',
+              type: 'flight.checkpoint_awaiting',
               actor: 'system',
               payload: {
-                runId,
+                flightId,
                 stageId: stage.id,
                 checkpointId: `verification-escalation:${stage.id}`,
                 description:
@@ -658,13 +658,13 @@ export class RunEngine {
           )
           return // pause for a human
         } else {
-          snapshot = await this.apply(runId, snapshot, { type: 'STAGE_FAILED' })
+          snapshot = await this.apply(flightId, snapshot, { type: 'STAGE_FAILED' })
           await this.emit(
-            runId,
+            flightId,
             {
-              type: 'run.stage_failed',
+              type: 'flight.stage_failed',
               actor: 'system',
-              payload: { runId, stageId: stage.id, stageIndex: index, reason: outcome.reason }
+              payload: { flightId, stageId: stage.id, stageIndex: index, reason: outcome.reason }
             },
             stage.id
           )
@@ -672,25 +672,25 @@ export class RunEngine {
       }
 
       if (isTerminal(snapshot.status)) {
-        await this.finalize(runId, ctx, snapshot.status)
+        await this.finalize(flightId, ctx, snapshot.status)
       }
     } catch (error) {
-      await this.runs.persistSnapshot(
-        runId,
+      await this.flights.persistSnapshot(
+        flightId,
         reduceRun(snapshot, { type: 'STAGE_FAILED' }),
         new Date().toISOString()
       )
-      await this.finalize(runId, ctx, 'failed')
-      console.error('Run engine error:', error)
+      await this.finalize(flightId, ctx, 'failed')
+      console.error('Flight engine error:', error)
     } finally {
-      this.driving.delete(runId)
-      this.cancelled.delete(runId)
+      this.driving.delete(flightId)
+      this.cancelled.delete(flightId)
     }
   }
 
-  /** Run one stage's agents + criteria, looping on failure up to maxIterations. */
+  /** Flight one stage's agents + criteria, looping on failure up to maxIterations. */
   private async runStage(
-    runId: string,
+    flightId: string,
     snapshot: RunSnapshot,
     stage: Stage,
     ctx: RunCtx
@@ -699,7 +699,7 @@ export class RunEngine {
     let feedback = ''
 
     for (;;) {
-      if (this.cancelled.has(runId))
+      if (this.cancelled.has(flightId))
         return { snapshot: current, passed: false, reason: 'cancelled' }
       const index = current.currentStageIndex
       const iteration = current.stages[index]!.iteration
@@ -710,7 +710,7 @@ export class RunEngine {
       const mode: PermissionMode = ctx.isolated ? 'acceptEdits' : 'plan'
       const agentResults: AgentResult[] = []
       for (const persona of stage.personas) {
-        if (this.cancelled.has(runId)) break // don't spawn further agents once terminating
+        if (this.cancelled.has(flightId)) break // don't spawn further agents once terminating
         agentResults.push(
           await ctx.runAgent(
             persona,
@@ -719,7 +719,7 @@ export class RunEngine {
           )
         )
       }
-      if (this.cancelled.has(runId))
+      if (this.cancelled.has(flightId))
         return { snapshot: current, passed: false, reason: 'cancelled' }
 
       // Record each persona's artifact so a human can actually see what they're
@@ -729,12 +729,12 @@ export class RunEngine {
         const result = agentResults[i]
         if (!persona || !result) continue
         await this.emit(
-          runId,
+          flightId,
           {
-            type: 'run.stage_output',
+            type: 'flight.stage_output',
             actor: 'agent',
             payload: {
-              runId,
+              flightId,
               stageId: stage.id,
               stageIndex: index,
               personaId: persona.id,
@@ -756,12 +756,12 @@ export class RunEngine {
       })
       for (const outcome of outcomes) {
         await this.emit(
-          runId,
+          flightId,
           {
-            type: 'run.criterion_evaluated',
+            type: 'flight.criterion_evaluated',
             actor: 'system',
             payload: {
-              runId,
+              flightId,
               stageId: stage.id,
               criterionId: outcome.criterion.id,
               criterionType: outcome.criterion.type,
@@ -786,14 +786,14 @@ export class RunEngine {
       }
 
       feedback = failures.map((o) => `- ${o.criterion.type}: ${o.detail}`).join('\n')
-      current = await this.apply(runId, current, { type: 'RETRY' })
+      current = await this.apply(flightId, current, { type: 'RETRY' })
       await this.emit(
-        runId,
+        flightId,
         {
-          type: 'run.stage_entered',
+          type: 'flight.stage_entered',
           actor: 'system',
           payload: {
-            runId,
+            flightId,
             stageId: stage.id,
             stageName: stage.name,
             stageIndex: index,
@@ -806,18 +806,18 @@ export class RunEngine {
   }
 
   private async apply(
-    runId: string,
+    flightId: string,
     snapshot: RunSnapshot,
     action: RunAction
   ): Promise<RunSnapshot> {
     const next = reduceRun(snapshot, action)
-    await this.runs.persistSnapshot(runId, next, new Date().toISOString())
+    await this.flights.persistSnapshot(flightId, next, new Date().toISOString())
     return next
   }
 
-  private async emit(runId: string, event: AppEvent, stageId?: string | null): Promise<void> {
+  private async emit(flightId: string, event: AppEvent, stageId?: string | null): Promise<void> {
     try {
-      await this.audit.append({ ...event, runId, stageId: stageId ?? null })
+      await this.audit.append({ ...event, flightId, stageId: stageId ?? null })
     } catch (error) {
       console.error('Failed to append run event:', error)
     }

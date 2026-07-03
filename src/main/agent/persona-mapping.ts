@@ -62,7 +62,7 @@ export function mapPersonaToOptions(persona: AgentPersona, ctx: MappingContext):
 
   options.permissionMode = ctx.permissionMode
   if (ctx.permissionMode === 'bypassPermissions') {
-    // Only set when explicitly requested; not a default (see run-engine).
+    // Only set when explicitly requested; not a default (see flight-engine).
     options.allowDangerouslySkipPermissions = true
   }
 

@@ -8,7 +8,7 @@ function ev(overrides: Partial<NewEvent> = {}): NewEvent {
     ts: '2026-07-02T00:00:00.000Z',
     type: 'app.booted',
     actor: 'system' as EventActor,
-    runId: null,
+    flightId: null,
     stageId: null,
     payload: {},
     ...overrides
@@ -22,20 +22,20 @@ describe('event store filtering (ListEventsOptions)', () => {
     store = new InMemoryEventStore()
     await store.insert(ev({ type: 'app.booted', actor: 'system', ts: '2026-07-01T10:00:00.000Z' }))
     await store.insert(
-      ev({ type: 'run.started', actor: 'system', runId: 'r1', ts: '2026-07-01T11:00:00.000Z' })
+      ev({ type: 'flight.started', actor: 'system', flightId: 'r1', ts: '2026-07-01T11:00:00.000Z' })
     )
     await store.insert(
       ev({
         type: 'agent.tool_use',
         actor: 'agent',
-        runId: 'r1',
+        flightId: 'r1',
         stageId: 's1',
         payload: { toolName: 'Bash' },
         ts: '2026-07-01T12:00:00.000Z'
       })
     )
     await store.insert(
-      ev({ type: 'agent.finished', actor: 'agent', runId: 'r2', ts: '2026-07-01T13:00:00.000Z' })
+      ev({ type: 'agent.finished', actor: 'agent', flightId: 'r2', ts: '2026-07-01T13:00:00.000Z' })
     )
   })
 
@@ -49,11 +49,11 @@ describe('event store filtering (ListEventsOptions)', () => {
     expect((await store.list({ type: 'agent.tool_use' })).map((r) => r.type)).toEqual([
       'agent.tool_use'
     ])
-    expect((await store.list({ type: 'run.' })).length).toBe(1)
+    expect((await store.list({ type: 'flight.' })).length).toBe(1)
   })
 
-  it('filters by runId and stageId', async () => {
-    expect((await store.list({ runId: 'r1' })).length).toBe(2)
+  it('filters by flightId and stageId', async () => {
+    expect((await store.list({ flightId: 'r1' })).length).toBe(2)
     expect((await store.list({ stageId: 's1' })).map((r) => r.type)).toEqual(['agent.tool_use'])
   })
 
@@ -62,7 +62,7 @@ describe('event store filtering (ListEventsOptions)', () => {
       since: '2026-07-01T11:00:00.000Z',
       until: '2026-07-01T12:00:00.000Z'
     })
-    expect(rows.map((r) => r.type)).toEqual(['run.started', 'agent.tool_use'])
+    expect(rows.map((r) => r.type)).toEqual(['flight.started', 'agent.tool_use'])
   })
 
   it('searches type and serialized payload (case-insensitive)', async () => {
@@ -83,7 +83,7 @@ describe('event store filtering (ListEventsOptions)', () => {
   })
 
   it('combines filters with AND semantics', async () => {
-    const rows = await store.list({ actor: 'agent', runId: 'r1' })
+    const rows = await store.list({ actor: 'agent', flightId: 'r1' })
     expect(rows.map((r) => r.type)).toEqual(['agent.tool_use'])
   })
 })

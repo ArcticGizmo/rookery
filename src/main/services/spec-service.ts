@@ -91,7 +91,7 @@ export class SpecService {
     await this.audit.append({
       type: 'spec.version_created',
       actor: 'human',
-      runId: null,
+      flightId: null,
       stageId: null,
       payload: { briefId, version, contentHash }
     })

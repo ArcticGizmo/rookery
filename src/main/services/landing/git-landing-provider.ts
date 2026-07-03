@@ -13,7 +13,7 @@ export interface CliResult {
   stderr: string
 }
 
-/** Runs a `git`/`gh` command in a cwd. Injected so the provider is unit-testable. */
+/** Flights a `git`/`gh` command in a cwd. Injected so the provider is unit-testable. */
 export type LandingCli = (cmd: 'git' | 'gh', args: string[], cwd: string) => Promise<CliResult>
 
 const GH_HINT = 'gh CLI not found on PATH. Install and authenticate it: https://cli.github.com'
@@ -54,7 +54,7 @@ function fail(action: string, res: CliResult): never {
  * the feature branch and run `gh pr create` from the worktree (gh infers the
  * repo from the worktree's remote). Merges run in the primary checkout so the
  * base branch can be checked out without disturbing the worktree, then push the
- * base. Never runs interactively.
+ * base. Never flights interactively.
  */
 export class GitLandingProvider implements LandingProvider {
   readonly name = 'git'

@@ -4,7 +4,7 @@ import electronUpdater from 'electron-updater'
 import { closeDb, configureConnection, initDb } from './db'
 import { runMigrations } from './db/migrate'
 import { query } from '@anthropic-ai/claude-agent-sdk'
-import { RunEngine } from './engine/run-engine'
+import { FlightEngine } from './engine/flight-engine'
 import { registerIpc } from './ipc'
 import { AgentService } from './services/agent-service'
 import { AuditLog } from './services/audit-log'
@@ -13,7 +13,7 @@ import { InfraService } from './services/infra-service'
 import { createLandingProvider } from './services/landing'
 import { LandingService } from './services/landing-service'
 import { LocalBranchService } from './services/local-branch-service'
-import { RunStore } from './services/run-store'
+import { FlightStore } from './services/flight-store'
 import { SpecService } from './services/spec-service'
 import { SqliteEventStore } from './services/sqlite-event-store'
 import { UpdateService } from './services/update-service'
@@ -76,11 +76,11 @@ async function bootstrap(): Promise<void> {
   const briefs = new BriefService(db, auditLog, specs)
   const approaches = new ApproachService(db, auditLog)
   const agent = new AgentService(auditLog, query)
-  const runs = new RunStore(db)
+  const flights = new FlightStore(db)
   const infra = new InfraService(createInfraProvider(), auditLog)
   const localBranch = new LocalBranchService(auditLog)
-  const engine = new RunEngine(runs, auditLog, agent, briefs, approaches, infra, localBranch)
-  const landing = new LandingService(createLandingProvider(), auditLog, infra, briefs, runs)
+  const engine = new FlightEngine(flights, auditLog, agent, briefs, approaches, infra, localBranch)
+  const landing = new LandingService(createLandingProvider(), auditLog, infra, briefs, flights)
   const workspace = new WorkspaceService()
 
   // Auto-update (Phase 7.3): project updater lifecycle into the audit log so it
@@ -96,7 +96,7 @@ async function bootstrap(): Promise<void> {
     specs,
     approaches,
     agent,
-    runs,
+    flights,
     engine,
     landing,
     workspace,
@@ -109,11 +109,11 @@ async function bootstrap(): Promise<void> {
     payload: { version: app.getVersion(), platform: process.platform }
   })
 
-  // Reconcile runs the previous session left mid-flight (Phase 7.1). Best-effort:
+  // Reconcile flights the previous session left mid-flight (Phase 7.1). Best-effort:
   // a failure here must not stop the app from starting.
   await engine
-    .recoverInterruptedRuns()
-    .catch((error) => console.error('Failed to recover interrupted runs:', error))
+    .recoverInterruptedFlights()
+    .catch((error) => console.error('Failed to recover interrupted flights:', error))
 
   // Check for updates on boot, then periodically. Packaged only.
   if (app.isPackaged) {

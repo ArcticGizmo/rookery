@@ -5,7 +5,7 @@ export interface NewEvent {
   ts: string
   type: string
   actor: EventActor
-  runId: string | null
+  flightId: string | null
   stageId: string | null
   payload: unknown
 }

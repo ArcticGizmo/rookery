@@ -15,7 +15,7 @@ export type InFlightStatus = 'pending' | 'running' | 'awaiting_checkpoint'
 
 /** One brief currently in flight (a non-terminal run). */
 export interface BriefInFlight {
-  runId: string
+  flightId: string
   briefId: string | null
   status: InFlightStatus
   currentStageName: string | null
@@ -28,7 +28,7 @@ export interface BriefInFlight {
 export type AttentionKind = 'checkpoint' | 'verification' | 'pressure'
 
 export interface AttentionItem {
-  runId: string
+  flightId: string
   kind: AttentionKind
   title: string
   detail: string
@@ -40,7 +40,7 @@ function payloadOf(event: StoredEvent): Record<string, unknown> {
 }
 
 interface RunAcc {
-  runId: string
+  flightId: string
   briefId: string | null
   status: InFlightStatus
   currentStageName: string | null
@@ -53,7 +53,7 @@ interface RunAcc {
 }
 
 interface AgentAcc {
-  runId: string | null
+  flightId: string | null
   level: 'ok' | 'warn' | 'high'
   percent: number
   ts: string
@@ -61,16 +61,16 @@ interface AgentAcc {
 }
 
 /** Reduce the event log to per-run accumulators + per-agent pressure. */
-function reduce(events: StoredEvent[]): { runs: Map<string, RunAcc>; agents: Map<string, AgentAcc> } {
-  const runs = new Map<string, RunAcc>()
+function reduce(events: StoredEvent[]): { flights: Map<string, RunAcc>; agents: Map<string, AgentAcc> } {
+  const flights = new Map<string, RunAcc>()
   const agents = new Map<string, AgentAcc>()
 
   for (const event of events) {
     const p = payloadOf(event)
 
-    if (event.runId && event.type.startsWith('run.')) {
-      const run: RunAcc = runs.get(event.runId) ?? {
-        runId: event.runId,
+    if (event.flightId && event.type.startsWith('flight.')) {
+      const run: RunAcc = flights.get(event.flightId) ?? {
+        flightId: event.flightId,
         briefId: null,
         status: 'pending',
         currentStageName: null,
@@ -81,41 +81,41 @@ function reduce(events: StoredEvent[]): { runs: Map<string, RunAcc>; agents: Map
       }
       run.updatedTs = event.ts
       switch (event.type) {
-        case 'run.created':
+        case 'flight.created':
           run.briefId = (p.briefId as string) ?? run.briefId
           break
-        case 'run.started':
+        case 'flight.started':
           run.status = 'running'
           run.finished = false
           break
-        case 'run.stage_entered':
+        case 'flight.stage_entered':
           run.status = 'running'
           run.currentStageName = String(p.stageName ?? run.currentStageName ?? '')
           run.escalation = null
           break
-        case 'run.checkpoint_awaiting':
+        case 'flight.checkpoint_awaiting':
           run.status = 'awaiting_checkpoint'
           run.checkpoint = { detail: String(p.description ?? ''), ts: event.ts }
           break
-        case 'run.checkpoint_resolved':
-        case 'run.stage_passed':
+        case 'flight.checkpoint_resolved':
+        case 'flight.stage_passed':
           run.status = 'running'
           run.checkpoint = null
           break
-        case 'run.verification_failed':
+        case 'flight.verification_failed':
           // Only an escalation (route-back budget spent) needs the human; an
           // auto route-back (routedBack: true) is handled without us.
           if (p.routedBack === false) {
             run.escalation = { detail: String(p.issues ?? ''), ts: event.ts }
           }
           break
-        case 'run.finished':
-        case 'run.cancelled':
-        case 'run.interrupted':
+        case 'flight.finished':
+        case 'flight.cancelled':
+        case 'flight.interrupted':
           run.finished = true
           break
       }
-      runs.set(event.runId, run)
+      flights.set(event.flightId, run)
     }
 
     if (event.type.startsWith('agent.')) {
@@ -123,7 +123,7 @@ function reduce(events: StoredEvent[]): { runs: Map<string, RunAcc>; agents: Map
       if (!agentRunId) continue
       if (event.type === 'agent.spawned') {
         agents.set(agentRunId, {
-          runId: event.runId,
+          flightId: event.flightId,
           level: 'ok',
           percent: 0,
           ts: event.ts,
@@ -147,20 +147,20 @@ function reduce(events: StoredEvent[]): { runs: Map<string, RunAcc>; agents: Map
     }
   }
 
-  return { runs, agents }
+  return { flights, agents }
 }
 
 function needsYouRun(run: RunAcc): boolean {
   return (run.status === 'awaiting_checkpoint' && run.checkpoint !== null) || run.escalation !== null
 }
 
-/** Briefs currently in flight (non-terminal runs), most-recently-active first. */
+/** Briefs currently in flight (non-terminal flights), most-recently-active first. */
 export function briefsInFlight(events: StoredEvent[]): BriefInFlight[] {
-  const { runs } = reduce(events)
-  return [...runs.values()]
+  const { flights } = reduce(events)
+  return [...flights.values()]
     .filter((r) => !r.finished)
     .map((r) => ({
-      runId: r.runId,
+      flightId: r.flightId,
       briefId: r.briefId,
       status: r.status,
       currentStageName: r.currentStageName,
@@ -173,17 +173,17 @@ export function briefsInFlight(events: StoredEvent[]): BriefInFlight[] {
 /**
  * The things that need the human right now, most-recent first: held checkpoints
  * and verification escalations (decisions), plus agents at high context pressure
- * (a warning). Only non-terminal runs are considered.
+ * (a warning). Only non-terminal flights are considered.
  */
 export function needsYou(events: StoredEvent[]): AttentionItem[] {
-  const { runs, agents } = reduce(events)
+  const { flights, agents } = reduce(events)
   const items: AttentionItem[] = []
 
-  for (const run of runs.values()) {
+  for (const run of flights.values()) {
     if (run.finished) continue
     if (run.status === 'awaiting_checkpoint' && run.checkpoint) {
       items.push({
-        runId: run.runId,
+        flightId: run.flightId,
         kind: 'checkpoint',
         title: run.currentStageName ? `Checkpoint · ${run.currentStageName}` : 'Checkpoint',
         detail: run.checkpoint.detail || 'Waiting for your decision.',
@@ -192,7 +192,7 @@ export function needsYou(events: StoredEvent[]): AttentionItem[] {
     }
     if (run.escalation) {
       items.push({
-        runId: run.runId,
+        flightId: run.flightId,
         kind: 'verification',
         title: 'Verification needs you',
         detail: run.escalation.detail || 'Verification could not pass on its own.',
@@ -202,11 +202,11 @@ export function needsYou(events: StoredEvent[]): AttentionItem[] {
   }
 
   for (const agent of agents.values()) {
-    if (agent.finished || agent.level !== 'high' || !agent.runId) continue
-    const run = runs.get(agent.runId)
+    if (agent.finished || agent.level !== 'high' || !agent.flightId) continue
+    const run = flights.get(agent.flightId)
     if (!run || run.finished) continue
     items.push({
-      runId: agent.runId,
+      flightId: agent.flightId,
       kind: 'pressure',
       title: 'High context pressure',
       detail: `An agent is at ${Math.round(agent.percent)}% of its context window — quality may be degrading.`,

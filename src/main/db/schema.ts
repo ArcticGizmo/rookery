@@ -11,13 +11,13 @@ export const events = sqliteTable(
     ts: text('ts').notNull(),
     type: text('type').notNull(),
     actor: text('actor').notNull(),
-    runId: text('run_id'),
+    flightId: text('run_id'),
     stageId: text('stage_id'),
     payload: text('payload', { mode: 'json' }).notNull()
   },
   (table) => [
     index('idx_events_type').on(table.type),
-    index('idx_events_run_id').on(table.runId),
+    index('idx_events_run_id').on(table.flightId),
     index('idx_events_ts').on(table.ts)
   ]
 )
@@ -96,7 +96,7 @@ export type ApproachDefRow = typeof approachDefs.$inferSelect
  * the approach definition at start so a later edit doesn't mutate an in-flight
  * run. `status`/`currentStageIndex` mirror the run state machine.
  */
-export const runs = sqliteTable(
+export const flights = sqliteTable(
   'runs',
   {
     id: text('id').primaryKey(),
@@ -130,16 +130,16 @@ export const runs = sqliteTable(
   (table) => [index('idx_runs_work_item').on(table.briefId)]
 )
 
-export type RunRow = typeof runs.$inferSelect
+export type FlightRow = typeof flights.$inferSelect
 
 /** Per-stage execution record within a run. */
 export const stageExecutions = sqliteTable(
   'stage_executions',
   {
     id: text('id').primaryKey(),
-    runId: text('run_id')
+    flightId: text('run_id')
       .notNull()
-      .references(() => runs.id, { onDelete: 'cascade' }),
+      .references(() => flights.id, { onDelete: 'cascade' }),
     stageId: text('stage_id').notNull(),
     stageIndex: integer('stage_index').notNull(),
     status: text('status').notNull(),
@@ -148,8 +148,8 @@ export const stageExecutions = sqliteTable(
     finishedAt: text('finished_at')
   },
   (table) => [
-    index('idx_stage_exec_run').on(table.runId),
-    uniqueIndex('idx_stage_exec_run_stage').on(table.runId, table.stageIndex)
+    index('idx_stage_exec_run').on(table.flightId),
+    uniqueIndex('idx_stage_exec_run_stage').on(table.flightId, table.stageIndex)
   ]
 )
 

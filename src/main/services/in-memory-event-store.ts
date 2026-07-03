@@ -16,7 +16,7 @@ export class InMemoryEventStore implements EventStore {
       ts: event.ts,
       type: event.type as StoredEvent['type'],
       actor: event.actor,
-      runId: event.runId,
+      flightId: event.flightId,
       stageId: event.stageId,
       payload: event.payload
     }
@@ -42,7 +42,7 @@ export class InMemoryEventStore implements EventStore {
 function matchesEvent(row: StoredEvent, o: ListEventsOptions): boolean {
   if (o.afterId !== undefined && !(row.id > o.afterId)) return false
   if (o.beforeId !== undefined && !(row.id < o.beforeId)) return false
-  if (o.runId && row.runId !== o.runId) return false
+  if (o.flightId && row.flightId !== o.flightId) return false
   if (o.stageId && row.stageId !== o.stageId) return false
   if (o.actor && row.actor !== o.actor) return false
   if (o.type && !row.type.startsWith(o.type)) return false

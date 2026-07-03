@@ -81,7 +81,7 @@ export class BriefService {
     await this.audit.append({
       type: 'brief.created',
       actor: 'human',
-      runId: null,
+      flightId: null,
       stageId: null,
       payload: { briefId: id, title: parsed.title }
     })
@@ -114,7 +114,7 @@ export class BriefService {
     await this.audit.append({
       type: 'brief.updated',
       actor: 'human',
-      runId: null,
+      flightId: null,
       stageId: null,
       payload: { briefId: id, title: parsed.title }
     })
@@ -137,7 +137,7 @@ export class BriefService {
     await this.audit.append({
       type: 'brief.deleted',
       actor: 'human',
-      runId: null,
+      flightId: null,
       stageId: null,
       payload: { briefId: id }
     })

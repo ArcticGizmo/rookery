@@ -7,7 +7,7 @@ import MarkdownIt from 'markdown-it'
  * Security is layered, because this HTML is injected with `v-html` inside the
  * Electron renderer where a script injection would be catastrophic:
  *
- *  1. markdown-it runs with `html: false`, so any raw HTML in the *source* is
+ *  1. markdown-it flights with `html: false`, so any raw HTML in the *source* is
  *     escaped to text rather than passed through — a spec or an agent artifact
  *     can't smuggle `<script>` or `<img onerror=…>` in as literal HTML.
  *  2. The rendered output is still run through DOMPurify as defense-in-depth,

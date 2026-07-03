@@ -11,7 +11,7 @@ function log() {
     add(
       type: string,
       payload: Record<string, unknown>,
-      opts: { actor?: StoredEvent['actor']; runId?: string; stageId?: string } = {}
+      opts: { actor?: StoredEvent['actor']; flightId?: string; stageId?: string } = {}
     ) {
       id += 1
       events.push({
@@ -19,7 +19,7 @@ function log() {
         ts: `2026-07-01T00:00:${String(id).padStart(2, '0')}.000Z`,
         type: type as StoredEvent['type'],
         actor: opts.actor ?? 'system',
-        runId: opts.runId ?? null,
+        flightId: opts.flightId ?? null,
         stageId: opts.stageId ?? null,
         payload
       })
@@ -31,14 +31,14 @@ function log() {
 describe('computeNotifications', () => {
   it('surfaces a notification for each human checkpoint awaiting', () => {
     const l = log()
-    l.add('run.checkpoint_awaiting', { description: 'Approve the review' }, { runId: 'r1' })
+    l.add('flight.checkpoint_awaiting', { description: 'Approve the review' }, { flightId: 'r1' })
 
     const items = computeNotifications(l.events)
     expect(items).toHaveLength(1)
     expect(items[0]).toMatchObject({
       id: 1,
       kind: 'checkpoint',
-      runId: 'r1',
+      flightId: 'r1',
       title: 'Human checkpoint awaiting',
       body: 'Approve the review'
     })
@@ -46,20 +46,20 @@ describe('computeNotifications', () => {
 
   it('notifies only on the rising edge into high context pressure', () => {
     const l = log()
-    const agent = { agentRunId: 'a1', actor: 'agent' as const, runId: 'r1' }
+    const agent = { agentRunId: 'a1', actor: 'agent' as const, flightId: 'r1' }
     l.add('agent.context_pressure', { agentRunId: 'a1', percent: 75, level: 'warn' }, agent)
     l.add('agent.context_pressure', { agentRunId: 'a1', percent: 92, level: 'high' }, agent) // ← edge
     l.add('agent.context_pressure', { agentRunId: 'a1', percent: 95, level: 'high' }, agent) // sustained: no repeat
 
     const items = computeNotifications(l.events)
     expect(items).toHaveLength(1)
-    expect(items[0]).toMatchObject({ id: 2, kind: 'pressure', runId: 'r1' })
+    expect(items[0]).toMatchObject({ id: 2, kind: 'pressure', flightId: 'r1' })
     expect(items[0]!.body).toContain('92%')
   })
 
   it('re-arms after pressure drops below high', () => {
     const l = log()
-    const agent = { agentRunId: 'a1', actor: 'agent' as const, runId: 'r1' }
+    const agent = { agentRunId: 'a1', actor: 'agent' as const, flightId: 'r1' }
     l.add('agent.context_pressure', { agentRunId: 'a1', percent: 92, level: 'high' }, agent)
     l.add('agent.context_pressure', { agentRunId: 'a1', percent: 60, level: 'ok' }, agent)
     l.add('agent.context_pressure', { agentRunId: 'a1', percent: 91, level: 'high' }, agent)
@@ -69,8 +69,8 @@ describe('computeNotifications', () => {
 
   it('tracks pressure per agent independently', () => {
     const l = log()
-    l.add('agent.context_pressure', { agentRunId: 'a1', percent: 91, level: 'high' }, { actor: 'agent', runId: 'r1' })
-    l.add('agent.context_pressure', { agentRunId: 'a2', percent: 93, level: 'high' }, { actor: 'agent', runId: 'r1' })
+    l.add('agent.context_pressure', { agentRunId: 'a1', percent: 91, level: 'high' }, { actor: 'agent', flightId: 'r1' })
+    l.add('agent.context_pressure', { agentRunId: 'a2', percent: 93, level: 'high' }, { actor: 'agent', flightId: 'r1' })
 
     const items = computeNotifications(l.events)
     expect(items).toHaveLength(2)
@@ -83,7 +83,7 @@ describe('computeNotifications', () => {
 
     const items = computeNotifications(l.events)
     expect(items).toHaveLength(1)
-    expect(items[0]).toMatchObject({ id: 1, kind: 'update', runId: null, title: 'Update ready' })
+    expect(items[0]).toMatchObject({ id: 1, kind: 'update', flightId: null, title: 'Update ready' })
     expect(items[0]!.body).toContain('1.2.3')
   })
 
@@ -96,9 +96,9 @@ describe('computeNotifications', () => {
   it('ignores unrelated events and preserves chronological order', () => {
     const l = log()
     l.add('app.booted', { version: '0', platform: 'win32' })
-    l.add('run.checkpoint_awaiting', { description: 'checkpoint A' }, { runId: 'r1' })
-    l.add('agent.context_pressure', { agentRunId: 'a1', percent: 95, level: 'high' }, { actor: 'agent', runId: 'r2' })
-    l.add('run.finished', { runId: 'r1', status: 'passed' }, { runId: 'r1' })
+    l.add('flight.checkpoint_awaiting', { description: 'checkpoint A' }, { flightId: 'r1' })
+    l.add('agent.context_pressure', { agentRunId: 'a1', percent: 95, level: 'high' }, { actor: 'agent', flightId: 'r2' })
+    l.add('flight.finished', { flightId: 'r1', status: 'passed' }, { flightId: 'r1' })
 
     const items = computeNotifications(l.events)
     expect(items.map((n) => n.kind)).toEqual(['checkpoint', 'pressure'])

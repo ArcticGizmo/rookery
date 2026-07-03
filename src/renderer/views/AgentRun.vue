@@ -171,7 +171,7 @@ onMounted(() => {
     <header class="flex flex-col gap-1">
       <h1 class="text-2xl font-bold tracking-tight">Agent run</h1>
       <p class="text-sm text-muted-foreground">
-        Run a single configured agent against a work item's spec and repo.
+        Flight a single configured agent against a work item's spec and repo.
       </p>
     </header>
 
@@ -282,7 +282,7 @@ onMounted(() => {
 
         <div class="flex items-center gap-3">
           <Button :disabled="!canRun" @click="run">{{
-            isRunning ? 'Running…' : 'Run agent'
+            isRunning ? 'Running…' : 'Flight agent'
           }}</Button>
           <Button v-if="isRunning" variant="outline" @click="cancel">Cancel</Button>
           <span v-if="error" class="text-sm text-red-600">{{ error }}</span>
@@ -337,7 +337,7 @@ onMounted(() => {
 
         <div class="min-h-[16rem] rounded-md border border-border">
           <p v-if="transcript.length === 0" class="p-4 text-sm text-muted-foreground">
-            No activity yet. Configure a run and hit “Run agent”.
+            No activity yet. Configure a run and hit “Flight agent”.
           </p>
           <ul v-else class="divide-y divide-border">
             <li

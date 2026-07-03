@@ -10,7 +10,7 @@ function ev(type: string, payload: Record<string, unknown> = {}): StoredEvent {
     ts: `2026-07-02T00:00:${String(seq).padStart(2, '0')}.000Z`,
     type: type as StoredEvent['type'],
     actor: 'agent',
-    runId: 'r1',
+    flightId: 'r1',
     stageId: null,
     payload
   }
@@ -86,14 +86,14 @@ describe('buildChainOfThought', () => {
   it('includes run/stage transitions as event items', () => {
     const items = buildChainOfThought(
       [
-        ev('run.stage_entered', { stageName: 'Review', iteration: 1 }),
-        ev('run.checkpoint_awaiting', { description: 'approve' })
+        ev('flight.stage_entered', { stageName: 'Review', iteration: 1 }),
+        ev('flight.checkpoint_awaiting', { description: 'approve' })
       ],
       0
     )
     expect(items.map((i) => (i.kind === 'event' ? i.event.type : 'tool'))).toEqual([
-      'run.stage_entered',
-      'run.checkpoint_awaiting'
+      'flight.stage_entered',
+      'flight.checkpoint_awaiting'
     ])
   })
 })

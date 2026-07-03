@@ -7,11 +7,11 @@ import { InfraService } from '../../src/main/services/infra-service'
 import { LocalBranchService } from '../../src/main/services/local-branch-service'
 import { instanceNameForRun } from '../../src/main/services/infra'
 import { StubProvider } from '../../src/main/services/infra/stub-provider'
-import { RunStore } from '../../src/main/services/run-store'
+import { FlightStore } from '../../src/main/services/flight-store'
 import { SpecService } from '../../src/main/services/spec-service'
 import { BriefService } from '../../src/main/services/brief-service'
 import { ApproachService } from '../../src/main/services/approach-service'
-import { RunEngine } from '../../src/main/engine/run-engine'
+import { FlightEngine } from '../../src/main/engine/flight-engine'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import { makeTestDb, type TestDb } from './helpers/test-db'
 import { fakeQuery, msg } from './helpers/fake-query'
@@ -57,12 +57,12 @@ async function waitFor(
 
 const has = (events: StoredEvent[], type: string) => events.some((e) => e.type === type)
 
-describe('RunEngine infra wiring (Phase 5.4)', () => {
+describe('FlightEngine infra wiring (Phase 5.4)', () => {
   let test: TestDb
   let audit: AuditLog
   let provider: StubProvider
-  let engine: RunEngine
-  let runs: RunStore
+  let engine: FlightEngine
+  let flights: FlightStore
 
   beforeEach(async () => {
     test = await makeTestDb()
@@ -76,10 +76,10 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
     const specs = new SpecService(test.db, audit)
     const briefs = new BriefService(test.db, audit, specs)
     const approaches = new ApproachService(test.db, audit)
-    runs = new RunStore(test.db)
+    flights = new FlightStore(test.db)
     const agents = new AgentService(audit, approveQuery())
     const infra = new InfraService(provider, audit)
-    engine = new RunEngine(runs, audit, agents, briefs, approaches, infra, new LocalBranchService(audit))
+    engine = new FlightEngine(flights, audit, agents, briefs, approaches, infra, new LocalBranchService(audit))
 
     const wi = await briefs.create({
       title: 'Feature',
@@ -95,7 +95,7 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
     })
   }
 
-  it('provisions on the setup stage and runs later agents in the worktree', async () => {
+  it('provisions on the setup stage and flights later agents in the worktree', async () => {
     const run = await seed()
     const name = instanceNameForRun(run.id)
 
@@ -103,7 +103,7 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
       audit,
       (e) =>
         e.some(
-          (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+          (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'passed'
         )
     )
 
@@ -125,7 +125,7 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
       audit,
       (e) =>
         e.some(
-          (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+          (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'passed'
         )
     )
 
@@ -137,7 +137,7 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
     // Explicit teardown (after landing/dismissal) removes it.
     await engine.teardownInfra(run.id)
     expect(await provider.info(name)).toBeNull()
-    expect((await runs.get(run.id))!.status).toBe('passed')
+    expect((await flights.get(run.id))!.status).toBe('passed')
   })
 
   it('leaves infra up when teardown is disabled', async () => {
@@ -147,7 +147,7 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
       audit,
       (e) =>
         e.some(
-          (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'passed'
+          (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'passed'
         )
     )
     expect(has(await audit.list({ limit: 1000 }), 'infra.down')).toBe(false)
@@ -161,11 +161,11 @@ describe('RunEngine infra wiring (Phase 5.4)', () => {
       audit,
       (e) =>
         e.some(
-          (x) => x.type === 'run.finished' && (x.payload as { status: string }).status === 'failed'
+          (x) => x.type === 'flight.finished' && (x.payload as { status: string }).status === 'failed'
         )
     )
     expect(has(events, 'infra.failed')).toBe(true)
-    expect(has(events, 'run.stage_failed')).toBe(true)
-    expect((await runs.get(run.id))!.status).toBe('failed')
+    expect(has(events, 'flight.stage_failed')).toBe(true)
+    expect((await flights.get(run.id))!.status).toBe('failed')
   })
 })

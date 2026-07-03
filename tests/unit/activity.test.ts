@@ -11,7 +11,7 @@ function log() {
     add(
       type: string,
       payload: Record<string, unknown>,
-      opts: { actor?: StoredEvent['actor']; runId?: string; stageId?: string } = {}
+      opts: { actor?: StoredEvent['actor']; flightId?: string; stageId?: string } = {}
     ) {
       id += 1
       events.push({
@@ -19,7 +19,7 @@ function log() {
         ts: `2026-07-01T00:00:${String(id).padStart(2, '0')}.000Z`,
         type: type as StoredEvent['type'],
         actor: opts.actor ?? 'system',
-        runId: opts.runId ?? null,
+        flightId: opts.flightId ?? null,
         stageId: opts.stageId ?? null,
         payload
       })
@@ -29,19 +29,19 @@ function log() {
 }
 
 describe('computeActivity', () => {
-  it('surfaces active runs and agents with context pressure', () => {
+  it('surfaces active flights and agents with context pressure', () => {
     const l = log()
-    l.add('run.started', { runId: 'r1' }, { runId: 'r1' })
-    l.add('run.stage_entered', { stageName: 'Implement' }, { runId: 'r1', stageId: 's1' })
-    l.add('agent.spawned', { agentRunId: 'a1', personaName: 'Dev', model: 'claude-opus-4-8' }, { runId: 'r1', stageId: 's1', actor: 'agent' })
-    l.add('agent.tool_use', { agentRunId: 'a1', toolName: 'Bash' }, { runId: 'r1', actor: 'agent' })
-    l.add('agent.context_pressure', { agentRunId: 'a1', percent: 75 }, { runId: 'r1', actor: 'agent' })
+    l.add('flight.started', { flightId: 'r1' }, { flightId: 'r1' })
+    l.add('flight.stage_entered', { stageName: 'Implement' }, { flightId: 'r1', stageId: 's1' })
+    l.add('agent.spawned', { agentRunId: 'a1', personaName: 'Dev', model: 'claude-opus-4-8' }, { flightId: 'r1', stageId: 's1', actor: 'agent' })
+    l.add('agent.tool_use', { agentRunId: 'a1', toolName: 'Bash' }, { flightId: 'r1', actor: 'agent' })
+    l.add('agent.context_pressure', { agentRunId: 'a1', percent: 75 }, { flightId: 'r1', actor: 'agent' })
 
     const activity = computeActivity(l.events)
 
-    expect(activity.runs).toHaveLength(1)
-    expect(activity.runs[0]).toMatchObject({
-      runId: 'r1',
+    expect(activity.flights).toHaveLength(1)
+    expect(activity.flights[0]).toMatchObject({
+      flightId: 'r1',
       status: 'running',
       currentStageName: 'Implement',
       agentCount: 1
@@ -60,27 +60,27 @@ describe('computeActivity', () => {
     expect(activity.highCount).toBe(0)
   })
 
-  it('excludes finished runs and finished agents', () => {
+  it('excludes finished flights and finished agents', () => {
     const l = log()
-    l.add('run.started', { runId: 'r2' }, { runId: 'r2' })
-    l.add('agent.spawned', { agentRunId: 'a2', personaName: 'Dev', model: 'm' }, { runId: 'r2', actor: 'agent' })
-    l.add('agent.finished', { agentRunId: 'a2' }, { runId: 'r2', actor: 'agent' })
-    l.add('run.finished', { runId: 'r2', status: 'passed' }, { runId: 'r2' })
+    l.add('flight.started', { flightId: 'r2' }, { flightId: 'r2' })
+    l.add('agent.spawned', { agentRunId: 'a2', personaName: 'Dev', model: 'm' }, { flightId: 'r2', actor: 'agent' })
+    l.add('agent.finished', { agentRunId: 'a2' }, { flightId: 'r2', actor: 'agent' })
+    l.add('flight.finished', { flightId: 'r2', status: 'passed' }, { flightId: 'r2' })
 
     const activity = computeActivity(l.events)
-    expect(activity.runs).toHaveLength(0)
+    expect(activity.flights).toHaveLength(0)
     expect(activity.agents).toHaveLength(0)
     expect(activity.pressureLevel).toBe('ok')
   })
 
   it('reflects a pending human checkpoint as awaiting_checkpoint', () => {
     const l = log()
-    l.add('run.started', { runId: 'r3' }, { runId: 'r3' })
-    l.add('run.stage_entered', { stageName: 'Review' }, { runId: 'r3' })
-    l.add('run.checkpoint_awaiting', { checkpointId: 'g1' }, { runId: 'r3' })
+    l.add('flight.started', { flightId: 'r3' }, { flightId: 'r3' })
+    l.add('flight.stage_entered', { stageName: 'Review' }, { flightId: 'r3' })
+    l.add('flight.checkpoint_awaiting', { checkpointId: 'g1' }, { flightId: 'r3' })
 
     const activity = computeActivity(l.events)
-    expect(activity.runs[0]).toMatchObject({ status: 'awaiting_checkpoint', currentStageName: 'Review' })
+    expect(activity.flights[0]).toMatchObject({ status: 'awaiting_checkpoint', currentStageName: 'Review' })
   })
 
   it('flags high pressure across agents', () => {

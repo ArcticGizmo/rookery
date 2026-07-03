@@ -7,12 +7,12 @@ import type {
   CreateBriefInput,
   CredentialStatus,
   CheckpointActionInput,
-  LandRunInput,
-  Run,
-  RunDetail,
+  LandFlightInput,
+  Flight,
+  FlightDetail,
   SpecDiff,
   SpecVersion,
-  StartRunInput,
+  StartFlightInput,
   UpdateBriefInput,
   Brief,
   BriefDetail,
@@ -69,23 +69,23 @@ export interface RookeryApi {
     start: (config: AgentRunConfig) => Promise<{ agentRunId: string }>
     cancel: (agentRunId: string) => Promise<void>
   }
-  runs: {
+  flights: {
     /** Start a approach run over a work item; activity streams via `events.onAppend`. */
-    start: (input: StartRunInput) => Promise<Run>
-    list: () => Promise<Run[]>
-    get: (runId: string) => Promise<RunDetail | null>
+    start: (input: StartFlightInput) => Promise<Flight>
+    list: () => Promise<Flight[]>
+    get: (flightId: string) => Promise<FlightDetail | null>
     /** Resolve a pending human checkpoint (approve/reject/request-changes). */
     checkpoint: (input: CheckpointActionInput) => Promise<void>
     /** Terminate an in-flight run: cancels its live agents and marks it cancelled. */
-    cancel: (runId: string) => Promise<void>
+    cancel: (flightId: string) => Promise<void>
     /** Live infrastructure status for a run (instances, worktrees, container health). */
-    infra: (runId: string) => Promise<RunInfra>
+    infra: (flightId: string) => Promise<RunInfra>
     /** Which repos of a successful run can be landed (open PR / merge). */
-    landTargets: (runId: string) => Promise<LandingTargets>
+    landTargets: (flightId: string) => Promise<LandingTargets>
     /** Land one impacted repo of a successful run via a PR or a direct merge. */
-    land: (input: LandRunInput) => Promise<LandingResult>
+    land: (input: LandFlightInput) => Promise<LandingResult>
     /** Tear down a run's infrastructure on demand (after landing/dismissal). */
-    teardown: (runId: string) => Promise<void>
+    teardown: (flightId: string) => Promise<void>
   }
   update: {
     /** Ask the update server whether a newer release is available. */
@@ -94,7 +94,7 @@ export interface RookeryApi {
     install: () => Promise<void>
   }
   debug: {
-    /** Dev-only: delete all persisted data (work items, runs, approaches, events). */
+    /** Dev-only: delete all persisted data (work items, flights, approaches, events). */
     resetData: () => Promise<void>
   }
 }

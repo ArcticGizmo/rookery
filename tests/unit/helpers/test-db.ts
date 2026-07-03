@@ -18,7 +18,7 @@ export interface TestDb {
  * A fresh temp-file libsql database with all migrations applied.
  *
  * We use a real file (not `:memory:`) because libsql gives each connection to
- * `:memory:` its own independent database — so a `db.transaction()`, which runs
+ * `:memory:` its own independent database — so a `db.transaction()`, which flights
  * on a separate connection, would not see the migrated tables. A file URL is
  * shared across connections, matching how the app opens its database.
  */
