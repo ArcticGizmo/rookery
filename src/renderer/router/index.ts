@@ -44,8 +44,7 @@ export const router = createRouter({
       props: true
     },
 
-    // The flight (live) and its story (retrospective — Phase J9 refines; reuse the
-    // flight view for now so the route resolves).
+    // The flight (live) and its story (the retrospective narrative — Phase J9).
     {
       path: '/flight/:id',
       name: 'flight',
@@ -55,7 +54,7 @@ export const router = createRouter({
     {
       path: '/story/:id',
       name: 'story',
-      component: () => import('@renderer/views/FlightDetail.vue'),
+      component: () => import('@renderer/views/Story.vue'),
       props: true
     },
 

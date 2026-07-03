@@ -636,7 +636,12 @@ onUnmounted(() => {
   <div class="flex flex-col gap-6">
     <header class="flex items-start justify-between gap-4">
       <MonoLabel class="text-primary">The flight</MonoLabel>
-      <RouterLink to="/" class="text-sm text-muted-foreground hover:underline">← Desk</RouterLink>
+      <div class="flex items-center gap-4 text-sm">
+        <RouterLink :to="`/story/${props.id}`" class="text-muted-foreground hover:underline">
+          The story →
+        </RouterLink>
+        <RouterLink to="/" class="text-muted-foreground hover:underline">← Desk</RouterLink>
+      </div>
     </header>
 
     <p v-if="notFound" class="rounded-md border border-border p-4 text-sm text-muted-foreground">
