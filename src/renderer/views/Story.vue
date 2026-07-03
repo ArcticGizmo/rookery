@@ -5,6 +5,7 @@ import type { FlightDetail, FlightStatus } from '@shared/domain'
 import type { StoredEvent } from '@shared/events'
 import { type StoryLane, buildStory } from '@shared/story'
 import { MonoLabel } from '@renderer/components/journey'
+import LandingRecap from '@renderer/components/LandingRecap.vue'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
 import { useFlightsStore } from '@renderer/stores/flights'
 import { useBriefsStore } from '@renderer/stores/briefs'
@@ -183,6 +184,13 @@ function pretty(payload: unknown): string {
         </li>
       </ol>
     </section>
+
+    <!-- How it landed: the closing act, human-directed from inside the story (J9.3). -->
+    <LandingRecap
+      v-if="detail && detail.flight.status === 'passed'"
+      :flight-id="props.id"
+      @changed="refresh"
+    />
 
     <RouterLink
       :to="`/history?flightId=${props.id}`"

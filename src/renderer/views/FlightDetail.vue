@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type {
   CheckpointDecision,
   FlightStatus,
-  LandingMethod,
   FlightDetail,
   StageExecution,
   StageStatus
@@ -15,8 +14,8 @@ import { stageRoles } from '@shared/approach-view'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, FlightInfra } from '@shared/infra'
 import type { FlightChanges } from '@shared/changes'
-import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
+import LandingRecap from '@renderer/components/LandingRecap.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
 import { BeaconCard, Chip, MilestoneNode, MonoLabel, StatusDot } from '@renderer/components/journey'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
@@ -44,17 +43,12 @@ const { events: runEvents, reload: reloadEvents } = useScopedEvents(
 const detail = ref<FlightDetail | null>(null)
 const infra = ref<FlightInfra | null>(null)
 const changes = ref<FlightChanges | null>(null)
-const landing = ref<LandingTargets | null>(null)
 const notFound = ref(false)
 const by = ref('human')
 const note = ref('')
 const targetStageIndex = ref(0)
 const acting = ref(false)
 const error = ref<string | null>(null)
-/** `${repo}:${method}` of the in-flight landing, or null. */
-const landingAction = ref<string | null>(null)
-const landingError = ref<string | null>(null)
-const tearingDown = ref(false)
 
 const passed = computed(() => detail.value?.flight.status === 'passed')
 
@@ -187,47 +181,6 @@ async function refresh(): Promise<void> {
     changes.value = await runsStore.changes(props.id)
   } catch {
     changes.value = null
-  }
-  // Landing is only relevant once a run has succeeded (Phase 6.4).
-  if (d?.flight.status === 'passed') {
-    try {
-      landing.value = await rookery().flights.landTargets(props.id)
-    } catch {
-      landing.value = null
-    }
-  } else {
-    landing.value = null
-  }
-}
-
-async function landRepo(repo: string, method: LandingMethod): Promise<void> {
-  landingError.value = null
-  landingAction.value = `${repo}:${method}`
-  try {
-    await rookery().flights.land({
-      flightId: props.id,
-      repo,
-      method,
-      by: by.value.trim() || 'human'
-    })
-    await refresh()
-  } catch (e) {
-    landingError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    landingAction.value = null
-  }
-}
-
-async function teardownInfra(): Promise<void> {
-  landingError.value = null
-  tearingDown.value = true
-  try {
-    await rookery().flights.teardown(props.id)
-    await refresh()
-  } catch (e) {
-    landingError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    tearingDown.value = false
   }
 }
 
@@ -973,72 +926,8 @@ onUnmounted(() => {
         </div>
       </BeaconCard>
 
-      <!-- Landing changes (Phase 6.4) -->
-      <section
-        v-if="passed && landing"
-        class="flex flex-col gap-3 rounded-md border border-green-500/40 bg-green-500/5 p-4"
-      >
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-green-800">Land changes</h2>
-          <span class="text-xs text-muted-foreground">via {{ landing.provider }}</span>
-        </div>
-
-        <p v-if="!landing.canLand" class="text-sm text-muted-foreground">{{ landing.reason }}</p>
-
-        <template v-else>
-          <p
-            v-if="!landing.providerAvailable"
-            class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800"
-          >
-            The “{{ landing.provider }}” landing tooling (git/gh) isn’t available on this machine —
-            install it to open PRs or merge.
-          </p>
-
-          <p v-if="landing.targets.length === 0" class="text-sm text-muted-foreground">
-            No worktrees to land.
-          </p>
-          <ul v-else class="flex flex-col gap-2">
-            <li
-              v-for="t in landing.targets"
-              :key="t.repo"
-              class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-card px-3 py-2 text-sm"
-            >
-              <span class="font-medium">{{ t.repo }}</span>
-              <span class="font-mono text-xs text-muted-foreground"
-                >{{ t.branch }} → {{ t.base }}</span
-              >
-              <span v-if="!t.remoteUrl" class="text-xs text-amber-700">no remote</span>
-              <span
-                v-if="t.landed"
-                class="rounded bg-green-500/15 px-2 py-0.5 text-xs text-green-700"
-                >landed</span
-              >
-              <span class="flex-1"></span>
-              <Button
-                size="sm"
-                variant="outline"
-                :disabled="landingAction !== null || !landing.providerAvailable"
-                @click="landRepo(t.repo, 'pr')"
-                >{{ landingAction === `${t.repo}:pr` ? 'Opening…' : 'Open PR' }}</Button
-              >
-              <Button
-                size="sm"
-                variant="ghost"
-                :disabled="landingAction !== null || !landing.providerAvailable"
-                @click="landRepo(t.repo, 'merge')"
-                >{{ landingAction === `${t.repo}:merge` ? 'Merging…' : 'Merge' }}</Button
-              >
-            </li>
-          </ul>
-
-          <div class="flex items-center gap-3">
-            <Button variant="ghost" :disabled="tearingDown" @click="teardownInfra">{{
-              tearingDown ? 'Tearing down…' : 'Tear down infrastructure'
-            }}</Button>
-            <span v-if="landingError" class="text-sm text-red-600">{{ landingError }}</span>
-          </div>
-        </template>
-      </section>
+      <!-- How it lands: the final checkpoint (J5.3), reused from the story (J9.3). -->
+      <LandingRecap v-if="passed" :flight-id="props.id" @changed="scheduleRefresh" />
 
       <!-- Infrastructure -->
       <section v-if="showInfra" class="flex flex-col gap-2">
