@@ -231,12 +231,45 @@ async function teardownInfra(): Promise<void> {
   }
 }
 
+// Coalesce refreshes per animation frame (J7.6): a busy flight appends many
+// events per second, and each refresh fans out to several IPC calls (detail,
+// infra, changes, land targets). Collapsing bursts into one refresh per frame
+// keeps the live view smooth; a refresh that finishes with newer events still
+// pending schedules exactly one more.
+let refreshScheduled = false
+let refreshing = false
+let refreshAgain = false
+
+async function runRefresh(): Promise<void> {
+  if (refreshing) {
+    refreshAgain = true
+    return
+  }
+  refreshing = true
+  try {
+    await refresh()
+  } finally {
+    refreshing = false
+    if (refreshAgain) {
+      refreshAgain = false
+      scheduleRefresh()
+    }
+  }
+}
+
+function scheduleRefresh(): void {
+  if (refreshScheduled) return
+  refreshScheduled = true
+  requestAnimationFrame(() => {
+    refreshScheduled = false
+    void runRefresh()
+  })
+}
+
 // Re-fetch the run projection whenever new events for this run arrive.
 watch(
   () => runEvents.value.length,
-  () => {
-    void refresh()
-  }
+  () => scheduleRefresh()
 )
 watch(
   () => props.id,
