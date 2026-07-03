@@ -54,6 +54,41 @@ export interface RightNow {
   pressure: PressureReading | null
 }
 
+// --- "What I tried" (J8.1): the story behind an escalation -------------------
+
+/** One thing the agents attempted (and how it went), for the beacon's detail. */
+export interface TriedItem {
+  label: string
+  detail: string
+}
+
+/**
+ * Build the "what I tried" list for a stage from its events — the failed
+ * criteria and verification attempts that explain why a decision is now the
+ * human's. Ordered oldest-first; empty when the stage simply awaits sign-off.
+ * Pure so the beacon can render it and it can be unit-tested.
+ */
+export function whatITried(stageEvents: StoredEvent[]): TriedItem[] {
+  const tried: TriedItem[] = []
+  for (const event of stageEvents) {
+    const p = event.payload as Record<string, unknown>
+    if (event.type === 'flight.criterion_evaluated' && p.passed === false) {
+      tried.push({
+        label: `${String(p.criterionType)} not met`,
+        detail: String(p.detail ?? '').trim()
+      })
+    } else if (event.type === 'flight.verification_failed') {
+      const cycle = Number(p.cycle ?? 0)
+      const maxCycles = Number(p.maxCycles ?? 0)
+      tried.push({
+        label: `Verification failed (${cycle}/${maxCycles})`,
+        detail: String(p.issues ?? '').trim()
+      })
+    }
+  }
+  return tried
+}
+
 /**
  * Fold the event stream into a live snapshot: which agents are working right
  * now and the latest context-pressure reading. An agent is active from its

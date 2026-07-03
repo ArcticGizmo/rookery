@@ -9,7 +9,7 @@ import type {
   StageStatus
 } from '@shared/domain'
 import { type ChainItem, type ChainTool, buildChainOfThought } from '@shared/chain-of-thought'
-import { eventsByStage, rightNow } from '@shared/flight-timeline'
+import { eventsByStage, rightNow, whatITried } from '@shared/flight-timeline'
 import { holdCount } from '@shared/checkpoint-rail'
 import { stageRoles } from '@shared/approach-view'
 import type { StoredEvent } from '@shared/events'
@@ -18,7 +18,7 @@ import type { FlightChanges } from '@shared/changes'
 import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
-import { Chip, MilestoneNode, MonoLabel } from '@renderer/components/journey'
+import { BeaconCard, Chip, MilestoneNode, MonoLabel } from '@renderer/components/journey'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
 import { useFlightsStore } from '@renderer/stores/flights'
 import { useBriefsStore } from '@renderer/stores/briefs'
@@ -335,6 +335,35 @@ const backTargets = computed(() => {
   return d.stages.slice(0, d.flight.currentStageIndex + 1)
 })
 
+// --- The "needs you" beacon (J8) --------------------------------------------
+
+// A verification-budget escalation reuses the checkpoint machinery but reads
+// differently to the human — the agents couldn't resolve it on their own.
+const isEscalation = computed(() => verificationEscalation.value !== null)
+
+// Plain language for *why this decision is yours*, addressed to the human.
+const beaconTitle = computed(() => {
+  const d = detail.value
+  const stage = d ? stageName(d.flight.currentStageIndex) : ''
+  return isEscalation.value ? `${stage} needs you` : `${stage} — your checkpoint`
+})
+const whyYours = computed(() => {
+  if (isEscalation.value) {
+    return 'The agents tried and couldn’t get this to pass on their own. Whether to accept it as-is, loop back for another attempt, or change direction is your call.'
+  }
+  return currentCheckpoint.value?.description || 'You asked to hold here before the flight continues.'
+})
+
+// "What I tried" for the stage awaiting a decision (J8.1), built from its events.
+const currentStageId = computed(() => {
+  const d = detail.value
+  return d?.stages[d.flight.currentStageIndex]?.stageId ?? null
+})
+const tried = computed(() =>
+  currentStageId.value ? whatITried(stageEventsMap.value.get(currentStageId.value) ?? []) : []
+)
+const triedOpen = ref(false)
+
 function stageName(index: number): string {
   return detail.value?.approach.stages[index]?.name ?? `Stage ${index + 1}`
 }
@@ -451,12 +480,16 @@ function activityLine(event: StoredEvent): string {
 
 const historyLink = computed(() => `/history?flightId=${props.id}`)
 
+// This flight's events grouped by stage — the basis for per-milestone
+// transcripts (J7.3) and the "what I tried" beacon detail (J8.1).
+const stageEventsMap = computed(() => eventsByStage(runEvents.value))
+
 // Granular disclosure (J7.3): each milestone expands to its own chain-of-thought
 // — the meaningful moments (agent messages, paired tool calls, transitions) that
 // happened inside that stage. Built once per event change, keyed by stage id.
 const stageChains = computed(() => {
   const map = new Map<string, ChainItem[]>()
-  for (const [stageId, evs] of eventsByStage(runEvents.value)) {
+  for (const [stageId, evs] of stageEventsMap.value) {
     map.set(stageId, buildChainOfThought(evs, 40))
   }
   return map
@@ -831,78 +864,93 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- Pending checkpoint -->
-      <section
-        v-if="awaitingCheckpoint"
-        class="flex flex-col gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-4"
-      >
-        <p class="text-sm font-medium text-amber-800">
-          Human checkpoint: {{ currentCheckpoint?.description || 'Approve to continue' }}
-        </p>
-        <p
-          v-if="verificationEscalation"
-          class="whitespace-pre-wrap rounded border border-amber-500/40 bg-amber-500/5 px-2 py-1 text-xs text-amber-800"
-        >
-          Verification issues: {{ verificationEscalation }}
-        </p>
+      <!-- The "needs you" beacon: one calm card when a decision is yours (J8). -->
+      <BeaconCard v-if="awaitingCheckpoint" :title="beaconTitle" subtitle="a decision that's yours">
+        <div class="flex flex-col gap-4">
+          <p class="text-sm text-ink">{{ whyYours }}</p>
 
-        <!-- What you're approving: the artifacts this stage produced. -->
-        <div v-if="checkpointArtifacts.length" class="flex flex-col gap-2">
-          <p class="text-xs font-medium text-amber-800">For your review:</p>
-          <div
-            v-for="artifact in checkpointArtifacts"
-            :key="artifact.personaName"
-            class="rounded-md border border-amber-500/40 bg-background p-3"
-          >
-            <p class="mb-1 text-xs font-medium text-muted-foreground">
-              {{ artifact.personaName }} · {{ artifact.role }}
-            </p>
-            <MarkdownView :source="artifact.artifact" />
-          </div>
-        </div>
-
-        <div class="flex flex-wrap items-end gap-2">
-          <div class="flex flex-col gap-1">
-            <label class="text-xs font-medium" for="by">By</label>
-            <input
-              id="by"
-              v-model="by"
-              type="text"
-              class="h-8 rounded-md border border-input bg-background px-2 text-sm"
-            />
-          </div>
-          <div class="flex flex-1 flex-col gap-1">
-            <label class="text-xs font-medium" for="note">Note</label>
-            <input
-              id="note"
-              v-model="note"
-              type="text"
-              placeholder="Optional"
-              class="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
-            />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-xs font-medium" for="target">Back to</label>
-            <select
-              id="target"
-              v-model.number="targetStageIndex"
-              class="h-8 rounded-md border border-input bg-background px-2 text-sm"
+          <!-- Collapsible "what I tried" (J8.1). -->
+          <div v-if="tried.length" class="flex flex-col gap-2">
+            <button
+              type="button"
+              class="self-start text-xs text-primary hover:underline"
+              @click="triedOpen = !triedOpen"
             >
-              <option v-for="stage in backTargets" :key="stage.id" :value="stage.stageIndex">
-                {{ stageName(stage.stageIndex) }}
-              </option>
-            </select>
+              {{ triedOpen ? '▾ hide what I tried' : `▸ what I tried (${tried.length})` }}
+            </button>
+            <ul
+              v-if="triedOpen"
+              class="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface-2"
+            >
+              <li v-for="(t, i) in tried" :key="i" class="px-3 py-2 text-xs">
+                <span class="mono-label text-block">{{ t.label }}</span>
+                <p v-if="t.detail" class="mt-0.5 whitespace-pre-wrap text-muted-foreground">{{ t.detail }}</p>
+              </li>
+            </ul>
           </div>
+
+          <!-- For your review: the artifacts this stage produced. -->
+          <div v-if="checkpointArtifacts.length" class="flex flex-col gap-2">
+            <MonoLabel class="text-ink-faint">for your review</MonoLabel>
+            <div
+              v-for="artifact in checkpointArtifacts"
+              :key="artifact.personaName"
+              class="rounded-lg border border-border bg-background p-3"
+            >
+              <p class="mb-1 mono-label text-ink-faint">{{ artifact.personaName }} · {{ artifact.role }}</p>
+              <MarkdownView :source="artifact.artifact" />
+            </div>
+          </div>
+
+          <!-- Your three levers (J8.2): approve · request changes (note) · route back. -->
+          <div class="flex flex-wrap items-end gap-2">
+            <div class="flex flex-col gap-1">
+              <label class="mono-label text-ink-faint" for="by">you</label>
+              <input
+                id="by"
+                v-model="by"
+                type="text"
+                class="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              />
+            </div>
+            <div class="flex flex-1 flex-col gap-1">
+              <label class="mono-label text-ink-faint" for="note">note</label>
+              <input
+                id="note"
+                v-model="note"
+                type="text"
+                placeholder="Optional — sent back with your decision"
+                class="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+              />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="mono-label text-ink-faint" for="target">route back to</label>
+              <select
+                id="target"
+                v-model.number="targetStageIndex"
+                class="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option v-for="stage in backTargets" :key="stage.id" :value="stage.stageIndex">
+                  {{ stageName(stage.stageIndex) }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button :disabled="acting" @click="act('approve')">Approve a direction</Button>
+            <Button variant="outline" :disabled="acting" @click="act('request_changes')">
+              Request changes
+            </Button>
+            <Button variant="ghost" :disabled="acting" @click="act('reject')">Reject</Button>
+            <span v-if="error" class="text-sm text-block">{{ error }}</span>
+          </div>
+
+          <!-- Patience guarantee (J8.5). -->
+          <p class="mono-label text-ink-faint">
+            This flight holds here indefinitely — your other flights keep flying.
+          </p>
         </div>
-        <div class="flex items-center gap-2">
-          <Button :disabled="acting" @click="act('approve')">Approve</Button>
-          <Button variant="outline" :disabled="acting" @click="act('request_changes')"
-            >Request changes</Button
-          >
-          <Button variant="ghost" :disabled="acting" @click="act('reject')">Reject</Button>
-          <span v-if="error" class="text-sm text-red-600">{{ error }}</span>
-        </div>
-      </section>
+      </BeaconCard>
 
       <!-- Landing changes (Phase 6.4) -->
       <section

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventsByStage, rightNow } from '../../src/shared/flight-timeline'
+import { eventsByStage, rightNow, whatITried } from '../../src/shared/flight-timeline'
 import type { StoredEvent } from '../../src/shared/events'
 
 let seq = 0
@@ -91,5 +91,23 @@ describe('rightNow', () => {
 
   it('has no pressure reading before any is emitted', () => {
     expect(rightNow([ev('agent.spawned', { agentRunId: 'a', personaName: 'A', model: 'm' })]).pressure).toBeNull()
+  })
+})
+
+describe('whatITried', () => {
+  it('collects failed criteria and verification attempts, oldest first', () => {
+    const tried = whatITried([
+      ev('flight.criterion_evaluated', { criterionType: 'reviewer_approves', passed: false, detail: 'needs tests' }),
+      ev('flight.criterion_evaluated', { criterionType: 'tests_pass', passed: true, detail: 'ok' }),
+      ev('flight.verification_failed', { cycle: 2, maxCycles: 2, issues: 'flow still 500s' })
+    ])
+    expect(tried).toEqual([
+      { label: 'reviewer_approves not met', detail: 'needs tests' },
+      { label: 'Verification failed (2/2)', detail: 'flow still 500s' }
+    ])
+  })
+
+  it('is empty when a stage merely awaits sign-off', () => {
+    expect(whatITried([ev('flight.stage_passed', { stageIndex: 0 })])).toEqual([])
   })
 })
