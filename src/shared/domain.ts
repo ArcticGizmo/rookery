@@ -258,9 +258,9 @@ export interface StageExecution {
   finishedAt: string | null
 }
 
-/** Aggregate for the run view: the run, its stage executions, and the approach. */
+/** Aggregate for the flight view: the flight, its stage executions, and the approach. */
 export interface FlightDetail {
-  run: Flight
+  flight: Flight
   stages: StageExecution[]
   approach: ApproachDef
 }

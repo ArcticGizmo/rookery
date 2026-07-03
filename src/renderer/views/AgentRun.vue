@@ -12,7 +12,7 @@ const agentStore = useAgentStore()
 const eventsStore = useEventsStore()
 const briefsStore = useBriefsStore()
 
-const { credentials, activeRunId } = storeToRefs(agentStore)
+const { credentials, activeFlightId } = storeToRefs(agentStore)
 const { events } = storeToRefs(eventsStore)
 const { items } = storeToRefs(briefsStore)
 
@@ -53,19 +53,19 @@ watch(selectedBriefId, async (id) => {
 
 // --- Live run projection (read from the shared audit event stream) ----------
 
-interface HasRunId {
+interface HasFlightId {
   agentRunId?: string
 }
 
 const runEvents = computed<StoredEvent[]>(() =>
-  activeRunId.value
-    ? events.value.filter((e) => (e.payload as HasRunId)?.agentRunId === activeRunId.value)
+  activeFlightId.value
+    ? events.value.filter((e) => (e.payload as HasFlightId)?.agentRunId === activeFlightId.value)
     : []
 )
 
 const TERMINAL = ['agent.finished', 'agent.cancelled', 'agent.error']
 const isRunning = computed(
-  () => activeRunId.value !== null && !runEvents.value.some((e) => TERMINAL.includes(e.type))
+  () => activeFlightId.value !== null && !runEvents.value.some((e) => TERMINAL.includes(e.type))
 )
 
 const transcript = computed(() =>

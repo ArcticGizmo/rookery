@@ -5,7 +5,7 @@ import { InMemoryEventStore } from '../../src/main/services/in-memory-event-stor
 import { InfraService } from '../../src/main/services/infra-service'
 import {
   createInfraProvider,
-  instanceNameForRun
+  instanceNameForFlight
 } from '../../src/main/services/infra'
 import { SprigProvider } from '../../src/main/services/infra/sprig-provider'
 import { StubProvider } from '../../src/main/services/infra/stub-provider'
@@ -76,11 +76,11 @@ describe('createInfraProvider', () => {
   })
 })
 
-describe('instanceNameForRun', () => {
+describe('instanceNameForFlight', () => {
   it('is deterministic, path-safe, and short', () => {
     const id = '3f2504e0-4f89-41d3-9a0c-0305e82c3301'
-    const name = instanceNameForRun(id)
-    expect(name).toBe(instanceNameForRun(id))
+    const name = instanceNameForFlight(id)
+    expect(name).toBe(instanceNameForFlight(id))
     expect(name).toMatch(/^rookery-[0-9a-z]{12}$/)
     // The suffix (the run id) carries no dashes — it must stay path-safe.
     expect(name.slice('rookery-'.length)).not.toContain('-')

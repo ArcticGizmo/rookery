@@ -32,6 +32,6 @@ export function createInfraProvider(
  * and the status IPC agree on the name without persisting it separately. sprig
  * ids must be path-safe, so we strip dashes and take a short, stable prefix.
  */
-export function instanceNameForRun(flightId: string): string {
+export function instanceNameForFlight(flightId: string): string {
   return `rookery-${flightId.replace(/-/g, '').slice(0, 12)}`
 }

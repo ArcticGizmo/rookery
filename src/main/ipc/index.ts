@@ -108,7 +108,7 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.runsGet, (_event, flightId: string) => flights.getDetail(flightId))
   ipcMain.handle(IPC.runsCheckpoint, (_event, input: CheckpointActionInput) => engine.resolveCheckpoint(input))
   ipcMain.handle(IPC.runsCancel, (_event, flightId: string) => engine.cancel(flightId))
-  ipcMain.handle(IPC.runsInfra, (_event, flightId: string) => engine.runInfra(flightId))
+  ipcMain.handle(IPC.runsInfra, (_event, flightId: string) => engine.flightInfra(flightId))
   ipcMain.handle(IPC.runsLandTargets, (_event, flightId: string) => landing.targets(flightId))
   ipcMain.handle(IPC.runsLand, (_event, input: LandFlightInput) => landing.land(input))
   ipcMain.handle(IPC.runsTeardown, (_event, flightId: string) => engine.teardownInfra(flightId))

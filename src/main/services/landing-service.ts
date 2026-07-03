@@ -1,7 +1,7 @@
 import { type LandFlightInput, landFlightInputSchema } from '@shared/domain'
 import type { LandingResult, LandingTarget, LandingTargets } from '@shared/landing'
 import type { AuditLog } from './audit-log'
-import { instanceNameForRun } from './infra'
+import { instanceNameForFlight } from './infra'
 import type { InfraService } from './infra-service'
 import type { FlightStore } from './flight-store'
 import type { BriefService } from './brief-service'
@@ -62,7 +62,7 @@ export class LandingService {
     }
     if (!this.infra.isConfigured()) return unavailable('No infrastructure provider is configured.')
 
-    const instanceName = instanceNameForRun(flightId)
+    const instanceName = instanceNameForFlight(flightId)
     const instance = await this.infra.info(instanceName).catch(() => null)
     if (!instance) {
       return unavailable('The run’s infrastructure has been torn down; there is nothing to land.')

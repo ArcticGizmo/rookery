@@ -3,7 +3,7 @@ import type { ApproachDefBody } from '../../src/shared/domain'
 import { AuditLog } from '../../src/main/services/audit-log'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import { InfraService } from '../../src/main/services/infra-service'
-import { instanceNameForRun } from '../../src/main/services/infra'
+import { instanceNameForFlight } from '../../src/main/services/infra'
 import { StubProvider } from '../../src/main/services/infra/stub-provider'
 import { StubLandingProvider } from '../../src/main/services/landing/stub-landing-provider'
 import { LandingService } from '../../src/main/services/landing-service'
@@ -11,7 +11,7 @@ import { FlightStore } from '../../src/main/services/flight-store'
 import { SpecService } from '../../src/main/services/spec-service'
 import { BriefService } from '../../src/main/services/brief-service'
 import { ApproachService } from '../../src/main/services/approach-service'
-import { initRunSnapshot } from '../../src/shared/flight-state-machine'
+import { initFlightSnapshot } from '../../src/shared/flight-state-machine'
 import { makeTestDb, type TestDb } from './helpers/test-db'
 
 function approachBody(): ApproachDefBody {
@@ -53,13 +53,13 @@ describe('LandingService (Phase 6.4)', () => {
       infraTemplate: opts.infra ? 'api-web' : null,
       teardownOnComplete: false
     })
-    const snap = initRunSnapshot(body.stages.map((s) => s.id))
+    const snap = initFlightSnapshot(body.stages.map((s) => s.id))
     await flights.persistSnapshot(run.id, { ...snap, status: 'passed' }, new Date().toISOString())
     if (opts.infra) {
       await provider.create({
-        name: instanceNameForRun(run.id),
+        name: instanceNameForFlight(run.id),
         template: 'api-web',
-        branch: instanceNameForRun(run.id),
+        branch: instanceNameForFlight(run.id),
         base: 'main',
         repos: ['api']
       })
@@ -90,7 +90,7 @@ describe('LandingService (Phase 6.4)', () => {
     const t = targets.targets[0]!
     expect(t.repo).toBe('api')
     expect(t.base).toBe('main')
-    expect(t.branch).toBe(instanceNameForRun(run.id))
+    expect(t.branch).toBe(instanceNameForFlight(run.id))
     expect(t.localPath).toBe('C:/git/api')
     expect(t.remoteUrl).toBe('https://github.com/x/api.git')
     expect(t.landed).toBe(false)
@@ -102,7 +102,7 @@ describe('LandingService (Phase 6.4)', () => {
     const result = await landing.land({ flightId: run.id, repo: 'api', method: 'pr', by: 'jon' })
     expect(result.prUrl).toContain('example.test')
     expect(landingProvider.calls).toHaveLength(1)
-    expect(landingProvider.calls[0]!.worktreePath).toBe(`/wt/${instanceNameForRun(run.id)}/api`)
+    expect(landingProvider.calls[0]!.worktreePath).toBe(`/wt/${instanceNameForFlight(run.id)}/api`)
     expect(landingProvider.calls[0]!.title).toBe('My feature')
 
     const events = await audit.list({ flightId: run.id, limit: 100 })
@@ -137,7 +137,7 @@ describe('LandingService (Phase 6.4)', () => {
 
   it('is not landable once infrastructure has been torn down', async () => {
     const run = await passedRun()
-    await provider.remove(instanceNameForRun(run.id))
+    await provider.remove(instanceNameForFlight(run.id))
     const targets = await landing.targets(run.id)
     expect(targets.canLand).toBe(false)
     expect(targets.reason).toMatch(/torn down/i)

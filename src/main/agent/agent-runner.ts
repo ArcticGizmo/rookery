@@ -1,7 +1,7 @@
 import type { Options, SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import type { AgentRunHandle, AgentRunnerEvent, QueryFn } from './types'
 
-export interface StartRunParams {
+export interface StartFlightParams {
   prompt: string
   options: Options
   queryFn: QueryFn
@@ -190,7 +190,7 @@ export function translateMessage(message: SDKMessage, emit: (e: AgentRunnerEvent
  * Start an agent run over the injected `query()` function (Phase 3.2). Consumes
  * the SDK stream, emits normalized events, and exposes a cancel handle (3.6).
  */
-export function startAgentRun(params: StartRunParams): AgentRunHandle {
+export function startAgentRun(params: StartFlightParams): AgentRunHandle {
   const { prompt, options, queryFn, emit } = params
   const abortController = new AbortController()
 

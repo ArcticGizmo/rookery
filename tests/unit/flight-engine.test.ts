@@ -10,7 +10,7 @@ import { SpecService } from '../../src/main/services/spec-service'
 import { BriefService } from '../../src/main/services/brief-service'
 import { ApproachService } from '../../src/main/services/approach-service'
 import { FlightEngine } from '../../src/main/engine/flight-engine'
-import { initRunSnapshot, reduceRun } from '../../src/shared/flight-state-machine'
+import { initFlightSnapshot, reduceFlight } from '../../src/shared/flight-state-machine'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import type { QueryFn } from '../../src/main/agent/types'
 import { makeTestDb, type TestDb } from './helpers/test-db'
@@ -520,13 +520,13 @@ describe('FlightEngine', () => {
     const running = await flights.create(base)
     await flights.persistSnapshot(
       running.id,
-      reduceRun(initRunSnapshot(stageIds), { type: 'START' }),
+      reduceFlight(initFlightSnapshot(stageIds), { type: 'START' }),
       new Date().toISOString()
     )
 
     // Legitimately paused at a human checkpoint — must survive a restart untouched.
     const gated = await flights.create(base)
-    const gatedSnap = reduceRun(reduceRun(initRunSnapshot(stageIds), { type: 'START' }), {
+    const gatedSnap = reduceFlight(reduceFlight(initFlightSnapshot(stageIds), { type: 'START' }), {
       type: 'GATE_AWAIT'
     })
     await flights.persistSnapshot(gated.id, gatedSnap, new Date().toISOString())

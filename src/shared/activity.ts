@@ -22,7 +22,7 @@ export interface ActiveAgent {
   lastActivityTs: string
 }
 
-export interface ActiveRun {
+export interface ActiveFlight {
   flightId: string
   status: 'running' | 'awaiting_checkpoint'
   currentStageName: string | null
@@ -31,7 +31,7 @@ export interface ActiveRun {
 }
 
 export interface ActivitySummary {
-  flights: ActiveRun[]
+  flights: ActiveFlight[]
   agents: ActiveAgent[]
   /** Highest context-usage percent across active agents (0 when none). */
   maxContextPercent: number
@@ -45,7 +45,7 @@ interface AgentAcc extends ActiveAgent {
   finished: boolean
 }
 
-interface RunAcc {
+interface FlightAcc {
   flightId: string
   status: 'running' | 'awaiting_checkpoint'
   currentStageName: string | null
@@ -83,7 +83,7 @@ function activityLabel(event: StoredEvent): string {
 
 /** Reduce the event log to the set of currently-active flights and agents. */
 export function computeActivity(events: StoredEvent[]): ActivitySummary {
-  const flights = new Map<string, RunAcc>()
+  const flights = new Map<string, FlightAcc>()
   const agents = new Map<string, AgentAcc>()
 
   for (const event of events) {
@@ -175,7 +175,7 @@ export function computeActivity(events: StoredEvent[]): ActivitySummary {
     }))
     .sort((a, b) => (a.lastActivityTs < b.lastActivityTs ? 1 : -1))
 
-  const activeFlights: ActiveRun[] = [...flights.values()]
+  const activeFlights: ActiveFlight[] = [...flights.values()]
     .filter((r) => !r.finished)
     .map((r) => ({
       flightId: r.flightId,

@@ -18,13 +18,13 @@ export interface StageSnapshot {
   iteration: number
 }
 
-export interface RunSnapshot {
+export interface FlightSnapshot {
   status: FlightStatus
   currentStageIndex: number
   stages: StageSnapshot[]
 }
 
-export type RunAction =
+export type FlightAction =
   | { type: 'START' }
   | { type: 'STAGE_PASSED' }
   | { type: 'STAGE_FAILED' }
@@ -42,7 +42,7 @@ export function isTerminal(status: FlightStatus): boolean {
 }
 
 /** Build the initial snapshot for a run over the given ordered stage ids. */
-export function initRunSnapshot(stageIds: string[]): RunSnapshot {
+export function initFlightSnapshot(stageIds: string[]): FlightSnapshot {
   return {
     status: 'pending',
     currentStageIndex: 0,
@@ -68,7 +68,7 @@ function setStage(
  * (e.g. STAGE_PASSED on a terminal run) return the snapshot unchanged so callers
  * never crash on a stray action; the engine only issues valid actions.
  */
-export function reduceRun(snapshot: RunSnapshot, action: RunAction): RunSnapshot {
+export function reduceFlight(snapshot: FlightSnapshot, action: FlightAction): FlightSnapshot {
   if (action.type === 'CANCEL') {
     if (isTerminal(snapshot.status)) return snapshot
     const stages = snapshot.stages.map((s) =>

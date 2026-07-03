@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import type { CheckpointDecision, LandingMethod, FlightDetail, StageStatus } from '@shared/domain'
 import { type ChainTool, buildChainOfThought } from '@shared/chain-of-thought'
 import type { StoredEvent } from '@shared/events'
-import type { InfraInstance, RunInfra } from '@shared/infra'
+import type { InfraInstance, FlightInfra } from '@shared/infra'
 import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
@@ -23,7 +23,7 @@ const { events: runEvents, reload: reloadEvents } = useScopedEvents(
 )
 
 const detail = ref<FlightDetail | null>(null)
-const infra = ref<RunInfra | null>(null)
+const infra = ref<FlightInfra | null>(null)
 const landing = ref<LandingTargets | null>(null)
 const notFound = ref(false)
 const by = ref('human')
@@ -36,12 +36,12 @@ const landingAction = ref<string | null>(null)
 const landingError = ref<string | null>(null)
 const tearingDown = ref(false)
 
-const passed = computed(() => detail.value?.run.status === 'passed')
+const passed = computed(() => detail.value?.flight.status === 'passed')
 
 const terminating = ref(false)
 // A run can be terminated while it's still doing work or paused at a checkpoint.
 const canTerminate = computed(() => {
-  const status = detail.value?.run.status
+  const status = detail.value?.flight.status
   return status === 'running' || status === 'awaiting_checkpoint'
 })
 
@@ -70,7 +70,7 @@ async function refresh(): Promise<void> {
     infra.value = null
   }
   // Landing is only relevant once a run has succeeded (Phase 6.4).
-  if (d?.run.status === 'passed') {
+  if (d?.flight.status === 'passed') {
     try {
       landing.value = await rookery().flights.landTargets(props.id)
     } catch {
@@ -137,12 +137,12 @@ const STAGE_CLASS: Record<StageStatus, string> = {
   failed: 'border-red-500 text-red-600'
 }
 
-const awaitingCheckpoint = computed(() => detail.value?.run.status === 'awaiting_checkpoint')
+const awaitingCheckpoint = computed(() => detail.value?.flight.status === 'awaiting_checkpoint')
 
 const currentCheckpoint = computed(() => {
   const d = detail.value
   if (!d) return null
-  const stage = d.approach.stages[d.run.currentStageIndex]
+  const stage = d.approach.stages[d.flight.currentStageIndex]
   return stage?.checkpoints.find((g) => g.kind === 'human') ?? null
 })
 
@@ -167,7 +167,7 @@ const verificationEscalation = computed<string | null>(() => {
 const checkpointArtifacts = computed<{ personaName: string; role: string; artifact: string }[]>(() => {
   const d = detail.value
   if (!d || !awaitingCheckpoint.value) return []
-  const idx = d.run.currentStageIndex
+  const idx = d.flight.currentStageIndex
   const byPersona = new Map<string, { personaName: string; role: string; artifact: string }>()
   for (const e of runEvents.value) {
     if (e.type !== 'flight.stage_output') continue
@@ -188,7 +188,7 @@ const checkpointArtifacts = computed<{ personaName: string; role: string; artifa
 const backTargets = computed(() => {
   const d = detail.value
   if (!d) return []
-  return d.stages.slice(0, d.run.currentStageIndex + 1)
+  return d.stages.slice(0, d.flight.currentStageIndex + 1)
 })
 
 function stageName(index: number): string {
@@ -404,7 +404,7 @@ onMounted(() => {
     <template v-else-if="detail">
       <div class="flex items-center gap-3">
         <span class="text-lg font-semibold">{{ detail.approach.name }}</span>
-        <span class="text-xs text-muted-foreground">status: {{ detail.run.status }}</span>
+        <span class="text-xs text-muted-foreground">status: {{ detail.flight.status }}</span>
         <span class="flex-1"></span>
         <Button
           v-if="canTerminate"
@@ -425,7 +425,7 @@ onMounted(() => {
           class="flex flex-col gap-0.5 rounded-md border-l-4 bg-card px-3 py-2 text-sm"
           :class="[
             STAGE_CLASS[stage.status],
-            stage.stageIndex === detail.run.currentStageIndex ? 'ring-1 ring-ring' : ''
+            stage.stageIndex === detail.flight.currentStageIndex ? 'ring-1 ring-ring' : ''
           ]"
         >
           <span class="font-medium">{{ stageName(stage.stageIndex) }}</span>

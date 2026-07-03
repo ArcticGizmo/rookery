@@ -1,5 +1,5 @@
 import type { ListEventsOptions, StoredEvent } from './events'
-import type { RunInfra } from './infra'
+import type { FlightInfra } from './infra'
 import type { RepoProbe } from './workspace'
 import type { LandingResult, LandingTargets } from './landing'
 import type {
@@ -105,7 +105,7 @@ export interface IpcInvokeMap {
   'flights:get': { args: [flightId: string]; result: FlightDetail | null }
   'flights:checkpoint': { args: [input: CheckpointActionInput]; result: void }
   'flights:cancel': { args: [flightId: string]; result: void }
-  'flights:infra': { args: [flightId: string]; result: RunInfra }
+  'flights:infra': { args: [flightId: string]; result: FlightInfra }
   'flights:land-targets': { args: [flightId: string]; result: LandingTargets }
   'flights:land': { args: [input: LandFlightInput]; result: LandingResult }
   'flights:teardown': { args: [flightId: string]; result: void }

@@ -13,7 +13,7 @@ export interface AgentScope {
   stageId?: string | null
 }
 
-interface RunState {
+interface FlightState {
   handle: AgentRunHandle
   /** Resolved model id (updated from the init event); drives context window. */
   model: string
@@ -29,7 +29,7 @@ interface RunState {
  * translation logic is unit-testable without spawning the CLI.
  */
 export class AgentService {
-  private readonly active = new Map<string, RunState>()
+  private readonly active = new Map<string, FlightState>()
 
   constructor(
     private readonly audit: AuditLog,
@@ -91,7 +91,7 @@ export class AgentService {
       permissionMode: config.permissionMode
     })
 
-    const state: RunState = {
+    const state: FlightState = {
       handle: { done: Promise.resolve(), cancel: () => {} },
       model: config.persona.model ?? 'default',
       tail: Promise.resolve(),
@@ -134,14 +134,14 @@ export class AgentService {
 
   /** Cancel every active agent belonging to a run (used when a run is terminated).
    * Snapshots the matching ids first, since `cancel` mutates the active map. */
-  cancelByRun(flightId: string): void {
+  cancelByFlight(flightId: string): void {
     const ids = [...this.active.entries()]
       .filter(([, state]) => state.scope.flightId === flightId)
       .map(([agentRunId]) => agentRunId)
     for (const agentRunId of ids) this.cancel(agentRunId)
   }
 
-  private project(agentRunId: string, state: RunState, event: AgentRunnerEvent): void {
+  private project(agentRunId: string, state: FlightState, event: AgentRunnerEvent): void {
     switch (event.kind) {
       case 'init':
         state.model = event.model
@@ -260,7 +260,7 @@ export class AgentService {
   }
 
   /** Append in emission order; failures are logged, never thrown into the loop. */
-  private enqueue(state: RunState, event: AppendInput): void {
+  private enqueue(state: FlightState, event: AppendInput): void {
     const scoped: AppendInput = {
       ...event,
       flightId: event.flightId ?? state.scope.flightId,

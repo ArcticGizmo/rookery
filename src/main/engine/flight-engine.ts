@@ -12,26 +12,26 @@ import {
   startFlightInputSchema
 } from '@shared/domain'
 import type { AppEvent } from '@shared/events'
-import type { RunInfra, RunInfraStatus } from '@shared/infra'
+import type { FlightInfra, FlightInfraStatus } from '@shared/infra'
 import {
-  type RunSnapshot,
-  initRunSnapshot,
+  type FlightSnapshot,
+  initFlightSnapshot,
   isTerminal,
-  reduceRun,
-  type RunAction
+  reduceFlight,
+  type FlightAction
 } from '@shared/flight-state-machine'
 import type { AgentResult } from '../agent/types'
 import type { AgentService } from '../services/agent-service'
 import type { AuditLog } from '../services/audit-log'
 import type { InfraService } from '../services/infra-service'
 import type { LocalBranchService } from '../services/local-branch-service'
-import { instanceNameForRun } from '../services/infra'
+import { instanceNameForFlight } from '../services/infra'
 import type { FlightStore } from '../services/flight-store'
 import type { BriefService } from '../services/brief-service'
 import type { ApproachService } from '../services/approach-service'
 import { evaluateCriteria } from './criteria'
 
-interface RunCtx {
+interface FlightCtx {
   body: ApproachDefBody
   maxIterations: number
   /** Automatic verification→fix route-backs allowed before human escalation (Phase 6.3). */
@@ -151,7 +151,7 @@ export class FlightEngine {
       }
     })
 
-    let snapshot = initRunSnapshot(body.stages.map((s) => s.id))
+    let snapshot = initFlightSnapshot(body.stages.map((s) => s.id))
     snapshot = await this.apply(run.id, snapshot, { type: 'START' })
     await this.emit(run.id, { type: 'flight.started', actor: 'system', payload: { flightId: run.id } })
 
@@ -179,7 +179,7 @@ export class FlightEngine {
     for (const run of orphaned) {
       const snapshot = await this.flights.loadSnapshot(run.id)
       if (!snapshot) continue
-      const failed = reduceRun(snapshot, { type: 'STAGE_FAILED' })
+      const failed = reduceFlight(snapshot, { type: 'STAGE_FAILED' })
       await this.flights.persistSnapshot(run.id, failed, new Date().toISOString())
       await this.emit(run.id, {
         type: 'flight.interrupted',
@@ -286,7 +286,7 @@ export class FlightEngine {
     if (isTerminal(run.status)) return
 
     this.cancelled.add(flightId)
-    this.agents.cancelByRun(flightId)
+    this.agents.cancelByFlight(flightId)
     await this.emit(flightId, {
       type: 'flight.cancelled',
       actor: 'human',
@@ -323,7 +323,7 @@ export class FlightEngine {
   }
 
   /** Live infrastructure status for a run, for the run view (Phase 5.5). */
-  async runInfra(flightId: string): Promise<RunInfra> {
+  async flightInfra(flightId: string): Promise<FlightInfra> {
     const provider = this.infra.providerName()
     if (!this.infra.isConfigured()) {
       return {
@@ -335,24 +335,24 @@ export class FlightEngine {
         instance: null
       }
     }
-    const instanceName = instanceNameForRun(flightId)
+    const instanceName = instanceNameForFlight(flightId)
     const providerAvailable = await this.infra.available()
     const instance = providerAvailable
       ? await this.infra.info(instanceName).catch(() => null)
       : null
-    let status: RunInfraStatus = 'none'
+    let status: FlightInfraStatus = 'none'
     if (instance) status = instance.state === 'up' ? 'up' : 'down'
     return { flightId, provider, providerAvailable, instanceName, status, instance }
   }
 
-  private async buildContext(flightId: string): Promise<RunCtx | null> {
+  private async buildContext(flightId: string): Promise<FlightCtx | null> {
     const rc = await this.flights.getContext(flightId)
     if (!rc) return null
     const detail = await this.briefs.get(rc.briefId)
     const spec = detail?.currentSpec?.content ?? ''
-    const instanceName = instanceNameForRun(flightId)
+    const instanceName = instanceNameForFlight(flightId)
 
-    const ctx: RunCtx = {
+    const ctx: FlightCtx = {
       body: rc.body,
       maxIterations: rc.maxIterations,
       maxVerificationCycles: rc.maxVerificationCycles,
@@ -417,7 +417,7 @@ export class FlightEngine {
    * recreating it. On success, points stage agents at the worktree; returns
    * false if provisioning failed (the caller fails the stage).
    */
-  private async ensureInfra(flightId: string, ctx: RunCtx): Promise<boolean> {
+  private async ensureInfra(flightId: string, ctx: FlightCtx): Promise<boolean> {
     if (!ctx.infraTemplate || !this.infra.isConfigured()) return true
     const existing = await this.infra.info(ctx.instanceName).catch(() => null)
     try {
@@ -448,7 +448,7 @@ export class FlightEngine {
    * agents edit the real checkout on that branch; returns false (failing the
    * stage) if the branch couldn't be prepared (e.g. dirty tree, missing git).
    */
-  private async ensureLocalBranch(flightId: string, ctx: RunCtx): Promise<boolean> {
+  private async ensureLocalBranch(flightId: string, ctx: FlightCtx): Promise<boolean> {
     if (!ctx.workBranch || !ctx.cwd) return false
     const repo = ctx.repos[0] ?? 'repo'
     const ok = await this.localBranch.prepare(flightId, repo, ctx.cwd, ctx.workBranch)
@@ -461,7 +461,7 @@ export class FlightEngine {
    * isolated worktree (`infra`), a branch on the real checkout (`local_branch`),
    * or nothing (`read_only`). Returns false if provisioning failed.
    */
-  private ensureSetup(flightId: string, ctx: RunCtx): Promise<boolean> {
+  private ensureSetup(flightId: string, ctx: FlightCtx): Promise<boolean> {
     if (ctx.executionMode === 'infra') return this.ensureInfra(flightId, ctx)
     if (ctx.executionMode === 'local_branch') return this.ensureLocalBranch(flightId, ctx)
     return Promise.resolve(true)
@@ -474,7 +474,7 @@ export class FlightEngine {
    * happens on demand via `teardownInfra`. Failed/cancelled flights tear down
    * immediately as before.
    */
-  private async finalize(flightId: string, ctx: RunCtx, status: string): Promise<void> {
+  private async finalize(flightId: string, ctx: FlightCtx, status: string): Promise<void> {
     await this.emit(flightId, {
       type: 'flight.finished',
       actor: 'system',
@@ -504,7 +504,7 @@ export class FlightEngine {
     }
   }
 
-  private async drive(flightId: string, initial: RunSnapshot, ctx: RunCtx): Promise<void> {
+  private async drive(flightId: string, initial: FlightSnapshot, ctx: FlightCtx): Promise<void> {
     if (this.driving.has(flightId)) return
     this.driving.add(flightId)
     let snapshot = initial
@@ -677,7 +677,7 @@ export class FlightEngine {
     } catch (error) {
       await this.flights.persistSnapshot(
         flightId,
-        reduceRun(snapshot, { type: 'STAGE_FAILED' }),
+        reduceFlight(snapshot, { type: 'STAGE_FAILED' }),
         new Date().toISOString()
       )
       await this.finalize(flightId, ctx, 'failed')
@@ -691,10 +691,10 @@ export class FlightEngine {
   /** Flight one stage's agents + criteria, looping on failure up to maxIterations. */
   private async runStage(
     flightId: string,
-    snapshot: RunSnapshot,
+    snapshot: FlightSnapshot,
     stage: Stage,
-    ctx: RunCtx
-  ): Promise<{ snapshot: RunSnapshot; passed: boolean; reason: string }> {
+    ctx: FlightCtx
+  ): Promise<{ snapshot: FlightSnapshot; passed: boolean; reason: string }> {
     let current = snapshot
     let feedback = ''
 
@@ -807,10 +807,10 @@ export class FlightEngine {
 
   private async apply(
     flightId: string,
-    snapshot: RunSnapshot,
-    action: RunAction
-  ): Promise<RunSnapshot> {
-    const next = reduceRun(snapshot, action)
+    snapshot: FlightSnapshot,
+    action: FlightAction
+  ): Promise<FlightSnapshot> {
+    const next = reduceFlight(snapshot, action)
     await this.flights.persistSnapshot(flightId, next, new Date().toISOString())
     return next
   }

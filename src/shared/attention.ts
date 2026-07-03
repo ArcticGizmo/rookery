@@ -39,7 +39,7 @@ function payloadOf(event: StoredEvent): Record<string, unknown> {
   return (event.payload ?? {}) as Record<string, unknown>
 }
 
-interface RunAcc {
+interface FlightAcc {
   flightId: string
   briefId: string | null
   status: InFlightStatus
@@ -61,15 +61,15 @@ interface AgentAcc {
 }
 
 /** Reduce the event log to per-run accumulators + per-agent pressure. */
-function reduce(events: StoredEvent[]): { flights: Map<string, RunAcc>; agents: Map<string, AgentAcc> } {
-  const flights = new Map<string, RunAcc>()
+function reduce(events: StoredEvent[]): { flights: Map<string, FlightAcc>; agents: Map<string, AgentAcc> } {
+  const flights = new Map<string, FlightAcc>()
   const agents = new Map<string, AgentAcc>()
 
   for (const event of events) {
     const p = payloadOf(event)
 
     if (event.flightId && event.type.startsWith('flight.')) {
-      const run: RunAcc = flights.get(event.flightId) ?? {
+      const run: FlightAcc = flights.get(event.flightId) ?? {
         flightId: event.flightId,
         briefId: null,
         status: 'pending',
@@ -150,7 +150,7 @@ function reduce(events: StoredEvent[]): { flights: Map<string, RunAcc>; agents: 
   return { flights, agents }
 }
 
-function needsYouRun(run: RunAcc): boolean {
+function needsYouFlight(run: FlightAcc): boolean {
   return (run.status === 'awaiting_checkpoint' && run.checkpoint !== null) || run.escalation !== null
 }
 
@@ -164,7 +164,7 @@ export function briefsInFlight(events: StoredEvent[]): BriefInFlight[] {
       briefId: r.briefId,
       status: r.status,
       currentStageName: r.currentStageName,
-      needsYou: needsYouRun(r),
+      needsYou: needsYouFlight(r),
       updatedTs: r.updatedTs
     }))
     .sort((a, b) => (a.updatedTs < b.updatedTs ? 1 : -1))

@@ -55,13 +55,13 @@ export interface InfraInstanceSpec {
 }
 
 /** Lifecycle status of a run's infrastructure, surfaced to the run view. */
-export type RunInfraStatus = 'none' | 'provisioning' | 'up' | 'down' | 'failed'
+export type FlightInfraStatus = 'none' | 'provisioning' | 'up' | 'down' | 'failed'
 
 /**
  * Per-run infrastructure summary for the UI (Phase 5.5). Combines who the
  * provider is, whether its tooling is installed, and the live instance state.
  */
-export interface RunInfra {
+export interface FlightInfra {
   flightId: string
   /** Configured provider name (e.g. 'sprig', 'stub', or 'none'). */
   provider: string
@@ -69,7 +69,7 @@ export interface RunInfra {
   providerAvailable: boolean
   /** The instance name this run uses, or null when no provider is configured. */
   instanceName: string | null
-  status: RunInfraStatus
+  status: FlightInfraStatus
   /** Live instance detail, or null when absent/unavailable. */
   instance: InfraInstance | null
 }

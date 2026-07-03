@@ -8,11 +8,11 @@ import {
   type ApproachDefBody,
   approachDefBodySchema
 } from '@shared/domain'
-import type { RunSnapshot, StageSnapshot } from '@shared/flight-state-machine'
+import type { FlightSnapshot, StageSnapshot } from '@shared/flight-state-machine'
 import type { Db } from '../db'
 import { type FlightRow, type StageExecutionRow, flights, stageExecutions } from '../db/schema'
 
-function toRun(row: FlightRow): Flight {
+function toFlight(row: FlightRow): Flight {
   return {
     id: row.id,
     briefId: row.briefId,
@@ -38,7 +38,7 @@ function toStage(row: StageExecutionRow): StageExecution {
   }
 }
 
-export interface CreateRunParams {
+export interface CreateFlightParams {
   briefId: string
   approachId: string
   approachVersion: number
@@ -57,7 +57,7 @@ export interface CreateRunParams {
 }
 
 /** Context the engine needs to drive a run. */
-export interface RunContext {
+export interface FlightContext {
   briefId: string
   body: ApproachDefBody
   maxIterations: number
@@ -72,7 +72,7 @@ export interface RunContext {
 export class FlightStore {
   constructor(private readonly db: Db) {}
 
-  async create(params: CreateRunParams): Promise<Flight> {
+  async create(params: CreateFlightParams): Promise<Flight> {
     const id = randomUUID()
     const now = new Date().toISOString()
     await this.db.transaction(async (tx) => {
@@ -107,20 +107,20 @@ export class FlightStore {
       }
     })
     const row = (await this.db.select().from(flights).where(eq(flights.id, id)).limit(1))[0]!
-    return toRun(row)
+    return toFlight(row)
   }
 
   async list(): Promise<Flight[]> {
     const rows = await this.db.select().from(flights).orderBy(desc(flights.updatedAt))
-    return rows.map(toRun)
+    return rows.map(toFlight)
   }
 
   async get(flightId: string): Promise<Flight | null> {
     const rows = await this.db.select().from(flights).where(eq(flights.id, flightId)).limit(1)
-    return rows[0] ? toRun(rows[0]) : null
+    return rows[0] ? toFlight(rows[0]) : null
   }
 
-  async getContext(flightId: string): Promise<RunContext | null> {
+  async getContext(flightId: string): Promise<FlightContext | null> {
     const rows = await this.db.select().from(flights).where(eq(flights.id, flightId)).limit(1)
     const row = rows[0]
     if (!row) return null
@@ -147,7 +147,7 @@ export class FlightStore {
       .orderBy(asc(stageExecutions.stageIndex))
     const body = approachDefBodySchema.parse(row.approachBody)
     return {
-      run: toRun(row),
+      flight: toFlight(row),
       stages: stageRows.map(toStage),
       approach: {
         id: row.approachId,
@@ -160,7 +160,7 @@ export class FlightStore {
   }
 
   /** Rebuild the in-memory run snapshot from persisted rows (e.g. after a checkpoint). */
-  async loadSnapshot(flightId: string): Promise<RunSnapshot | null> {
+  async loadSnapshot(flightId: string): Promise<FlightSnapshot | null> {
     const rows = await this.db.select().from(flights).where(eq(flights.id, flightId)).limit(1)
     const row = rows[0]
     if (!row) return null
@@ -176,14 +176,14 @@ export class FlightStore {
       iteration: r.iteration
     }))
     return {
-      status: row.status as RunSnapshot['status'],
+      status: row.status as FlightSnapshot['status'],
       currentStageIndex: row.currentStageIndex,
       stages
     }
   }
 
   /** Write a flight-state-machine snapshot back to the DB, maintaining timestamps. */
-  async persistSnapshot(flightId: string, snapshot: RunSnapshot, now: string): Promise<void> {
+  async persistSnapshot(flightId: string, snapshot: FlightSnapshot, now: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
         .update(flights)

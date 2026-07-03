@@ -5,7 +5,7 @@ import { AgentService } from '../../src/main/services/agent-service'
 import { AuditLog } from '../../src/main/services/audit-log'
 import { InfraService } from '../../src/main/services/infra-service'
 import { LocalBranchService } from '../../src/main/services/local-branch-service'
-import { instanceNameForRun } from '../../src/main/services/infra'
+import { instanceNameForFlight } from '../../src/main/services/infra'
 import { StubProvider } from '../../src/main/services/infra/stub-provider'
 import { FlightStore } from '../../src/main/services/flight-store'
 import { SpecService } from '../../src/main/services/spec-service'
@@ -97,7 +97,7 @@ describe('FlightEngine infra wiring (Phase 5.4)', () => {
 
   it('provisions on the setup stage and flights later agents in the worktree', async () => {
     const run = await seed()
-    const name = instanceNameForRun(run.id)
+    const name = instanceNameForFlight(run.id)
 
     const events = await waitFor(
       audit,
@@ -120,7 +120,7 @@ describe('FlightEngine infra wiring (Phase 5.4)', () => {
 
   it('defers teardown on success so changes can be landed, then tears down on demand', async () => {
     const run = await seed(true)
-    const name = instanceNameForRun(run.id)
+    const name = instanceNameForFlight(run.id)
     await waitFor(
       audit,
       (e) =>
@@ -142,7 +142,7 @@ describe('FlightEngine infra wiring (Phase 5.4)', () => {
 
   it('leaves infra up when teardown is disabled', async () => {
     const run = await seed(false)
-    const name = instanceNameForRun(run.id)
+    const name = instanceNameForFlight(run.id)
     await waitFor(
       audit,
       (e) =>

@@ -1,5 +1,5 @@
 import type { ListEventsOptions, StoredEvent } from './events'
-import type { RunInfra } from './infra'
+import type { FlightInfra } from './infra'
 import type { RepoProbe } from './workspace'
 import type { LandingResult, LandingTargets } from './landing'
 import type {
@@ -79,7 +79,7 @@ export interface RookeryApi {
     /** Terminate an in-flight run: cancels its live agents and marks it cancelled. */
     cancel: (flightId: string) => Promise<void>
     /** Live infrastructure status for a run (instances, worktrees, container health). */
-    infra: (flightId: string) => Promise<RunInfra>
+    infra: (flightId: string) => Promise<FlightInfra>
     /** Which repos of a successful run can be landed (open PR / merge). */
     landTargets: (flightId: string) => Promise<LandingTargets>
     /** Land one impacted repo of a successful run via a PR or a direct merge. */
