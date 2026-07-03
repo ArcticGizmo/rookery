@@ -1,0 +1,986 @@
+<title>Rookery — the commissioning journey</title>
+<style>
+  :root {
+    /* Light — paper on the drafting table */
+    --ground: #eaeeec;
+    --surface: #ffffff;
+    --surface-2: #f4f7f5;
+    --surface-3: #eef2f0;
+    --border: #d6ddda;
+    --border-strong: #c2cbc7;
+    --ink: #14201d;
+    --ink-dim: #465451;
+    --ink-faint: #7a8783;
+    --accent: #23806f;
+    --accent-soft: #2f8e7d;
+    --accent-wash: #dcefe9;
+    --accent-ink: #ffffff;
+    --beacon: #b9730d;      /* needs you */
+    --beacon-wash: #f8e7cf;
+    --pass: #2f9d63;
+    --pass-wash: #dcefe1;
+    --block: #c4453f;
+    --block-wash: #f6dedc;
+    --shadow: 0 1px 2px rgba(20,32,29,.06), 0 12px 32px -12px rgba(20,32,29,.18);
+    --mono: "Cascadia Code", "Cascadia Mono", ui-monospace, "SF Mono", "Segoe UI Mono", Menlo, monospace;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0e1417;
+      --surface: #151d21;
+      --surface-2: #1a242a;
+      --surface-3: #202c32;
+      --border: #2a373d;
+      --border-strong: #3a4a51;
+      --ink: #e7edf0;
+      --ink-dim: #a3b3ba;
+      --ink-faint: #6d7f87;
+      --accent: #4bb8a3;
+      --accent-soft: #3f9e8c;
+      --accent-wash: #12332e;
+      --accent-ink: #06110e;
+      --beacon: #e0a13c;
+      --beacon-wash: #3a2c12;
+      --pass: #5cc98b;
+      --pass-wash: #123123;
+      --block: #e06b6b;
+      --block-wash: #38181a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 18px 40px -18px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #eaeeec; --surface: #ffffff; --surface-2: #f4f7f5; --surface-3: #eef2f0;
+    --border: #d6ddda; --border-strong: #c2cbc7; --ink: #14201d; --ink-dim: #465451;
+    --ink-faint: #7a8783; --accent: #23806f; --accent-soft: #2f8e7d; --accent-wash: #dcefe9;
+    --accent-ink: #ffffff; --beacon: #b9730d; --beacon-wash: #f8e7cf; --pass: #2f9d63;
+    --pass-wash: #dcefe1; --block: #c4453f; --block-wash: #f6dedc;
+    --shadow: 0 1px 2px rgba(20,32,29,.06), 0 12px 32px -12px rgba(20,32,29,.18);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0e1417; --surface: #151d21; --surface-2: #1a242a; --surface-3: #202c32;
+    --border: #2a373d; --border-strong: #3a4a51; --ink: #e7edf0; --ink-dim: #a3b3ba;
+    --ink-faint: #6d7f87; --accent: #4bb8a3; --accent-soft: #3f9e8c; --accent-wash: #12332e;
+    --accent-ink: #06110e; --beacon: #e0a13c; --beacon-wash: #3a2c12; --pass: #5cc98b;
+    --pass-wash: #123123; --block: #e06b6b; --block-wash: #38181a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 18px 40px -18px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { margin: 0; }
+  .page {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    font-size: 16px;
+  }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); font-weight: 600;
+  }
+  h1, h2, h3 { font-weight: 800; letter-spacing: -.02em; text-wrap: balance; line-height: 1.1; margin: 0; }
+  p { margin: 0; }
+  a { color: inherit; }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 60;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-in { display: flex; align-items: center; gap: 16px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.02em; font-size: 18px; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+    background: var(--accent); color: var(--accent-ink); font-size: 15px;
+  }
+  .brand .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600; border-left: 1px solid var(--border); padding-left: 12px; }
+  .theme-toggle {
+    margin-left: auto; font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-dim); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; cursor: pointer;
+  }
+  .theme-toggle:hover { border-color: var(--border-strong); color: var(--ink); }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 88px 0 56px; position: relative; overflow: hidden; }
+  .hero-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 56px; align-items: center; }
+  .hero h1 { font-size: clamp(38px, 6vw, 68px); margin-top: 18px; }
+  .hero h1 .thin { font-weight: 300; color: var(--ink-dim); }
+  .hero .lede { margin-top: 24px; font-size: 19px; color: var(--ink-dim); max-width: 34ch; }
+  .hero .lede strong { color: var(--ink); font-weight: 650; }
+  .reframe {
+    margin-top: 34px; display: flex; flex-direction: column; gap: 10px;
+    font-family: var(--mono); font-size: 13px;
+  }
+  .reframe .row { display: flex; align-items: center; gap: 14px; }
+  .reframe .from { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--block); }
+  .reframe .arrow { color: var(--accent); }
+  .reframe .to { color: var(--ink); font-weight: 600; }
+
+  /* hero device — the "before/after" glance */
+  .hero-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: var(--shadow); padding: 22px; position: relative;
+  }
+  .hero-card .cap { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+  .flight-node { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; }
+  .flight-node + .flight-node { border-top: 1px solid var(--border); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; flex: none; box-shadow: 0 0 0 3px var(--surface); }
+  .dot.pass { background: var(--pass); }
+  .dot.active { background: var(--accent); }
+  .dot.pending { background: var(--border-strong); }
+  .dot.beacon { background: var(--beacon); }
+  .fn-title { font-weight: 650; font-size: 14.5px; }
+  .fn-sub { font-size: 12.5px; color: var(--ink-dim); }
+  .pulse { position: relative; }
+  .pulse::after {
+    content: ""; position: absolute; inset: -5px; border-radius: 50%;
+    border: 2px solid var(--accent); opacity: .6; animation: ping 1.8s ease-out infinite;
+  }
+  @keyframes ping { 0% { transform: scale(.6); opacity: .7; } 100% { transform: scale(1.9); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .pulse::after { animation: none; opacity: 0; } }
+
+  /* ---------- Section scaffolding ---------- */
+  section.band { padding: 40px 0; }
+  .section-head { max-width: 62ch; margin-bottom: 8px; }
+  .section-head h2 { font-size: clamp(26px, 3.4vw, 36px); margin-top: 10px; }
+  .section-head p { margin-top: 14px; color: var(--ink-dim); font-size: 17px; }
+
+  /* diagnosis strip */
+  .diag { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-top: 8px; }
+  .diag > div { background: var(--surface); padding: 22px; }
+  .diag h3 { font-size: 16px; display: flex; align-items: center; gap: 9px; }
+  .diag .sym { font-family: var(--mono); font-size: 11px; }
+  .diag p { margin-top: 8px; color: var(--ink-dim); font-size: 14.5px; }
+  .diag .bad h3 { color: var(--block); }
+  .diag .good h3 { color: var(--accent); }
+
+  /* principles */
+  .principles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 20px; }
+  .principle { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .principle .n { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: .1em; }
+  .principle h3 { font-size: 15px; margin-top: 10px; }
+  .principle p { margin-top: 8px; font-size: 13px; color: var(--ink-dim); }
+
+  /* ---------- Journey layout ---------- */
+  .journey { display: grid; grid-template-columns: 210px 1fr; gap: 40px; align-items: start; }
+  .rail { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 2px; }
+  .rail .rail-title { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 12px; padding-left: 14px; }
+  .rail a {
+    display: flex; gap: 12px; align-items: baseline; text-decoration: none; color: var(--ink-dim);
+    font-size: 13.5px; padding: 8px 14px; border-radius: 8px; border-left: 2px solid transparent; line-height: 1.3;
+  }
+  .rail a .rn { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  .rail a:hover { background: var(--surface-2); color: var(--ink); }
+  .rail a.active { color: var(--ink); background: var(--surface-2); border-left-color: var(--accent); font-weight: 600; }
+  .rail a.active .rn { color: var(--accent); }
+
+  .steps { display: flex; flex-direction: column; gap: 26px; }
+  .step { scroll-margin-top: 80px; }
+  .step-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .step-head .idx { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 700; }
+  .step-head h2 { font-size: clamp(22px, 2.6vw, 28px); }
+  .step-lede { color: var(--ink-dim); font-size: 16px; margin: 4px 0 18px; max-width: 68ch; }
+  .step-lede .feel {
+    display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: .05em; color: var(--accent); background: var(--accent-wash); border-radius: 999px;
+    padding: 3px 10px; margin-top: 12px; text-transform: uppercase; font-weight: 600;
+  }
+
+  .layout { display: grid; grid-template-columns: 1fr 260px; gap: 22px; align-items: start; }
+  .annot { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 84px; }
+  .annot .a { border-left: 2px solid var(--accent); padding-left: 14px; }
+  .annot .a .h { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .annot .a p { font-size: 13.5px; color: var(--ink-dim); margin-top: 6px; }
+
+  /* ---------- Mock device chrome ---------- */
+  .mock {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .mock-bar {
+    display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .mock-bar .dots { display: flex; gap: 6px; }
+  .mock-bar .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); display: block; }
+  .mock-bar .loc {
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); margin-left: 8px;
+    background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px;
+  }
+  .mock-bar .loc b { color: var(--ink-dim); font-weight: 600; }
+  .mock-body { padding: 26px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 14px;
+    font-weight: 600; border-radius: 9px; padding: 10px 18px; border: 1px solid transparent; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink);
+  }
+  .btn.ghost { background: transparent; color: var(--ink-dim); border-color: var(--border-strong); }
+  .btn.big { padding: 13px 24px; font-size: 15px; }
+  .chip {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+    border-radius: 999px; padding: 3px 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip.pass { background: var(--pass-wash); color: var(--pass); }
+  .chip.active { background: var(--accent-wash); color: var(--accent); }
+  .chip.pending { background: var(--surface-3); color: var(--ink-faint); }
+  .chip.beacon { background: var(--beacon-wash); color: var(--beacon); }
+  .chip.block { background: var(--block-wash); color: var(--block); }
+  .chip .led { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Step 0 — the desk */
+  .desk-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .desk-status { display: flex; gap: 10px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
+  .desk-status b { color: var(--ink); }
+  .prompt-field {
+    border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-2); padding: 20px;
+  }
+  .prompt-field .q { font-size: 21px; font-weight: 750; letter-spacing: -.01em; }
+  .prompt-field .ph { color: var(--ink-faint); margin-top: 12px; font-size: 15px; max-width: 60ch; }
+  .prompt-field .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--accent); vertical-align: -3px; margin-left: 1px; animation: blink 1.1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .prompt-field .caret { animation: none; } }
+  .repo-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  .repo {
+    font-family: var(--mono); font-size: 12px; display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; color: var(--ink-dim);
+  }
+  .repo .k { color: var(--accent); }
+  .repo.add { border-style: dashed; color: var(--ink-faint); }
+  .desk-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+  .desk-foot .note { font-size: 13px; color: var(--ink-faint); }
+
+  /* Step 1 — approach cards */
+  .approach { display: flex; flex-direction: column; gap: 12px; }
+  .stage-card {
+    display: grid; grid-template-columns: 34px 1fr; gap: 14px; border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; background: var(--surface-2);
+  }
+  .stage-card .num { font-family: var(--mono); font-weight: 700; color: var(--accent); font-size: 14px; padding-top: 2px; }
+  .stage-card h4 { font-size: 16px; margin: 0; }
+  .stage-card p { font-size: 13.5px; color: var(--ink-dim); margin-top: 5px; }
+  .roles { display: flex; gap: 7px; margin-top: 11px; flex-wrap: wrap; }
+  .role { font-family: var(--mono); font-size: 11px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 10px; color: var(--ink-dim); display: inline-flex; gap: 6px; align-items: center; }
+  .role .av { width: 15px; height: 15px; border-radius: 50%; background: var(--accent-wash); color: var(--accent);
+    display: grid; place-items: center; font-size: 8px; font-weight: 700; }
+  .done-block { border: 1px solid var(--accent); border-radius: 12px; padding: 16px 18px; margin-top: 16px; background: var(--accent-wash); }
+  .done-block .lbl { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .done-block ul { margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .done-block li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink); }
+  .done-block li .box { width: 17px; height: 17px; border-radius: 5px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: 11px; flex: none; }
+
+  /* Step 2 — checkpoints */
+  .rail-stages { display: flex; flex-direction: column; }
+  .rs-item { display: grid; grid-template-columns: 130px 1fr; gap: 0; align-items: stretch; }
+  .rs-line { position: relative; }
+  .rs-line::before { content: ""; position: absolute; left: 26px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .rs-line .node { position: absolute; left: 20px; top: 22px; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--border-strong); }
+  .rs-stage { padding: 16px 0 16px 52px; }
+  .rs-stage h4 { font-size: 15px; }
+  .rs-stage p { font-size: 13px; color: var(--ink-dim); margin-top: 3px; }
+  .flag {
+    display: flex; align-items: center; gap: 12px; margin: 4px 0; padding: 12px 16px 12px 52px;
+    position: relative;
+  }
+  .flag .marker { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px;
+    border-radius: 50%; background: var(--beacon); box-shadow: 0 0 0 4px var(--beacon-wash); }
+  .flag .fbox { background: var(--beacon-wash); border: 1px solid var(--beacon); border-radius: 10px; padding: 11px 15px; flex: 1;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .flag .ftext { font-size: 13.5px; }
+  .flag .ftext b { color: var(--beacon); }
+  .toggle { font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase;
+    display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; flex: none; }
+  .toggle span { padding: 5px 11px; color: var(--ink-faint); }
+  .toggle span.on { background: var(--beacon); color: #fff; font-weight: 700; }
+  .toggle.run span.on { background: var(--accent); color: var(--accent-ink); }
+
+  /* Step 3 — isolation */
+  .iso { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
+  .iso-diagram { display: flex; flex-direction: column; gap: 10px; }
+  .iso-main { border: 1px dashed var(--border-strong); border-radius: 12px; padding: 16px; }
+  .iso-lab { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+  .iso-branch { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-dim); }
+  .iso-sealed { border: 1px solid var(--accent); background: var(--accent-wash); border-radius: 12px; padding: 16px; margin-top: 6px; }
+  .iso-sealed .iso-lab { color: var(--accent); }
+  .iso-chip { font-family: var(--mono); font-size: 11.5px; color: var(--ink); display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+  .iso-chip .d { width: 7px; height: 7px; border-radius: 2px; background: var(--accent); }
+  .iso-copy h4 { font-size: 18px; }
+  .iso-copy p { color: var(--ink-dim); font-size: 14.5px; margin-top: 10px; }
+  .iso-copy .btn { margin-top: 18px; }
+
+  /* Step 4 — flight */
+  .flight-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+  .flight-head h3 { font-size: 19px; }
+  .flight-head .meta { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); margin-top: 6px; }
+  .nowbar {
+    display: flex; align-items: center; gap: 16px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; margin: 16px 0; flex-wrap: wrap;
+  }
+  .nowbar .who { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .nowbar .av { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-family: var(--mono); font-size: 11px; font-weight: 700; }
+  .nowbar .who b { font-weight: 650; }
+  .nowbar .who span { color: var(--ink-dim); }
+  .pressure { margin-left: auto; display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; color: var(--ink-dim); }
+  .meter { width: 120px; height: 7px; border-radius: 999px; background: var(--surface-3); overflow: hidden; border: 1px solid var(--border); }
+  .meter i { display: block; height: 100%; width: 46%; background: linear-gradient(90deg, var(--pass), var(--beacon)); }
+
+  .tl { position: relative; margin-left: 8px; padding-left: 26px; }
+  .tl::before { content: ""; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 2px; background: var(--border); }
+  .tl-node { position: relative; padding: 10px 0; }
+  .tl-node > .knob { position: absolute; left: -26px; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border-strong); }
+  .tl-node.done > .knob { background: var(--pass); border-color: var(--pass); }
+  .tl-node.active > .knob { background: var(--accent); border-color: var(--accent); }
+  .tl-node.beacon > .knob { background: var(--beacon); border-color: var(--beacon); }
+  .tl-row { display: flex; align-items: center; gap: 10px; }
+  .tl-row h4 { font-size: 15px; }
+  .tl-note { font-size: 13px; color: var(--ink-dim); margin-top: 3px; }
+  details.msgs { margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); overflow: hidden; }
+  details.msgs > summary { cursor: pointer; list-style: none; padding: 10px 14px; font-family: var(--mono); font-size: 11.5px;
+    color: var(--accent); display: flex; align-items: center; gap: 8px; }
+  details.msgs > summary::-webkit-details-marker { display: none; }
+  details.msgs > summary .tw { transition: transform .2s; }
+  details.msgs[open] > summary .tw { transform: rotate(90deg); }
+  .msg-list { border-top: 1px solid var(--border); padding: 6px 0; }
+  .msg { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 7px 16px; font-size: 13px; align-items: baseline; }
+  .msg .tag { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); }
+  .msg .tag.tool { color: var(--accent); }
+  .msg .tag.edit { color: var(--beacon); }
+  .msg .tag.review { color: var(--pass); }
+  .msg .body { color: var(--ink-dim); }
+  .msg .body code { font-family: var(--mono); font-size: 12px; background: var(--surface-3); padding: 1px 6px; border-radius: 5px; color: var(--ink); }
+
+  .changes { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .changes .ch-h { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint);
+    padding: 11px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  .changes .file { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; font-family: var(--mono); font-size: 12px; }
+  .changes .file + .file { border-top: 1px solid var(--border); }
+  .changes .file .p { color: var(--ink-dim); }
+  .changes .file .stat .add { color: var(--pass); }
+  .changes .file .stat .del { color: var(--block); }
+
+  /* Step 5 — escalation */
+  .escal { border: 1px solid var(--beacon); border-radius: 14px; overflow: hidden; }
+  .escal-h { background: var(--beacon-wash); padding: 16px 20px; display: flex; align-items: center; gap: 13px; border-bottom: 1px solid var(--beacon); }
+  .escal-h .beacon-ic { width: 30px; height: 30px; border-radius: 8px; background: var(--beacon); color: #fff; display: grid; place-items: center; font-size: 16px; flex: none; }
+  .escal-h .t { font-weight: 750; font-size: 16px; }
+  .escal-h .s { font-family: var(--mono); font-size: 11px; color: var(--beacon); text-transform: uppercase; letter-spacing: .08em; }
+  .escal-b { padding: 20px; }
+  .escal-b .ctx { font-size: 15px; color: var(--ink); }
+  .escal-b .ctx b { color: var(--beacon); }
+  .tried { margin: 16px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .tried > summary { cursor: pointer; list-style: none; padding: 11px 15px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-dim); display: flex; gap: 8px; align-items: center; }
+  .tried > summary::-webkit-details-marker { display: none; }
+  .tried .tin { border-top: 1px solid var(--border); padding: 8px 16px 14px; font-size: 13px; color: var(--ink-dim); display: flex; flex-direction: column; gap: 8px; }
+  .tried .tin .li { display: flex; gap: 10px; }
+  .tried .tin .li .rn { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); padding-top: 2px; flex: none; }
+  .decide { display: flex; gap: 10px; flex-wrap: wrap; }
+  .decide .btn.warn { background: var(--beacon); color: #fff; }
+
+  /* Step 6 — story */
+  .story { display: flex; flex-direction: column; gap: 0; }
+  .story-node { display: grid; grid-template-columns: 96px 1fr; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .story-node:last-child { border-bottom: none; }
+  .story-node .when { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); padding-top: 2px; }
+  .story-node .actor { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .story-node .actor.you { color: var(--beacon); }
+  .story-node .actor.rook { color: var(--accent); }
+  .story-node .actor.sys { color: var(--ink-faint); }
+  .story-node .what { font-size: 14.5px; }
+  .story-node .what .sub { font-size: 13px; color: var(--ink-dim); margin-top: 3px; }
+
+  /* vocabulary */
+  .vocab { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-top: 8px; }
+  .vocab table { width: 100%; border-collapse: collapse; }
+  .vocab th, .vocab td { text-align: left; padding: 13px 20px; font-size: 14px; }
+  .vocab th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  .vocab td { border-bottom: 1px solid var(--border); }
+  .vocab tr:last-child td { border-bottom: none; }
+  .vocab .old { font-family: var(--mono); color: var(--ink-faint); }
+  .vocab .arr { color: var(--accent); text-align: center; width: 40px; }
+  .vocab .new { font-weight: 650; color: var(--ink); }
+  .vocab .why { color: var(--ink-dim); font-size: 13px; }
+
+  /* footer */
+  .foot { padding: 56px 0 80px; border-top: 1px solid var(--border); margin-top: 40px; }
+  .foot .note { font-size: 13.5px; color: var(--ink-faint); max-width: 70ch; }
+  .foot .note b { color: var(--ink-dim); }
+
+  /* responsive */
+  @media (max-width: 1000px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 34px; }
+    .journey { grid-template-columns: 1fr; }
+    .rail { position: static; flex-direction: row; flex-wrap: wrap; gap: 4px; }
+    .rail .rail-title { width: 100%; }
+    .layout { grid-template-columns: 1fr; }
+    .annot { position: static; flex-direction: row; flex-wrap: wrap; }
+    .annot .a { flex: 1 1 200px; }
+    .principles { grid-template-columns: 1fr 1fr; }
+    .iso, .diag { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding: 0 16px; }
+    .mock-body { padding: 16px; }
+    .principles { grid-template-columns: 1fr; }
+    .msg, .story-node, .rs-item { grid-template-columns: 1fr; gap: 4px; }
+    .brand .tag { display: none; }
+  }
+</style>
+
+<div class="page">
+  <div class="topbar">
+    <div class="wrap topbar-in">
+      <div class="brand">
+        <span class="mark">◆</span> Rookery
+        <span class="tag">journey redesign · v0</span>
+      </div>
+      <button class="theme-toggle" id="themeBtn" type="button">Theme</button>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">A commissioning experience, not a control panel</span>
+        <h1>Commission the work.<br><span class="thin">Don't operate the machine.</span></h1>
+        <p class="lede">
+          Today Rookery opens on an <strong>event log</strong> and asks you to assemble
+          work items, workflows and runs across seven tabs. This is a redesign of the
+          <strong>journey</strong> — how it should feel to hand a problem to a colony of
+          agents, hold the reins where you want, and watch the work fly home.
+        </p>
+        <div class="reframe" aria-hidden="true">
+          <div class="row"><span class="from">Create work item → create workflow → configure run</span></div>
+          <div class="row"><span class="arrow">→</span><span class="to">“What do you want done?”</span></div>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="cap">A brief in flight — glance view</div>
+        <div style="margin-top:14px">
+          <div class="flight-node"><span class="dot pass"></span><div><div class="fn-title">Reviewed the brief</div><div class="fn-sub">You approved · 3 findings folded in</div></div></div>
+          <div class="flight-node"><span class="dot pass"></span><div><div class="fn-title">Planned the work</div><div class="fn-sub">4 phases · architect + you signed off</div></div></div>
+          <div class="flight-node"><span class="dot active pulse"></span><div><div class="fn-title">Building — phase 2 of 4</div><div class="fn-sub"><span style="color:var(--accent)">rook-impl</span> editing <code style="font-family:var(--mono);font-size:12px">rate-limiter.ts</code></div></div></div>
+          <div class="flight-node"><span class="dot beacon"></span><div><div class="fn-title" style="color:var(--beacon)">Needs you</div><div class="fn-sub">A product decision the agents can't settle</div></div></div>
+          <div class="flight-node"><span class="dot pending"></span><div><div class="fn-title" style="color:var(--ink-faint)">Verify end-to-end</div><div class="fn-sub">Waiting</div></div></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- DIAGNOSIS -->
+  <section class="band">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Why the current app feels cold</span>
+        <h2>It surfaces the plumbing, not the intent</h2>
+        <p>The architecture is sound — an append-only event log, everything a projection of it.
+          But that engineering truth leaked into the front door. The redesign keeps the machinery
+          and changes what you stand in front of.</p>
+      </div>
+      <div class="diag">
+        <div class="bad">
+          <h3><span class="sym">✕</span> The machine is the interface</h3>
+          <p>Seven peer tabs — Activity, Runs, Work items, Workflows, Agent run, History, Events — and the home screen is the raw event feed. You navigate tables, not work.</p>
+        </div>
+        <div class="good">
+          <h3><span class="sym">✓</span> One thing you follow</h3>
+          <p>A single object — <b>the brief</b> — carried from “what do you want done?” all the way to a landed change. Everything else becomes detail you open when you want it.</p>
+        </div>
+        <div class="bad">
+          <h3><span class="sym">✕</span> Jargon as the vocabulary</h3>
+          <p>Personas, pass-criteria, gates, infra templates, iteration budgets. Correct terms — but they ask you to think like the scheduler that runs them.</p>
+        </div>
+        <div class="good">
+          <h3><span class="sym">✓</span> Plain language you already own</h3>
+          <p>Reviewers. “Done means…”. Your checkpoints. An isolated workspace. Same power, described the way you'd brief a trusted engineer.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRINCIPLES -->
+  <section class="band">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">The five feelings, made concrete</span>
+        <h2>What every screen is built to make you feel</h2>
+      </div>
+      <div class="principles">
+        <div class="principle"><div class="n">01</div><h3>Defining work</h3><p>You describe an outcome. No setup, no assembly, no plumbing before the idea.</p></div>
+        <div class="principle"><div class="n">02</div><h3>Your method</h3><p>You shape how it's tackled and exactly what “done” has to mean.</p></div>
+        <div class="principle"><div class="n">03</div><h3>You hold the reins</h3><p>You choose where the work must stop and wait for you — not the tool.</p></div>
+        <div class="principle"><div class="n">04</div><h3>Called only when needed</h3><p>Silence while it works; a clear beacon the moment a human must decide.</p></div>
+        <div class="principle"><div class="n">05</div><h3>The whole journey</h3><p>From broad strokes down to a single agent's message — the story of the change.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- JOURNEY -->
+  <section class="band">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">First run, end to end</span>
+        <h2>The journey</h2>
+        <p>Follow it the way a first-time user would — the very first thing they see, through
+          to the story of a change that landed. Each mock is annotated with the interaction and
+          the feeling it serves.</p>
+      </div>
+
+      <div class="journey">
+        <nav class="rail" id="rail">
+          <div class="rail-title">The path</div>
+          <a href="#s0"><span class="rn">00</span> Open the app</a>
+          <a href="#s1"><span class="rn">01</span> Shape the approach</a>
+          <a href="#s2"><span class="rn">02</span> Place checkpoints</a>
+          <a href="#s3"><span class="rn">03</span> Send into isolation</a>
+          <a href="#s4"><span class="rn">04</span> Watch the flight</a>
+          <a href="#s5"><span class="rn">05</span> A moment for you</a>
+          <a href="#s6"><span class="rn">06</span> The story</a>
+        </nav>
+
+        <div class="steps">
+
+          <!-- STEP 0 -->
+          <article class="step" id="s0">
+            <div class="step-head"><span class="idx">00</span><h2>You open the app for the first time</h2></div>
+            <p class="step-lede">No dashboard of empty tables. One calm question, a place to write, and the repos it touches. Nothing runs — you're just defining the work.
+              <br><span class="feel">◇ feeling · defining work, not plumbing</span></p>
+            <div class="layout">
+              <div class="mock">
+                <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="loc">rookery <b>· your desk</b></span></div>
+                <div class="mock-body">
+                  <div class="desk-top">
+                    <div>
+                      <div class="eyebrow">Welcome to the rookery</div>
+                      <div style="font-size:15px;color:var(--ink-dim);margin-top:4px">Nothing in flight yet. Start by telling us what you want done.</div>
+                    </div>
+                    <div class="desk-status"><span>In flight <b>0</b></span><span>·</span><span>Needs you <b>0</b></span></div>
+                  </div>
+                  <div class="prompt-field">
+                    <div class="q">What do you want done?</div>
+                    <div class="ph">Add token-bucket rate limiting to the public API so a single client can't exhaust the service. Return <code style="font-family:var(--mono);font-size:13px">429</code> with a <code style="font-family:var(--mono);font-size:13px">Retry-After</code> header. Existing clients under the limit must see no change.<span class="caret"></span></div>
+                    <div class="repo-row">
+                      <span class="repo"><span class="k">◈</span> api <span style="color:var(--ink-faint)">· ~/src/api</span></span>
+                      <span class="repo"><span class="k">◈</span> gateway <span style="color:var(--ink-faint)">· ~/src/gateway</span></span>
+                      <span class="repo add">+ attach a repository</span>
+                    </div>
+                  </div>
+                  <div class="desk-foot">
+                    <div class="note">Write it like a brief for a trusted engineer — the outcome, the constraints, what “done” looks like.</div>
+                    <button class="btn">Shape the approach →</button>
+                  </div>
+                </div>
+              </div>
+              <aside class="annot">
+                <div class="a"><div class="h">The front door</div><p>Replaces the event-log landing. The first act is authoring intent, not navigating tables.</p></div>
+                <div class="a"><div class="h">Spec, quietly</div><p>The prompt <em>is</em> the versioned spec. Versioning, hashing and diffing still happen — just not in your face on day one.</p></div>
+                <div class="a"><div class="h">Two numbers that matter</div><p>“In flight” and “Needs you” are the only status a returning user needs at a glance.</p></div>
+              </aside>
+            </div>
+          </article>
+
+          <!-- STEP 1 -->
+          <article class="step" id="s1">
+            <div class="step-head"><span class="idx">01</span><h2>You shape how it's tackled — and what “done” means</h2></div>
+            <p class="step-lede">Rookery proposes an approach as plain, editable steps. You add, remove or reword them. Verification is not buried in criteria syntax — it's a first-class “Done means…” you author directly.
+              <br><span class="feel">◇ feeling · define how it's tackled and verified</span></p>
+            <div class="layout">
+              <div class="mock">
+                <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="loc">rate-limit the public API <b>· approach</b></span></div>
+                <div class="mock-body">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+                    <div style="font-size:17px;font-weight:750">How should this be tackled?</div>
+                    <span class="chip pending">from template · editable</span>
+                  </div>
+                  <div class="approach">
+                    <div class="stage-card">
+                      <span class="num">1</span>
+                      <div>
+                        <h4>Review the brief before any code</h4>
+                        <p>Three reviewers read it and report findings. Nothing edits your brief automatically — you decide what to fold in.</p>
+                        <div class="roles">
+                          <span class="role"><span class="av">TL</span> Tech Lead</span>
+                          <span class="role"><span class="av">PO</span> Product</span>
+                          <span class="role"><span class="av">UX</span> UX lens</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="stage-card">
+                      <span class="num">2</span>
+                      <div>
+                        <h4>Plan the work in phases</h4>
+                        <p>An architect turns the brief into a phased implementation plan you can read and adjust.</p>
+                        <div class="roles"><span class="role"><span class="av">AR</span> Architect</span></div>
+                      </div>
+                    </div>
+                    <div class="stage-card">
+                      <span class="num">3</span>
+                      <div>
+                        <h4>Build phase by phase, each reviewed</h4>
+                        <p>An implementer works a phase; a reviewer checks it before the next begins. Small, verifiable chunks — never one big shot.</p>
+                        <div class="roles"><span class="role"><span class="av">IM</span> Implementer</span><span class="role"><span class="av">RV</span> Reviewer</span></div>
+                      </div>
+                    </div>
+                    <div class="stage-card">
+                      <span class="num">4</span>
+                      <div>
+                        <h4>Verify the feature end-to-end</h4>
+                        <p>Run the suite and exercise the feature. If it fails, loop back with the issue in hand instead of failing outright.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="done-block">
+                    <div class="lbl">◇ Done means</div>
+                    <ul>
+                      <li><span class="box">✓</span> The full test suite passes in the isolated workspace</li>
+                      <li><span class="box">✓</span> A reviewer approves every phase</li>
+                      <li><span class="box">✓</span> You approve the finished feature before it can land</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <aside class="annot">
+                <div class="a"><div class="h">Sentences, not schemas</div><p>Each card is a readable stage. Under the hood it's still personas + criteria — the builder is just humane.</p></div>
+                <div class="a"><div class="h">Verification is first-class</div><p>“Done means…” makes pass-criteria something you <em>author as an outcome</em>, the way the request itself framed it.</p></div>
+                <div class="a"><div class="h">Start from a template</div><p>First-timers get a sensible default approach to edit — never a blank workflow builder.</p></div>
+              </aside>
+            </div>
+          </article>
+
+          <!-- STEP 2 -->
+          <article class="step" id="s2">
+            <div class="step-head"><span class="idx">02</span><h2>You place your checkpoints</h2></div>
+            <p class="step-lede">Between every step you decide: hold for my approval, or let it run. Drop a checkpoint and the work stops there — indefinitely — until you say go. You are the gate, by design.
+              <br><span class="feel">◇ feeling · be the gating force in the process you design</span></p>
+            <div class="layout">
+              <div class="mock">
+                <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="loc">rate-limit the public API <b>· your checkpoints</b></span></div>
+                <div class="mock-body">
+                  <div style="font-size:14px;color:var(--ink-dim);margin-bottom:8px">Drop a <b style="color:var(--beacon)">◆ checkpoint</b> anywhere you want to hold the reins.</div>
+                  <div class="rail-stages">
+                    <div class="rs-item">
+                      <div class="rs-line"><span class="node" style="background:var(--accent);border-color:var(--accent)"></span></div>
+                      <div class="rs-stage"><h4>Review the brief</h4><p>Three reviewers report findings.</p></div>
+                    </div>
+                    <div class="flag">
+                      <span class="marker"></span>
+                      <div class="fbox">
+                        <span class="ftext"><b>Checkpoint · hold for you.</b> Nothing proceeds until you approve the reviewed brief.</span>
+                        <span class="toggle"><span class="on">Hold</span><span>Auto</span></span>
+                      </div>
+                    </div>
+                    <div class="rs-item">
+                      <div class="rs-line"><span class="node" style="background:var(--accent);border-color:var(--accent)"></span></div>
+                      <div class="rs-stage"><h4>Plan the work</h4><p>Architect drafts the phased plan.</p></div>
+                    </div>
+                    <div class="flag">
+                      <span class="marker"></span>
+                      <div class="fbox">
+                        <span class="ftext"><b>Checkpoint · hold for you.</b> Approve the plan, or send it back to review with a note.</span>
+                        <span class="toggle"><span class="on">Hold</span><span>Auto</span></span>
+                      </div>
+                    </div>
+                    <div class="rs-item">
+                      <div class="rs-line"><span class="node"></span></div>
+                      <div class="rs-stage" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                        <div><h4>Build phase by phase</h4><p>Implementer + reviewer loop each phase. No checkpoint — let it run.</p></div>
+                        <span class="toggle run"><span>Hold</span><span class="on">Auto</span></span>
+                      </div>
+                    </div>
+                    <div class="rs-item">
+                      <div class="rs-line"><span class="node"></span></div>
+                      <div class="rs-stage"><h4>Verify end-to-end</h4><p>Runs the suite and exercises the feature.</p></div>
+                    </div>
+                    <div class="flag">
+                      <span class="marker"></span>
+                      <div class="fbox">
+                        <span class="ftext"><b>Checkpoint · hold for you.</b> You decide how it lands — open a PR, or merge it yourself.</span>
+                        <span class="toggle"><span class="on">Hold</span><span>Auto</span></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <aside class="annot">
+                <div class="a"><div class="h">Gates become yours</div><p>Human gates stop being a workflow property and become a gesture: you drop them where you want control.</p></div>
+                <div class="a"><div class="h">Hold vs auto</div><p>One toggle per seam. Everything between checkpoints runs unattended; everything at one waits for you.</p></div>
+                <div class="a"><div class="h">Patience is the default</div><p>A held checkpoint waits indefinitely. The tool never advances past a decision that's yours.</p></div>
+              </aside>
+            </div>
+          </article>
+
+          <!-- STEP 3 -->
+          <article class="step" id="s3">
+            <div class="step-head"><span class="idx">03</span><h2>You send it into an isolated workspace</h2></div>
+            <p class="step-lede">One deliberate act commits the work to flight. The reassurance is explicit: a fresh worktree and its own containers — your real branches are untouched until you choose to land.
+              <br><span class="feel">◇ feeling · truly isolated work</span></p>
+            <div class="layout">
+              <div class="mock">
+                <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="loc">rate-limit the public API <b>· ready to fly</b></span></div>
+                <div class="mock-body">
+                  <div class="iso">
+                    <div class="iso-diagram">
+                      <div class="iso-main">
+                        <div class="iso-lab">Your machine · untouched</div>
+                        <div class="iso-branch">◈ api <span style="color:var(--ink-faint)">— main</span></div>
+                        <div class="iso-branch">◈ gateway <span style="color:var(--ink-faint)">— main</span></div>
+                      </div>
+                      <div style="text-align:center;color:var(--accent);font-family:var(--mono);font-size:12px">↓ sealed copy</div>
+                      <div class="iso-sealed">
+                        <div class="iso-lab">◆ isolated workspace for this brief</div>
+                        <div class="iso-chip"><span class="d"></span> worktree · <span style="color:var(--ink-dim)">rookery/rate-limit-api</span></div>
+                        <div class="iso-chip"><span class="d"></span> containers · <span style="color:var(--ink-dim)">api + gateway + db, from your template</span></div>
+                        <div class="iso-chip"><span class="d"></span> agents write only here</div>
+                      </div>
+                    </div>
+                    <div class="iso-copy">
+                      <h4>Nothing touches main until you land it</h4>
+                      <p>Agents build inside their own worktree and containers. Run three briefs at once and they never step on each other. When the work flies home, <em>you</em> decide how it lands.</p>
+                      <p style="font-family:var(--mono);font-size:12px;color:var(--ink-faint)">You held 3 checkpoints. Estimated first stop: after the brief review.</p>
+                      <button class="btn big">◆ Begin the flight</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <aside class="annot">
+                <div class="a"><div class="h">Isolation as a feeling</div><p>The sealed-copy diagram makes “worktrees + docker” legible as safety, not infrastructure config.</p></div>
+                <div class="a"><div class="h">One commitment moment</div><p>A single confident action starts the work — and restates where it will first stop for you.</p></div>
+              </aside>
+            </div>
+          </article>
+
+          <!-- STEP 4 -->
+          <article class="step" id="s4">
+            <div class="step-head"><span class="idx">04</span><h2>You watch the flight</h2></div>
+            <p class="step-lede">The live view is a journey, not a log. Milestones you can read at a glance; expand any one for the granular agent messages beneath it. A “right now” strip shows who's working and their context pressure.
+              <br><span class="feel">◇ feeling · see the journey — broad strokes to granular messages</span></p>
+            <div class="layout">
+              <div class="mock">
+                <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="loc">rate-limit the public API <b>· in flight</b></span></div>
+                <div class="mock-body">
+                  <div class="flight-head">
+                    <div>
+                      <h3>Rate-limit the public API</h3>
+                      <div class="meta">phase 2 of 4 · started 41m ago · 2 repos · 3 checkpoints</div>
+                    </div>
+                    <span class="chip active"><span class="led"></span> Building</span>
+                  </div>
+                  <div class="nowbar">
+                    <div class="who"><span class="av">IM</span><div><b>rook-impl</b> <span>· editing rate-limiter.ts</span></div></div>
+                    <div class="who"><span class="av" style="background:var(--surface-3);color:var(--ink-dim)">RV</span><div><b>rook-review</b> <span>· waiting for phase 2</span></div></div>
+                    <div class="pressure">context <div class="meter"><i></i></div> 46% · healthy</div>
+                  </div>
+
+                  <div class="tl">
+                    <div class="tl-node done"><span class="knob"></span>
+                      <div class="tl-row"><h4>Reviewed the brief</h4><span class="chip pass"><span class="led"></span> you approved</span></div>
+                      <div class="tl-note">3 findings — 2 folded into the brief, 1 dismissed. Reviewed 38m ago.</div>
+                    </div>
+                    <div class="tl-node done"><span class="knob"></span>
+                      <div class="tl-row"><h4>Planned the work</h4><span class="chip pass"><span class="led"></span> you approved</span></div>
+                      <div class="tl-note">4 phases: limiter core → gateway wiring → headers → tests. Approved 22m ago.</div>
+                    </div>
+                    <div class="tl-node active"><span class="knob"></span>
+                      <div class="tl-row"><h4>Building — phase 2 · gateway wiring</h4><span class="chip active"><span class="led"></span> live</span></div>
+                      <div class="tl-note">Phase 1 reviewed and merged to the feature branch. Phase 2 in progress.</div>
+                      <details class="msgs" open>
+                        <summary><span class="tw">▸</span> granular · rook-impl &amp; rook-review messages</summary>
+                        <div class="msg-list">
+                          <div class="msg"><span class="tag tool">tool · read</span><span class="body">Opened <code>gateway/middleware/index.ts</code> to find the request pipeline</span></div>
+                          <div class="msg"><span class="tag edit">edit</span><span class="body">Inserted <code>rateLimit()</code> before auth · <span style="color:var(--pass)">+38</span> <span style="color:var(--block)">−4</span></span></div>
+                          <div class="msg"><span class="tag tool">tool · run</span><span class="body"><code>pnpm test limiter</code> → 12 passed</span></div>
+                          <div class="msg"><span class="tag review">review</span><span class="body">“Bucket refill uses wall-clock; use monotonic time to survive clock skew.” — requested a change</span></div>
+                          <div class="msg"><span class="tag edit">edit</span><span class="body">Switched to <code>performance.now()</code> in <code>rate-limiter.ts</code></span></div>
+                        </div>
+                      </details>
+                    </div>
+                    <div class="tl-node"><span class="knob"></span>
+                      <div class="tl-row"><h4>Verify end-to-end</h4><span class="chip pending">waiting</span></div>
+                      <div class="tl-note">Runs the suite + exercises the feature once building completes.</div>
+                    </div>
+                  </div>
+
+                  <div style="height:16px"></div>
+                  <div class="changes">
+                    <div class="ch-h">Broad changes so far · this workspace</div>
+                    <div class="file"><span class="p">api/src/rate-limiter.ts</span><span class="stat"><span class="add">+112</span> <span class="del">−0</span></span></div>
+                    <div class="file"><span class="p">gateway/middleware/index.ts</span><span class="stat"><span class="add">+38</span> <span class="del">−4</span></span></div>
+                    <div class="file"><span class="p">api/test/rate-limiter.test.ts</span><span class="stat"><span class="add">+96</span> <span class="del">−0</span></span></div>
+                  </div>
+                </div>
+              </div>
+              <aside class="annot">
+                <div class="a"><div class="h">Two altitudes</div><p>Milestones read like a status you can trust; one click drops to the raw agent transcript. Broad → granular in the same view.</p></div>
+                <div class="a"><div class="h">Right now</div><p>Who is working, on what, and their context pressure — the one health signal that predicts quality drop.</p></div>
+                <div class="a"><div class="h">Changes as they land</div><p>A running diff summary so the work is legible without leaving for a terminal.</p></div>
+              </aside>
+            </div>
+          </article>
+
+          <!-- STEP 5 -->
+          <article class="step" id="s5">
+            <div class="step-head"><span class="idx">05</span><h2>A moment that needs you</h2></div>
+            <p class="step-lede">Most of the flight is silent. When the agents genuinely can't resolve something, the app raises one calm beacon addressed to you — what happened, what it tried, and the decision only you can make.
+              <br><span class="feel">◇ feeling · alerted only to issues that can't be solved automatically</span></p>
+            <div class="layout">
+              <div class="mock">
+                <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="loc">rate-limit the public API <b>· needs you</b></span></div>
+                <div class="mock-body">
+                  <div class="escal">
+                    <div class="escal-h">
+                      <span class="beacon-ic">◆</span>
+                      <div>
+                        <div class="t">Rookery needs a decision</div>
+                        <div class="s">flight paused · phase 3 · headers</div>
+                      </div>
+                    </div>
+                    <div class="escal-b">
+                      <p class="ctx">The implementer and reviewer disagree and I've tried twice. Enforcing the limit changes the public response shape: existing <code style="font-family:var(--mono);font-size:13px">200</code> responses would gain an <code style="font-family:var(--mono);font-size:13px">X-RateLimit-Remaining</code> header. <b>That's a product call about your API contract, not a code one</b> — so I'm handing it to you.</p>
+                      <details class="tried">
+                        <summary>▸ what I already tried</summary>
+                        <div class="tin">
+                          <div class="li"><span class="rn">try 1</span><span>Added the header only on <code style="font-family:var(--mono);font-size:12px">429</code> responses. Reviewer flagged it as inconsistent with common rate-limit conventions.</span></div>
+                          <div class="li"><span class="rn">try 2</span><span>Added it to all responses behind a config flag defaulting off. Reviewer flagged that a silent default makes the feature undiscoverable.</span></div>
+                        </div>
+                      </details>
+                      <div class="decide">
+                        <button class="btn warn">Add the header to all responses</button>
+                        <button class="btn ghost">Request changes with a note…</button>
+                        <button class="btn ghost">Send back to planning</button>
+                      </div>
+                      <p style="font-size:12.5px;color:var(--ink-faint);margin-top:14px;font-family:var(--mono)">This flight holds here until you decide. Other briefs keep flying.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <aside class="annot">
+                <div class="a"><div class="h">Human-addressed</div><p>Written to <em>you</em>, in your terms — not a stack trace. It names why this is yours to decide.</p></div>
+                <div class="a"><div class="h">Shows its work</div><p>“What I tried” builds trust that it earned the interruption, and gives you the context to decide fast.</p></div>
+                <div class="a"><div class="h">Your three levers</div><p>Approve a direction, request changes with a note, or route back to an earlier step — the same gate powers you already have, surfaced when it matters.</p></div>
+              </aside>
+            </div>
+          </article>
+
+          <!-- STEP 6 -->
+          <article class="step" id="s6">
+            <div class="step-head"><span class="idx">06</span><h2>The story of the change</h2></div>
+            <p class="step-lede">When it lands, the audit log becomes a readable narrative — every decision, every agent, timestamped — that you can zoom from broad strokes down to a single message. The event log was always the truth; here it's finally a story.
+              <br><span class="feel">◇ feeling · see the whole journey that was taken</span></p>
+            <div class="layout">
+              <div class="mock">
+                <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="loc">rate-limit the public API <b>· landed</b></span></div>
+                <div class="mock-body">
+                  <div class="flight-head">
+                    <div>
+                      <h3>Rate-limit the public API</h3>
+                      <div class="meta">landed 4m ago · 2h 18m in flight · 3 checkpoints · 1 decision by you</div>
+                    </div>
+                    <span class="chip pass"><span class="led"></span> Merged</span>
+                  </div>
+                  <div class="story">
+                    <div class="story-node"><span class="when">14:02</span><div><div class="actor you">you</div><div class="what">Commissioned the brief across <b>api</b> + <b>gateway</b><div class="sub">Spec v1 · content-hashed and audited</div></div></div></div>
+                    <div class="story-node"><span class="when">14:07</span><div><div class="actor rook">rooks</div><div class="what">3 reviewers reported 3 findings<div class="sub">Tech Lead · Product · UX — expand for each report</div></div></div></div>
+                    <div class="story-node"><span class="when">14:19</span><div><div class="actor you">you · checkpoint</div><div class="what">Approved the reviewed brief<div class="sub">Folded in 2 findings; spec v2 cut</div></div></div></div>
+                    <div class="story-node"><span class="when">14:24</span><div><div class="actor rook">rook · architect</div><div class="what">Drafted a 4-phase plan → you approved</div></div></div>
+                    <div class="story-node"><span class="when">14:31</span><div><div class="actor rook">rooks · build</div><div class="what">Phases 1–4 implemented &amp; reviewed<div class="sub">7 implementer↔reviewer loops · expand any phase for messages</div></div></div></div>
+                    <div class="story-node"><span class="when">15:46</span><div><div class="actor you">you · decision</div><div class="what">Resolved the response-shape question<div class="sub">Add <code style="font-family:var(--mono);font-size:12px">X-RateLimit-Remaining</code> to all responses</div></div></div></div>
+                    <div class="story-node"><span class="when">16:08</span><div><div class="actor sys">verify</div><div class="what">Full suite green · feature exercised end-to-end</div></div></div>
+                    <div class="story-node"><span class="when">16:20</span><div><div class="actor you">you · checkpoint</div><div class="what">Opened PR #482 to <b>api</b>, merged <b>gateway</b> directly<div class="sub">Workspace torn down after landing</div></div></div></div>
+                  </div>
+                </div>
+              </div>
+              <aside class="annot">
+                <div class="a"><div class="h">The log, told</div><p>Same append-only events — now a timeline that separates what <em>you</em> decided from what the rooks did.</p></div>
+                <div class="a"><div class="h">Zoomable</div><p>Every node expands to the granular messages and raw payloads. Broad strokes by default; full detail on demand.</p></div>
+                <div class="a"><div class="h">Proof, not vibes</div><p>Every decision is attributed and timestamped — the audit trail the vision always promised, made pleasant to read.</p></div>
+              </aside>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VOCABULARY -->
+  <section class="band">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Same engine, humane words</span>
+        <h2>The vocabulary shift</h2>
+        <p>None of this discards the architecture. It renames the front-of-house so you think about
+          your work, not the scheduler. These are proposals — the terms are the cheapest thing to change and the highest-leverage.</p>
+      </div>
+      <div class="vocab">
+        <table>
+          <thead><tr><th>Today's term</th><th class="arr"></th><th>Proposed</th><th class="why">Why</th></tr></thead>
+          <tbody>
+            <tr><td class="old">Work item</td><td class="arr">→</td><td class="new">Brief</td><td class="why">The thing you want done, not a row in a table.</td></tr>
+            <tr><td class="old">Workflow</td><td class="arr">→</td><td class="new">Approach</td><td class="why">How this work gets tackled — read as steps, not a definition.</td></tr>
+            <tr><td class="old">Persona</td><td class="arr">→</td><td class="new">Reviewer / Implementer</td><td class="why">A role you'd recognise on a team.</td></tr>
+            <tr><td class="old">Pass criteria</td><td class="arr">→</td><td class="new">“Done means…”</td><td class="why">Verification authored as an outcome.</td></tr>
+            <tr><td class="old">Human gate</td><td class="arr">→</td><td class="new">Checkpoint</td><td class="why">A place you chose to hold the reins.</td></tr>
+            <tr><td class="old">Run</td><td class="arr">→</td><td class="new">Flight</td><td class="why">One commissioned brief, in motion.</td></tr>
+            <tr><td class="old">Infra template</td><td class="arr">→</td><td class="new">Isolated workspace</td><td class="why">Worktree + containers, framed as safety.</td></tr>
+            <tr><td class="old">Event log / History</td><td class="arr">→</td><td class="new">The story</td><td class="why">The same truth, told as a journey.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="wrap">
+      <span class="eyebrow">On these mockups</span>
+      <p class="note" style="margin-top:12px">
+        <b>What this is:</b> a design of the <b>journey and interactions</b>, not a component spec — deliberately unconstrained by the current UI. The example brief (API rate-limiting) is illustrative.
+        <b style="display:block;margin-top:10px">What it preserves:</b> the event-sourced core, spec versioning, isolated worktrees, personas/criteria/gates, and the full audit trail. Everything shown is a reframing of the front-of-house over the machinery you've already built.
+        <b style="display:block;margin-top:10px">Open calls for you:</b> the naming (Brief / Approach / Flight) is a proposal; whether the first-run should auto-draft an approach from the prompt (an agent proposing stages) or always start from a saved template; and whether “right now / context pressure” lives per-flight or also in a cross-flight overview for when several are airborne at once.
+      </p>
+    </div>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeBtn');
+    function current() {
+      if (root.dataset.theme) return root.dataset.theme;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    btn.addEventListener('click', function () {
+      root.dataset.theme = current() === 'dark' ? 'light' : 'dark';
+    });
+
+    // Scroll-spy for the journey rail
+    var links = Array.prototype.slice.call(document.querySelectorAll('#rail a'));
+    var map = {};
+    links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          links.forEach(function (l) { l.classList.remove('active'); });
+          var a = map[e.target.id];
+          if (a) a.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    document.querySelectorAll('.step').forEach(function (s) { obs.observe(s); });
+  })();
+</script>

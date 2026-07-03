@@ -6,11 +6,11 @@ execute — with a complete audit trail of everything meaningful that happens.
 
 ## Documentation
 
-- **[User Guide](./docs/USER_GUIDE.md)** — using the app end-to-end: work items, runs, gates,
-  landing changes, notifications, updates.
-- **[Workflow Authoring](./docs/WORKFLOW_AUTHORING.md)** — designing workflows: stages,
-  personas, pass criteria, gates, verification, and validation rules.
+- **[journey.md](./docs/journey.md)** / **[journey.html](./docs/journey.html)** — the redesign of
+  the app's journey (the commissioning experience) and its phased implementation plan. **Start here.**
 - **[DEV.md](./docs/DEV.md)** — building, running, testing, packaging, and releasing Rookery.
-- **[idea.md](./docs/idea.md)** / **[plan.md](./docs/plan.md)** — the original vision and the
-  phased implementation plan.
+- **[idea.md](./docs/idea.md)** — the original vision.
 - **[ADRs](./docs/adr/)** — architecture decision records (stack, SQLite driver, infra provider).
+
+> The end-user guide and approach-authoring guide are being rewritten around the new journey
+> (see journey.md → Phase J10); the previous UX guides were removed with the redesign.

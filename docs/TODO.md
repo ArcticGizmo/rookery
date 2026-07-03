@@ -1,2 +1,0 @@
-- there is no back button when clicking "view all history"
-- ensure that subagents are named appropriately so they are visible in perch

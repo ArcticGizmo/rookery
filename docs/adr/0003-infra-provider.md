@@ -1,6 +1,6 @@
 # ADR 0003 — Infrastructure via an `InfraProvider` port (sprig v1)
 
-**Status:** Accepted · **Date:** 2026-07-02 · Implements Phase 5 of [plan.md](../plan.md)
+**Status:** Accepted · **Date:** 2026-07-02 · Implements Phase 5 of the original build plan (since completed and removed; see [journey.md](../journey.md))
 
 ## Context
 
