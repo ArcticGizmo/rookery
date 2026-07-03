@@ -134,7 +134,7 @@ onMounted(() => {
           id="f-type"
           v-model="type"
           type="text"
-          placeholder="e.g. agent. or run.stage_"
+          placeholder="e.g. agent. or flight.stage_"
           class="h-9 rounded-md border border-input bg-background px-2 text-sm"
         />
       </div>
@@ -144,7 +144,7 @@ onMounted(() => {
           id="f-run"
           v-model="flightId"
           type="text"
-          placeholder="Exact run id"
+          placeholder="Exact flight id"
           class="h-9 rounded-md border border-input bg-background px-2 text-sm"
         />
       </div>
@@ -210,7 +210,7 @@ onMounted(() => {
               class="shrink-0 text-xs text-muted-foreground hover:underline"
               @click.stop
             >
-              run {{ event.flightId.slice(0, 8) }}
+              flight {{ event.flightId.slice(0, 8) }}
             </RouterLink>
           </button>
           <div v-if="expandedId === event.id" class="border-t border-border bg-muted/30 px-4 py-3">

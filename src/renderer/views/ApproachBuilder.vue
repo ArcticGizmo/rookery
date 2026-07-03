@@ -372,10 +372,10 @@ watch(
             </div>
           </div>
 
-          <!-- Pass criteria -->
+          <!-- Done means… -->
           <div class="flex flex-col gap-2">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium">Pass criteria</h3>
+              <h3 class="text-sm font-medium">Done means…</h3>
               <Button variant="outline" size="sm" @click="addCriterion(stage)"
                 >Add criterion</Button
               >

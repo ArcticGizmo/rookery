@@ -171,7 +171,7 @@ onMounted(() => {
     <header class="flex flex-col gap-1">
       <h1 class="text-2xl font-bold tracking-tight">Agent run</h1>
       <p class="text-sm text-muted-foreground">
-        Flight a single configured agent against a work item's spec and repo.
+        Run a single configured agent against a brief's spec and repo.
       </p>
     </header>
 
@@ -191,13 +191,13 @@ onMounted(() => {
       <section class="flex flex-col gap-3">
         <h2 class="text-sm font-semibold">Configuration</h2>
 
-        <label class="text-sm font-medium" for="wi">Work item</label>
+        <label class="text-sm font-medium" for="wi">Brief</label>
         <select
           id="wi"
           v-model="selectedBriefId"
           class="h-9 rounded-md border border-input bg-background px-2 text-sm"
         >
-          <option value="">Select a work item…</option>
+          <option value="">Select a brief…</option>
           <option v-for="item in items" :key="item.id" :value="item.id">{{ item.title }}</option>
         </select>
 
@@ -276,7 +276,7 @@ onMounted(() => {
           id="prompt"
           v-model="prompt"
           rows="6"
-          placeholder="Select a work item to load its spec, or type a prompt…"
+          placeholder="Select a brief to load its spec, or type a prompt…"
           class="rounded-md border border-input bg-background p-2 font-mono text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
         ></textarea>
 
