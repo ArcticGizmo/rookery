@@ -1,7 +1,16 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, toRaw } from 'vue'
 import type { ApproachDef, ApproachDefBody } from '@shared/domain'
 import { rookery } from '@renderer/lib/rookery'
+
+/**
+ * A plain, structured-clone-safe copy of an approach body. Callers pass reactive
+ * builder state (Vue proxies), which `ipcRenderer.invoke` can't clone — strip the
+ * reactivity here so every caller is safe, not just the ones that remember to.
+ */
+function plainBody(input: ApproachDefBody): ApproachDefBody {
+  return structuredClone(toRaw(input))
+}
 
 export const useApproachesStore = defineStore('approaches', () => {
   const items = ref<ApproachDef[]>([])
@@ -21,13 +30,13 @@ export const useApproachesStore = defineStore('approaches', () => {
   }
 
   async function create(input: ApproachDefBody): Promise<ApproachDef> {
-    const def = await rookery().approaches.create(input)
+    const def = await rookery().approaches.create(plainBody(input))
     await load()
     return def
   }
 
   async function update(id: string, input: ApproachDefBody): Promise<ApproachDef> {
-    const def = await rookery().approaches.update(id, input)
+    const def = await rookery().approaches.update(id, plainBody(input))
     await load()
     return def
   }
