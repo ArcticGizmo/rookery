@@ -18,7 +18,7 @@ import type { FlightChanges } from '@shared/changes'
 import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
-import { BeaconCard, Chip, MilestoneNode, MonoLabel } from '@renderer/components/journey'
+import { BeaconCard, Chip, MilestoneNode, MonoLabel, StatusDot } from '@renderer/components/journey'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
 import { useFlightsStore } from '@renderer/stores/flights'
 import { useBriefsStore } from '@renderer/stores/briefs'
@@ -733,6 +733,22 @@ onUnmounted(() => {
         </div>
       </section>
 
+      <!-- Paused, waiting for you (J8.5): the patience guarantee made visible. A
+           held flight holds here indefinitely — nothing times out — while your
+           other flights keep flying. The beacon below is where you decide. -->
+      <section
+        v-if="awaitingCheckpoint"
+        class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-beacon/40 bg-beacon-wash/40 px-4 py-3"
+      >
+        <span class="flex items-center gap-2">
+          <StatusDot tone="beacon" />
+          <MonoLabel class="text-beacon">paused · waiting for you</MonoLabel>
+        </span>
+        <span class="text-sm text-ink-dim">
+          Holding here indefinitely — nothing times out. Your other flights keep flying.
+        </span>
+      </section>
+
       <!-- Milestone timeline: broad milestones that zoom to granular detail (J7.2/J7.3). -->
       <section class="flex flex-col">
         <div class="mb-3 flex items-center justify-between">
@@ -945,9 +961,9 @@ onUnmounted(() => {
             <span v-if="error" class="text-sm text-block">{{ error }}</span>
           </div>
 
-          <!-- Patience guarantee (J8.5). -->
+          <!-- Patience guarantee (J8.5): reassurance right at the decision. -->
           <p class="mono-label text-ink-faint">
-            This flight holds here indefinitely — your other flights keep flying.
+            No rush — nothing advances until you decide.
           </p>
         </div>
       </BeaconCard>

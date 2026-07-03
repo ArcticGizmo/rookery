@@ -42,6 +42,12 @@ const statusLabel: Record<InFlightStatus, string> = {
   running: 'in flight',
   awaiting_checkpoint: 'needs you'
 }
+
+// A held flight reads as calmly paused on its glance card — patiently waiting,
+// not stalled (J8.5). The "Needs you" lane above is where the decision is made.
+function laneLabel(f: { status: InFlightStatus; needsYou: boolean }): string {
+  return f.needsYou ? 'held for you' : statusLabel[f.status]
+}
 </script>
 
 <template>
@@ -116,7 +122,7 @@ const statusLabel: Record<InFlightStatus, string> = {
             </span>
             <span class="flex items-center gap-2">
               <Chip :tone="f.needsYou ? 'beacon' : statusTone[f.status]" :led="f.status === 'running'">
-                {{ statusLabel[f.status] }}
+                {{ laneLabel(f) }}
               </Chip>
               <span v-if="f.currentStageName" class="truncate text-xs text-ink-dim">
                 {{ f.currentStageName }}

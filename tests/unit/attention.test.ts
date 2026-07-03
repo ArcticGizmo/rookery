@@ -67,6 +67,24 @@ describe('briefsInFlight', () => {
     expect(flight).toMatchObject({ status: 'awaiting_checkpoint', needsYou: true })
   })
 
+  it('keeps a held flight in flight while others keep flying (J8.5)', () => {
+    // The patience guarantee, at the projection level: a flight paused on a
+    // checkpoint stays listed (it hasn't ended — it waits indefinitely), and a
+    // sibling flight keeps flying alongside it, unaffected.
+    const l = log()
+    l.add('flight.started', { flightId: 'held' }, { flightId: 'held' })
+    l.add('flight.stage_entered', { stageName: 'Review' }, { flightId: 'held' })
+    l.add('flight.checkpoint_awaiting', { checkpointId: 'g', description: 'Approve' }, { flightId: 'held' })
+    l.add('flight.started', { flightId: 'flying' }, { flightId: 'flying' })
+    l.add('flight.stage_entered', { stageName: 'Build' }, { flightId: 'flying' })
+
+    const flights = briefsInFlight(l.events)
+    const held = flights.find((f) => f.flightId === 'held')
+    const flying = flights.find((f) => f.flightId === 'flying')
+    expect(held).toMatchObject({ status: 'awaiting_checkpoint', needsYou: true })
+    expect(flying).toMatchObject({ status: 'running', needsYou: false })
+  })
+
   it('sorts most-recently-active first', () => {
     const l = log()
     l.add('flight.started', { flightId: 'old' }, { flightId: 'old' })
