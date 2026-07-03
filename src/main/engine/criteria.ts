@@ -1,4 +1,4 @@
-import type { AgentPersona, PassCriterion, PermissionMode, Stage } from '@shared/domain'
+import type { AgentPersona, DoneCriterion, PermissionMode, Stage } from '@shared/domain'
 import type { AgentResult } from '../agent/types'
 
 export interface CriterionContext {
@@ -16,7 +16,7 @@ export interface CriterionContext {
 }
 
 export interface CriterionOutcome {
-  criterion: PassCriterion
+  criterion: DoneCriterion
   passed: boolean
   detail: string
 }
@@ -87,9 +87,9 @@ const testerPersona: AgentPersona = {
   allowedTools: ['Bash', 'Read', 'Grep', 'Glob']
 }
 
-type Evaluator = (criterion: PassCriterion, ctx: CriterionContext) => Promise<CriterionOutcome>
+type Evaluator = (criterion: DoneCriterion, ctx: CriterionContext) => Promise<CriterionOutcome>
 
-const EVALUATORS: Record<PassCriterion['type'], Evaluator> = {
+const EVALUATORS: Record<DoneCriterion['type'], Evaluator> = {
   manual: async (criterion) => ({
     criterion,
     passed: true,
@@ -132,7 +132,7 @@ export async function evaluateCriteria(
   ctx: CriterionContext
 ): Promise<CriterionOutcome[]> {
   const outcomes: CriterionOutcome[] = []
-  for (const criterion of stage.passCriteria) {
+  for (const criterion of stage.doneCriteria) {
     outcomes.push(await EVALUATORS[criterion.type](criterion, ctx))
   }
   return outcomes

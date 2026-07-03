@@ -27,7 +27,7 @@ describe('approach templates', () => {
         const ids = body.stages.flatMap((s) => [
           s.id,
           ...s.personas.map((p) => p.id),
-          ...s.passCriteria.map((c) => c.id),
+          ...s.doneCriteria.map((c) => c.id),
           ...s.checkpoints.map((g) => g.id)
         ])
         expect(new Set(ids).size).toBe(ids.length)
@@ -52,7 +52,7 @@ describe('approach templates', () => {
         const codeJudging = new Set(['reviewer_approves', 'tests_pass'])
         body.stages.forEach((stage, i) => {
           if (firstImpl !== -1 && i >= firstImpl) return
-          for (const c of stage.passCriteria) {
+          for (const c of stage.doneCriteria) {
             expect(codeJudging.has(c.type), `${stage.name} uses ${c.type} before any code exists`).toBe(
               false
             )

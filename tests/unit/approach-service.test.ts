@@ -15,7 +15,7 @@ function body(name: string): ApproachDefBody {
         name: 'Review',
         type: 'review',
         personas: [{ id: 'p1', name: 'Lead', role: 'Tech Lead', systemPrompt: 'Review', model: undefined }],
-        passCriteria: [],
+        doneCriteria: [],
         checkpoints: [{ id: 'g1', kind: 'human', description: 'Approve' }]
       }
     ]

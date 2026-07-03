@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { PassCriterionType, Stage } from '../../src/shared/domain'
+import type { DoneCriterionType, Stage } from '../../src/shared/domain'
 import type { AgentResult } from '../../src/main/agent/types'
 import { evaluateCriteria } from '../../src/main/engine/criteria'
 
-function stageWith(type: PassCriterionType): Stage {
+function stageWith(type: DoneCriterionType): Stage {
   return {
     id: 's',
     name: 'Stage',
     type: 'review',
     personas: [],
-    passCriteria: [{ id: 'c', type, description: '' }],
+    doneCriteria: [{ id: 'c', type, description: '' }],
     checkpoints: []
   }
 }

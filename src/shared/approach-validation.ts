@@ -10,7 +10,7 @@
 import { z } from 'zod'
 import {
   type ApproachDefBody,
-  passCriterionTypeSchema,
+  doneCriterionTypeSchema,
   stageTypeSchema,
   approachDefBodySchema
 } from './domain'
@@ -35,7 +35,7 @@ const PERSONA_REQUIRED_STAGE_TYPES = new Set<z.infer<typeof stageTypeSchema>>([
 ])
 
 /** Pass-criterion types whose evaluation depends on agent output. */
-const PERSONA_DEPENDENT_CRITERIA = new Set<z.infer<typeof passCriterionTypeSchema>>([
+const PERSONA_DEPENDENT_CRITERIA = new Set<z.infer<typeof doneCriterionTypeSchema>>([
   'reviewer_approves',
   'personas_agree'
 ])
@@ -114,25 +114,25 @@ export function validateApproach(input: unknown): ValidationResult {
       issues.push({ path: `${base}.checkpoints`, message: `Duplicate checkpoint id "${dupCheckpoint}"` })
     }
     const hasAutomatedCheckpoint = stage.checkpoints.some((g) => g.kind === 'automated')
-    if (hasAutomatedCheckpoint && stage.passCriteria.length === 0) {
+    if (hasAutomatedCheckpoint && stage.doneCriteria.length === 0) {
       issues.push({
-        path: `${base}.passCriteria`,
+        path: `${base}.doneCriteria`,
         message: `Stage "${stage.name}" has an automated checkpoint but no pass criteria to evaluate`
       })
     }
 
     // Pass criteria.
-    const dupCriterion = firstDuplicate(stage.passCriteria.map((c) => c.id))
+    const dupCriterion = firstDuplicate(stage.doneCriteria.map((c) => c.id))
     if (dupCriterion) {
       issues.push({
-        path: `${base}.passCriteria`,
+        path: `${base}.doneCriteria`,
         message: `Duplicate pass-criterion id "${dupCriterion}"`
       })
     }
-    stage.passCriteria.forEach((criterion, cIndex) => {
+    stage.doneCriteria.forEach((criterion, cIndex) => {
       if (PERSONA_DEPENDENT_CRITERIA.has(criterion.type) && stage.personas.length === 0) {
         issues.push({
-          path: `${base}.passCriteria[${cIndex}]`,
+          path: `${base}.doneCriteria[${cIndex}]`,
           message: `Criterion "${criterion.type}" requires at least one persona in the stage`
         })
       }

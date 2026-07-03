@@ -26,10 +26,10 @@ function approachBody(): ApproachDefBody {
         name: 'Review spec',
         type: 'review',
         personas: [{ id: 'p0', name: 'Lead', role: 'Tech Lead', systemPrompt: 'Review the spec.' }],
-        passCriteria: [{ id: 'c0', type: 'reviewer_approves', description: '' }],
+        doneCriteria: [{ id: 'c0', type: 'reviewer_approves', description: '' }],
         checkpoints: [{ id: 'g0', kind: 'human', description: 'Approve the review' }]
       },
-      { id: 's1', name: 'Setup', type: 'setup', personas: [], passCriteria: [], checkpoints: [] }
+      { id: 's1', name: 'Setup', type: 'setup', personas: [], doneCriteria: [], checkpoints: [] }
     ]
   }
 }
@@ -74,7 +74,7 @@ function verificationApproach(): ApproachDefBody {
         name: 'Review spec',
         type: 'review',
         personas: [{ id: 'p0', name: 'Lead', role: 'Tech Lead', systemPrompt: 'Review.' }],
-        passCriteria: [],
+        doneCriteria: [],
         checkpoints: []
       },
       {
@@ -82,7 +82,7 @@ function verificationApproach(): ApproachDefBody {
         name: 'Feature verification',
         type: 'verification',
         personas: [{ id: 'p1', name: 'Tester', role: 'Tester', systemPrompt: 'Verify.' }],
-        passCriteria: [{ id: 'c1', type: 'tests_pass', description: '' }],
+        doneCriteria: [{ id: 'c1', type: 'tests_pass', description: '' }],
         checkpoints: []
       }
     ]
@@ -436,13 +436,13 @@ describe('RunEngine', () => {
       name: 'Local edit',
       description: '',
       stages: [
-        { id: 'setup', name: 'Setup', type: 'setup', personas: [], passCriteria: [], checkpoints: [] },
+        { id: 'setup', name: 'Setup', type: 'setup', personas: [], doneCriteria: [], checkpoints: [] },
         {
           id: 'impl',
           name: 'Implement',
           type: 'implementation',
           personas: [{ id: 'p', name: 'Dev', role: 'Implementer', systemPrompt: 'Build it.' }],
-          passCriteria: [{ id: 'c', type: 'reviewer_approves', description: '' }],
+          doneCriteria: [{ id: 'c', type: 'reviewer_approves', description: '' }],
           checkpoints: []
         }
       ]

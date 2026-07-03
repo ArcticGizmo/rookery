@@ -16,7 +16,7 @@ function validApproach(): ApproachDefBody {
         name: 'Review spec',
         type: 'review',
         personas: [persona('p1')],
-        passCriteria: [{ id: 'c1', type: 'personas_agree', description: '' }],
+        doneCriteria: [{ id: 'c1', type: 'personas_agree', description: '' }],
         checkpoints: [{ id: 'g1', kind: 'human', description: 'Approve' }]
       },
       {
@@ -24,7 +24,7 @@ function validApproach(): ApproachDefBody {
         name: 'Setup',
         type: 'setup',
         personas: [],
-        passCriteria: [],
+        doneCriteria: [],
         checkpoints: []
       }
     ]
@@ -77,7 +77,7 @@ describe('validateApproach', () => {
   it('requires pass criteria when a stage has an automated checkpoint', () => {
     const wf = validApproach()
     wf.stages[0]!.checkpoints = [{ id: 'g1', kind: 'automated', description: '' }]
-    wf.stages[0]!.passCriteria = []
+    wf.stages[0]!.doneCriteria = []
     const result = validateApproach(wf)
     expect(result.ok).toBe(false)
     expect(result.issues.some((i) => i.message.includes('automated checkpoint'))).toBe(true)
@@ -87,7 +87,7 @@ describe('validateApproach', () => {
     const wf = validApproach()
     // A setup-type stage exempt from the persona requirement but carrying a
     // reviewer_approves criterion should still be flagged.
-    wf.stages[1]!.passCriteria = [{ id: 'c9', type: 'reviewer_approves', description: '' }]
+    wf.stages[1]!.doneCriteria = [{ id: 'c9', type: 'reviewer_approves', description: '' }]
     const result = validateApproach(wf)
     expect(result.ok).toBe(false)
     expect(result.issues.some((i) => i.message.includes('requires at least one persona'))).toBe(true)

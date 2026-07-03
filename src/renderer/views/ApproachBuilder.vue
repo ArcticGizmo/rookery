@@ -4,10 +4,10 @@ import { useRouter } from 'vue-router'
 import type {
   AgentPersona,
   Checkpoint,
-  PassCriterion,
+  DoneCriterion,
   Stage,
   StageType,
-  PassCriterionType,
+  DoneCriterionType,
   CheckpointKind
 } from '@shared/domain'
 import { validateApproach } from '@shared/approach-validation'
@@ -28,7 +28,7 @@ const STAGE_TYPES: StageType[] = [
   'verification',
   'custom'
 ]
-const CRITERION_TYPES: PassCriterionType[] = [
+const CRITERION_TYPES: DoneCriterionType[] = [
   'reviewer_approves',
   'personas_agree',
   'tests_pass',
@@ -78,7 +78,7 @@ function addStage(): void {
     name: `Stage ${stages.value.length + 1}`,
     type: 'review',
     personas: [],
-    passCriteria: [],
+    doneCriteria: [],
     checkpoints: []
   }
   stages.value.push(stage)
@@ -109,8 +109,8 @@ function addPersona(stage: Stage): void {
 }
 
 function addCriterion(stage: Stage): void {
-  const criterion: PassCriterion = { id: uid(), type: 'manual', description: '' }
-  stage.passCriteria.push(criterion)
+  const criterion: DoneCriterion = { id: uid(), type: 'manual', description: '' }
+  stage.doneCriteria.push(criterion)
 }
 
 function addCheckpoint(stage: Stage): void {
@@ -376,7 +376,7 @@ watch(
               >
             </div>
             <div
-              v-for="(criterion, cIndex) in stage.passCriteria"
+              v-for="(criterion, cIndex) in stage.doneCriteria"
               :key="criterion.id"
               class="flex items-center gap-2"
             >
@@ -392,7 +392,7 @@ watch(
                 placeholder="Description (optional)"
                 :class="[inputClass, 'flex-1']"
               />
-              <Button variant="ghost" size="sm" @click="removeFrom(stage.passCriteria, cIndex)">
+              <Button variant="ghost" size="sm" @click="removeFrom(stage.doneCriteria, cIndex)">
                 Remove
               </Button>
             </div>

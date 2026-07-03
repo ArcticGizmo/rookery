@@ -9,7 +9,7 @@
  * immediately runnable.
  */
 
-import type { CheckpointKind, PassCriterionType, StageType, ApproachDefBody } from './domain'
+import type { CheckpointKind, DoneCriterionType, StageType, ApproachDefBody } from './domain'
 
 interface TemplatePersona {
   name: string
@@ -22,7 +22,7 @@ interface TemplateStage {
   name: string
   type: StageType
   personas?: TemplatePersona[]
-  passCriteria?: { type: PassCriterionType; description?: string }[]
+  doneCriteria?: { type: DoneCriterionType; description?: string }[]
   checkpoints?: { kind: CheckpointKind; description?: string }[]
 }
 
@@ -63,7 +63,7 @@ function standardStages(opts: {
       // yet, so a `reviewer_approves` check (which asks "does this fully satisfy
       // the spec?") can only ever reject and would fail the run at stage one.
       // Defer the call to the human checkpoint instead, exactly as the Plan stage does.
-      passCriteria: [{ type: 'manual' }],
+      doneCriteria: [{ type: 'manual' }],
       checkpoints: [{ kind: 'human', description: 'Approve the review before planning' }]
     },
     {
@@ -77,7 +77,7 @@ function standardStages(opts: {
           allowedTools: ['Read', 'Grep', 'Glob']
         }
       ],
-      passCriteria: [{ type: 'manual' }],
+      doneCriteria: [{ type: 'manual' }],
       checkpoints: [{ kind: 'human', description: 'Approve the implementation plan' }]
     },
     { name: 'Setup', type: 'setup' },
@@ -92,7 +92,7 @@ function standardStages(opts: {
           allowedTools: ['Read', 'Edit', 'Write', 'Grep', 'Glob', 'Bash']
         }
       ],
-      passCriteria: [{ type: 'reviewer_approves' }],
+      doneCriteria: [{ type: 'reviewer_approves' }],
       checkpoints: [{ kind: 'human', description: 'Approve the implementation' }]
     },
     {
@@ -106,7 +106,7 @@ function standardStages(opts: {
           allowedTools: ['Read', 'Grep', 'Glob', 'Bash']
         }
       ],
-      passCriteria: [{ type: 'tests_pass' }],
+      doneCriteria: [{ type: 'tests_pass' }],
       checkpoints: [{ kind: 'human', description: 'Confirm the feature is done' }]
     }
   ]
@@ -185,7 +185,7 @@ export function instantiateTemplate(
         model: p.model ?? '',
         ...(p.allowedTools ? { allowedTools: p.allowedTools } : {})
       })),
-      passCriteria: (stage.passCriteria ?? []).map((c) => ({
+      doneCriteria: (stage.doneCriteria ?? []).map((c) => ({
         id: uid(),
         type: c.type,
         description: c.description ?? ''

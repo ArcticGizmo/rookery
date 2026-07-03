@@ -104,20 +104,20 @@ export type StageType = z.infer<typeof stageTypeSchema>
  * An automated pass criterion evaluated by the engine (Phase 4.5 supplies the
  * pluggable evaluators). `manual` defers the decision to a human checkpoint.
  */
-export const passCriterionTypeSchema = z.enum([
+export const doneCriterionTypeSchema = z.enum([
   'reviewer_approves',
   'personas_agree',
   'tests_pass',
   'manual'
 ])
-export type PassCriterionType = z.infer<typeof passCriterionTypeSchema>
+export type DoneCriterionType = z.infer<typeof doneCriterionTypeSchema>
 
-export const passCriterionSchema = z.object({
+export const doneCriterionSchema = z.object({
   id: z.string().min(1),
-  type: passCriterionTypeSchema,
+  type: doneCriterionTypeSchema,
   description: z.string().default('')
 })
-export type PassCriterion = z.infer<typeof passCriterionSchema>
+export type DoneCriterion = z.infer<typeof doneCriterionSchema>
 
 /** A checkpoint halts a stage until satisfied. Human checkpoints require a person to act;
  * automated checkpoints are satisfied by their stage's pass criteria. */
@@ -160,7 +160,7 @@ export const stageSchema = z.object({
   name: z.string().min(1, 'Stage name is required'),
   type: stageTypeSchema,
   personas: z.array(agentPersonaSchema).default([]),
-  passCriteria: z.array(passCriterionSchema).default([]),
+  doneCriteria: z.array(doneCriterionSchema).default([]),
   checkpoints: z.array(checkpointSchema).default([])
 })
 export type Stage = z.infer<typeof stageSchema>
