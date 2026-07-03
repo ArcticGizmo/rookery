@@ -40,7 +40,7 @@ This also runs a `postinstall` step that downloads the Electron runtime binary.
 
 ```
 src/
-  main/      Electron main process (Node) — window lifecycle, and later the orchestration engine, DB, agent SDK.
+  main/      Electron main process (Node) — window lifecycle, the orchestration (flight) engine, DB, agent SDK.
   preload/   contextBridge — exposes the typed API on window.rookery.
   renderer/  Vue 3 app (Pinia, vue-router, Tailwind, shadcn-vue).
   shared/    Types/pure functions shared across processes. No Electron/Node/DOM runtime deps.
@@ -72,20 +72,20 @@ Path aliases: `@shared/*` (all processes), `@renderer/*` (renderer).
 
 ## Infrastructure (worktrees + docker)
 
-- A run's **setup stage** provisions isolated git worktrees + docker infra so concurrent runs
+- A flight's **setup stage** provisions isolated git worktrees + docker infra so concurrent flights
   don't collide. This sits behind the **`InfraProvider`** port
   (`src/main/services/infra/`); see [ADR 0003](./adr/0003-infra-provider.md).
 - Provider is selected by **`ROOKERY_INFRA_PROVIDER`**:
   - `sprig` (default) — shells out to the [`sprig`](https://www.npmjs.com/package/@ArcticGizmo/sprig)
-    CLI (`npm i -g @ArcticGizmo/sprig`). Requires sprig on PATH **only when a run requests a
+    CLI (`npm i -g @ArcticGizmo/sprig`). Requires sprig on PATH **only when a flight requests a
     template**; docker/compose is needed for infra to come up.
   - `stub` — in-memory fake; no git/docker. Use for UI/engine dev without sprig installed.
-  - `none` — infra disabled; a run that requests a template fails its setup stage.
-- A run gets its template + teardown flag from the **Runs start form**
-  (`StartRunInput.infraTemplate` / `teardownOnComplete`). No template ⇒ no infra; agents run
-  against the work item's own checkout.
+  - `none` — infra disabled; a flight that requests a template fails its setup stage.
+- A flight gets its template + teardown flag from the **launch screen**
+  (`StartFlightInput.infraTemplate` / `teardownOnComplete`). No template ⇒ no infra; agents run
+  against the brief's own checkout.
 - Every infra step is audited (`infra.provisioning` / `infra.up` / `infra.down` / `infra.failed`)
-  and the run view shows live status (`runs:infra`), falling back to the last `infra.up` event.
+  and the flight view shows live status (`flights:infra`), falling back to the last `infra.up` event.
 
 ## Releasing & auto-update (Phase 7.3)
 
@@ -116,9 +116,9 @@ Path aliases: `@shared/*` (all processes), `@renderer/*` (renderer).
   add more with the shadcn-vue CLI (config in `components.json`).
 - **Two ways to read the event log in the renderer.** The **events store**
   (`stores/events.ts`) is a live buffer seeded with a slice of the log and grown from streamed
-  appends (coalesced per animation frame) — use it for whole-log projections like the Activity
-  dashboard and notifications. For a view that must show **one scope's full history** (e.g.
-  `RunDetail` for a specific run, even after a restart), use the **`useScopedEvents`** composable
-  (`composables/use-scoped-events.ts`): it pages that scope's events straight from the backend by
-  filter and live-tails matching appends, so it doesn't depend on what happens to be in the
-  shared buffer.
+  appends (coalesced per animation frame) — use it for whole-log projections like the Desk's
+  attention lanes (in-flight / needs-you) and notifications. For a view that must show **one
+  scope's full history** (e.g. `FlightDetail` / `Story` for a specific flight, even after a
+  restart), use the **`useScopedEvents`** composable (`composables/use-scoped-events.ts`): it pages
+  that scope's events straight from the backend by filter and live-tails matching appends, so it
+  doesn't depend on what happens to be in the shared buffer.
