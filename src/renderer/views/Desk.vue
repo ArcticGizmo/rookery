@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink } from 'vue-router'
-import { briefsInFlight, isDecision, needsYou } from '@shared/attention'
-import type { InFlightStatus } from '@shared/attention'
+import { briefsInFlight, isDecision, needsYou, pastFlights } from '@shared/attention'
+import type { FlightOutcome, InFlightStatus } from '@shared/attention'
 import { useEventsStore } from '@renderer/stores/events'
 import { useBriefsStore } from '@renderer/stores/briefs'
 import { Button } from '@renderer/components/ui/button'
@@ -41,6 +41,34 @@ const statusLabel: Record<InFlightStatus, string> = {
   pending: 'queued',
   running: 'in flight',
   awaiting_checkpoint: 'needs you'
+}
+
+// Past flights: browse completed work and reopen any story (J9.4). Searchable
+// by brief title or outcome — History's filtering, under the journey's framing.
+const query = ref('')
+const past = computed(() => pastFlights(events.value))
+const filteredPast = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  if (!q) return past.value
+  return past.value.filter(
+    (f) => briefTitle(f.briefId).toLowerCase().includes(q) || f.outcome.includes(q)
+  )
+})
+
+const outcomeTone: Record<FlightOutcome, 'pass' | 'block' | 'pending'> = {
+  passed: 'pass',
+  failed: 'block',
+  cancelled: 'pending',
+  interrupted: 'pending'
+}
+const outcomeLabel: Record<FlightOutcome, string> = {
+  passed: 'landed',
+  failed: 'failed',
+  cancelled: 'cancelled',
+  interrupted: 'interrupted'
+}
+function finishedWhen(ts: string): string {
+  return new Date(ts).toLocaleString()
 }
 
 // A held flight reads as calmly paused on its glance card — patiently waiting,
@@ -143,6 +171,36 @@ function laneLabel(f: { status: InFlightStatus; needsYou: boolean }): string {
           ><Button variant="outline">＋ New brief</Button></RouterLink
         >
       </div>
+    </section>
+
+    <!-- Past flights: browse back into any story (J9.4) -->
+    <section v-if="past.length" class="flex flex-col gap-3">
+      <div class="flex items-center justify-between gap-3">
+        <MonoLabel>Past flights · {{ past.length }}</MonoLabel>
+        <input
+          v-model="query"
+          type="search"
+          placeholder="Search landed work…"
+          class="h-8 w-48 rounded-md border border-input bg-background px-2.5 text-sm"
+        />
+      </div>
+      <ul class="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <li v-for="f in filteredPast" :key="f.flightId">
+          <RouterLink
+            :to="`/story/${f.flightId}`"
+            class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-accent"
+          >
+            <StatusDot :tone="outcomeTone[f.outcome]" />
+            <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ briefTitle(f.briefId) }}</span>
+            <Chip :tone="outcomeTone[f.outcome]">{{ outcomeLabel[f.outcome] }}</Chip>
+            <span class="mono-label hidden shrink-0 text-ink-faint sm:inline">{{ finishedWhen(f.finishedTs) }}</span>
+            <span class="mono-label shrink-0 text-primary">story →</span>
+          </RouterLink>
+        </li>
+        <li v-if="!filteredPast.length" class="px-4 py-3 text-sm text-muted-foreground">
+          No past flights match “{{ query }}”.
+        </li>
+      </ul>
     </section>
   </div>
 </template>

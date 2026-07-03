@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StoredEvent } from '../../src/shared/events'
-import { briefsInFlight, isDecision, needsYou } from '../../src/shared/attention'
+import { briefsInFlight, isDecision, needsYou, pastFlights } from '../../src/shared/attention'
 
 /** Ordered event-log builder: ids/timestamps increase with insertion. */
 function log() {
@@ -92,6 +92,43 @@ describe('briefsInFlight', () => {
     l.add('flight.stage_entered', { stageName: 'X' }, { flightId: 'old' }) // old becomes most recent
 
     expect(briefsInFlight(l.events).map((f) => f.flightId)).toEqual(['old', 'new'])
+  })
+})
+
+describe('pastFlights', () => {
+  it('lists terminal flights with their outcome, most-recently-finished first', () => {
+    const l = log()
+    // passed
+    l.add('flight.created', { flightId: 'p', briefId: 'w1' }, { flightId: 'p', actor: 'human' })
+    l.add('flight.started', { flightId: 'p' }, { flightId: 'p' })
+    l.add('flight.finished', { flightId: 'p', status: 'passed' }, { flightId: 'p' })
+    // failed, later
+    l.add('flight.started', { flightId: 'f' }, { flightId: 'f' })
+    l.add('flight.finished', { flightId: 'f', status: 'failed' }, { flightId: 'f' })
+
+    const past = pastFlights(l.events)
+    expect(past.map((f) => f.flightId)).toEqual(['f', 'p']) // newest first
+    expect(past.find((f) => f.flightId === 'p')).toMatchObject({ outcome: 'passed', briefId: 'w1' })
+    expect(past.find((f) => f.flightId === 'f')).toMatchObject({ outcome: 'failed' })
+  })
+
+  it('reads a human termination as cancelled and a crash as interrupted', () => {
+    const l = log()
+    l.add('flight.started', { flightId: 'c' }, { flightId: 'c' })
+    l.add('flight.cancelled', { flightId: 'c', previousStatus: 'running' }, { flightId: 'c', actor: 'human' })
+    l.add('flight.started', { flightId: 'i' }, { flightId: 'i' })
+    l.add('flight.interrupted', { flightId: 'i', previousStatus: 'running', reason: 'crash' }, { flightId: 'i' })
+
+    const byId = new Map(pastFlights(l.events).map((f) => [f.flightId, f.outcome]))
+    expect(byId.get('c')).toBe('cancelled')
+    expect(byId.get('i')).toBe('interrupted')
+  })
+
+  it('excludes flights still in the air', () => {
+    const l = log()
+    l.add('flight.started', { flightId: 'live' }, { flightId: 'live' })
+    l.add('flight.checkpoint_awaiting', { checkpointId: 'g', description: 'x' }, { flightId: 'live' })
+    expect(pastFlights(l.events)).toHaveLength(0)
   })
 })
 

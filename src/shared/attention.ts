@@ -13,6 +13,18 @@ import type { StoredEvent } from './events'
 /** A run's lifecycle status as far as the Desk lanes care. */
 export type InFlightStatus = 'pending' | 'running' | 'awaiting_checkpoint'
 
+/** How a flight ended, for the Desk's "past flights" browse (J9.4). */
+export type FlightOutcome = 'passed' | 'failed' | 'cancelled' | 'interrupted'
+
+/** One completed flight, for browsing back into its story. */
+export interface PastFlight {
+  flightId: string
+  briefId: string | null
+  outcome: FlightOutcome
+  /** When it ended (the terminal event's timestamp). */
+  finishedTs: string
+}
+
 /** One brief currently in flight (a non-terminal run). */
 export interface BriefInFlight {
   flightId: string
@@ -55,6 +67,8 @@ interface FlightAcc {
   status: InFlightStatus
   currentStageName: string | null
   finished: boolean
+  /** How the flight ended, once terminal (null while still in flight). */
+  outcome: FlightOutcome | null
   updatedTs: string
   /** Pending human checkpoint, if the run is currently awaiting one. */
   checkpoint: { detail: string; ts: string } | null
@@ -85,6 +99,7 @@ function reduce(events: StoredEvent[]): { flights: Map<string, FlightAcc>; agent
         status: 'pending',
         currentStageName: null,
         finished: false,
+        outcome: null,
         updatedTs: event.ts,
         checkpoint: null,
         escalation: null
@@ -120,9 +135,16 @@ function reduce(events: StoredEvent[]): { flights: Map<string, FlightAcc>; agent
           }
           break
         case 'flight.finished':
+          run.finished = true
+          run.outcome = (p.status as FlightOutcome) ?? run.outcome ?? 'passed'
+          break
         case 'flight.cancelled':
+          run.finished = true
+          run.outcome = 'cancelled'
+          break
         case 'flight.interrupted':
           run.finished = true
+          run.outcome = 'interrupted'
           break
       }
       flights.set(event.flightId, run)
@@ -178,6 +200,24 @@ export function briefsInFlight(events: StoredEvent[]): BriefInFlight[] {
       updatedTs: r.updatedTs
     }))
     .sort((a, b) => (a.updatedTs < b.updatedTs ? 1 : -1))
+}
+
+/**
+ * Completed flights (terminal: passed / failed / cancelled / interrupted),
+ * most-recently-finished first — the Desk's browse-back-into-the-story lane
+ * (J9.4). The complement of {@link briefsInFlight}.
+ */
+export function pastFlights(events: StoredEvent[]): PastFlight[] {
+  const { flights } = reduce(events)
+  return [...flights.values()]
+    .filter((r) => r.finished && r.outcome !== null)
+    .map((r) => ({
+      flightId: r.flightId,
+      briefId: r.briefId,
+      outcome: r.outcome as FlightOutcome,
+      finishedTs: r.updatedTs
+    }))
+    .sort((a, b) => (a.finishedTs < b.finishedTs ? 1 : -1))
 }
 
 /**
