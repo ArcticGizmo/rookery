@@ -9,7 +9,7 @@ import { StubLandingProvider } from '../../src/main/services/landing/stub-landin
 import { LandingService } from '../../src/main/services/landing-service'
 import { RunStore } from '../../src/main/services/run-store'
 import { SpecService } from '../../src/main/services/spec-service'
-import { WorkItemService } from '../../src/main/services/work-item-service'
+import { BriefService } from '../../src/main/services/brief-service'
 import { WorkflowService } from '../../src/main/services/workflow-service'
 import { initRunSnapshot } from '../../src/shared/run-state-machine'
 import { makeTestDb, type TestDb } from './helpers/test-db'
@@ -26,7 +26,7 @@ describe('LandingService (Phase 6.4)', () => {
   let test: TestDb
   let audit: AuditLog
   let runs: RunStore
-  let workItems: WorkItemService
+  let briefs: BriefService
   let workflows: WorkflowService
   let infra: InfraService
   let provider: StubProvider
@@ -36,7 +36,7 @@ describe('LandingService (Phase 6.4)', () => {
   /** Create a run (optionally with infra), mark it `passed`, and provision a
    * matching stub instance so it looks like a completed, landable run. */
   async function passedRun(opts: { infra?: boolean } = { infra: true }) {
-    const wi = await workItems.create({
+    const wi = await briefs.create({
       title: 'My feature',
       spec: 'Build it',
       repos: [{ name: 'api', localPath: 'C:/git/api', remoteUrl: 'https://github.com/x/api.git' }]
@@ -44,7 +44,7 @@ describe('LandingService (Phase 6.4)', () => {
     const wf = await workflows.create(workflowBody())
     const body = { name: wf.name, description: wf.description, stages: wf.stages }
     const run = await runs.create({
-      workItemId: wi.workItem.id,
+      briefId: wi.brief.id,
       workflowId: wf.id,
       workflowVersion: wf.version,
       body,
@@ -72,12 +72,12 @@ describe('LandingService (Phase 6.4)', () => {
     audit = new AuditLog(new InMemoryEventStore())
     runs = new RunStore(test.db)
     const specs = new SpecService(test.db, audit)
-    workItems = new WorkItemService(test.db, audit, specs)
+    briefs = new BriefService(test.db, audit, specs)
     workflows = new WorkflowService(test.db, audit)
     provider = new StubProvider('/wt', ['api'])
     infra = new InfraService(provider, audit)
     landingProvider = new StubLandingProvider()
-    landing = new LandingService(landingProvider, audit, infra, workItems, runs)
+    landing = new LandingService(landingProvider, audit, infra, briefs, runs)
   })
 
   afterEach(() => test.close())

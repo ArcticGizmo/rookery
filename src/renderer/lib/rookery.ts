@@ -7,7 +7,7 @@ import type { RookeryApi } from '@shared/api'
  * real Electron window. It's `undefined` when the page is opened in a plain
  * browser tab (e.g. the Vite dev URL that electron-vite prints) or a stale
  * window with no preload — in which case every IPC call would otherwise fail
- * with a cryptic `Cannot read properties of undefined (reading 'workItems')`.
+ * with a cryptic `Cannot read properties of undefined (reading 'briefs')`.
  *
  * Routing every renderer→main call through here turns that into an actionable
  * message instead.

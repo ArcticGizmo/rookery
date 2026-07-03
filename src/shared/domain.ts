@@ -28,24 +28,24 @@ export type RepoInput = z.infer<typeof repoInputSchema>
 
 export const repoSchema = repoInputSchema.extend({
   id: z.string(),
-  workItemId: z.string()
+  briefId: z.string()
 })
 export type Repo = z.infer<typeof repoSchema>
 
 // --- Work items -------------------------------------------------------------
 
-export const workItemSchema = z.object({
+export const briefSchema = z.object({
   id: z.string(),
   title: z.string().min(1, 'Title is required'),
   createdAt: z.string(),
   updatedAt: z.string()
 })
-export type WorkItem = z.infer<typeof workItemSchema>
+export type Brief = z.infer<typeof briefSchema>
 
 /** A single, immutable version of a work item's spec (content-addressed). */
 export const specVersionSchema = z.object({
   id: z.string(),
-  workItemId: z.string(),
+  briefId: z.string(),
   version: z.number().int().positive(),
   contentHash: z.string(),
   content: z.string(),
@@ -54,8 +54,8 @@ export const specVersionSchema = z.object({
 export type SpecVersion = z.infer<typeof specVersionSchema>
 
 /** Aggregate returned to the UI: the item plus its repos and current spec. */
-export interface WorkItemDetail {
-  workItem: WorkItem
+export interface BriefDetail {
+  brief: Brief
   repos: Repo[]
   currentSpec: SpecVersion | null
 }
@@ -68,24 +68,24 @@ export interface SpecDiffLine {
 
 /** Structured line-level diff between two spec versions of a work item. */
 export interface SpecDiff {
-  workItemId: string
+  briefId: string
   fromVersion: number
   toVersion: number
   lines: SpecDiffLine[]
 }
 
-export const createWorkItemInputSchema = z.object({
+export const createBriefInputSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   spec: z.string().default(''),
   repos: z.array(repoInputSchema).default([])
 })
-export type CreateWorkItemInput = z.infer<typeof createWorkItemInputSchema>
+export type CreateBriefInput = z.infer<typeof createBriefInputSchema>
 
-export const updateWorkItemInputSchema = z.object({
+export const updateBriefInputSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   repos: z.array(repoInputSchema).default([])
 })
-export type UpdateWorkItemInput = z.infer<typeof updateWorkItemInputSchema>
+export type UpdateBriefInput = z.infer<typeof updateBriefInputSchema>
 
 // --- Workflow building blocks ----------------------------------------------
 
@@ -237,7 +237,7 @@ export type StageStatus = z.infer<typeof stageStatusSchema>
 /** A single execution of a workflow over a work item. */
 export interface Run {
   id: string
-  workItemId: string
+  briefId: string
   workflowId: string
   workflowVersion: number
   status: RunStatus
@@ -283,7 +283,7 @@ export const runExecutionModeSchema = z.enum(['read_only', 'local_branch', 'infr
 export type RunExecutionMode = z.infer<typeof runExecutionModeSchema>
 
 export const startRunInputSchema = z.object({
-  workItemId: z.string().min(1),
+  briefId: z.string().min(1),
   workflowId: z.string().min(1),
   /** Max implementer→reviewer iterations per stage before failing (default 3). */
   maxIterations: z.number().int().positive().max(20).default(3),

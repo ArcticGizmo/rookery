@@ -73,10 +73,10 @@ function pretty(payload: unknown): string {
 }
 
 /** Work item id for a spec event, so we can link to its diff viewer. */
-function specWorkItemId(event: StoredEvent): string | null {
+function specBriefId(event: StoredEvent): string | null {
   if (event.type !== 'spec.version_created') return null
-  const p = event.payload as { workItemId?: string }
-  return p.workItemId ?? null
+  const p = event.payload as { briefId?: string }
+  return p.briefId ?? null
 }
 
 function formatTime(ts: string): string {
@@ -214,9 +214,9 @@ onMounted(() => {
             </RouterLink>
           </button>
           <div v-if="expandedId === event.id" class="border-t border-border bg-muted/30 px-4 py-3">
-            <div v-if="specWorkItemId(event)" class="mb-2">
+            <div v-if="specBriefId(event)" class="mb-2">
               <RouterLink
-                :to="`/work-items/${specWorkItemId(event)}`"
+                :to="`/briefs/${specBriefId(event)}`"
                 class="text-xs text-blue-700 hover:underline"
               >
                 View spec version history &amp; diff →

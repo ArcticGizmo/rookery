@@ -17,7 +17,7 @@ import { RunStore } from './services/run-store'
 import { SpecService } from './services/spec-service'
 import { SqliteEventStore } from './services/sqlite-event-store'
 import { UpdateService } from './services/update-service'
-import { WorkItemService } from './services/work-item-service'
+import { BriefService } from './services/brief-service'
 import { WorkflowService } from './services/workflow-service'
 import { WorkspaceService } from './services/workspace-service'
 
@@ -73,14 +73,14 @@ async function bootstrap(): Promise<void> {
 
   auditLog = new AuditLog(new SqliteEventStore(db))
   const specs = new SpecService(db, auditLog)
-  const workItems = new WorkItemService(db, auditLog, specs)
+  const briefs = new BriefService(db, auditLog, specs)
   const workflows = new WorkflowService(db, auditLog)
   const agent = new AgentService(auditLog, query)
   const runs = new RunStore(db)
   const infra = new InfraService(createInfraProvider(), auditLog)
   const localBranch = new LocalBranchService(auditLog)
-  const engine = new RunEngine(runs, auditLog, agent, workItems, workflows, infra, localBranch)
-  const landing = new LandingService(createLandingProvider(), auditLog, infra, workItems, runs)
+  const engine = new RunEngine(runs, auditLog, agent, briefs, workflows, infra, localBranch)
+  const landing = new LandingService(createLandingProvider(), auditLog, infra, briefs, runs)
   const workspace = new WorkspaceService()
 
   // Auto-update (Phase 7.3): project updater lifecycle into the audit log so it
@@ -92,7 +92,7 @@ async function bootstrap(): Promise<void> {
   registerIpc({
     db,
     auditLog,
-    workItems,
+    briefs,
     specs,
     workflows,
     agent,

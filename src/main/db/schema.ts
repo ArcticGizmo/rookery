@@ -28,28 +28,28 @@ export type EventRow = typeof events.$inferSelect
  * A unit of work: a versioned spec plus the repos it touches. The current spec
  * text lives in `spec_versions`; this row holds only stable metadata.
  */
-export const workItems = sqliteTable('work_items', {
+export const briefs = sqliteTable('work_items', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull()
 })
 
-export type WorkItemRow = typeof workItems.$inferSelect
+export type BriefRow = typeof briefs.$inferSelect
 
 /** Repos attached to a work item. Local checkout required; remote URL optional. */
 export const repos = sqliteTable(
   'repos',
   {
     id: text('id').primaryKey(),
-    workItemId: text('work_item_id')
+    briefId: text('work_item_id')
       .notNull()
-      .references(() => workItems.id, { onDelete: 'cascade' }),
+      .references(() => briefs.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     localPath: text('local_path').notNull(),
     remoteUrl: text('remote_url')
   },
-  (table) => [index('idx_repos_work_item').on(table.workItemId)]
+  (table) => [index('idx_repos_work_item').on(table.briefId)]
 )
 
 export type RepoRow = typeof repos.$inferSelect
@@ -62,17 +62,17 @@ export const specVersions = sqliteTable(
   'spec_versions',
   {
     id: text('id').primaryKey(),
-    workItemId: text('work_item_id')
+    briefId: text('work_item_id')
       .notNull()
-      .references(() => workItems.id, { onDelete: 'cascade' }),
+      .references(() => briefs.id, { onDelete: 'cascade' }),
     version: integer('version').notNull(),
     contentHash: text('content_hash').notNull(),
     content: text('content').notNull(),
     createdAt: text('created_at').notNull()
   },
   (table) => [
-    index('idx_spec_versions_work_item').on(table.workItemId),
-    uniqueIndex('idx_spec_versions_work_item_version').on(table.workItemId, table.version)
+    index('idx_spec_versions_work_item').on(table.briefId),
+    uniqueIndex('idx_spec_versions_work_item_version').on(table.briefId, table.version)
   ]
 )
 
@@ -100,9 +100,9 @@ export const runs = sqliteTable(
   'runs',
   {
     id: text('id').primaryKey(),
-    workItemId: text('work_item_id')
+    briefId: text('work_item_id')
       .notNull()
-      .references(() => workItems.id, { onDelete: 'cascade' }),
+      .references(() => briefs.id, { onDelete: 'cascade' }),
     workflowId: text('workflow_id').notNull(),
     workflowVersion: integer('workflow_version').notNull(),
     workflowBody: text('workflow_body', { mode: 'json' }).notNull(),
@@ -127,7 +127,7 @@ export const runs = sqliteTable(
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull()
   },
-  (table) => [index('idx_runs_work_item').on(table.workItemId)]
+  (table) => [index('idx_runs_work_item').on(table.briefId)]
 )
 
 export type RunRow = typeof runs.$inferSelect

@@ -15,7 +15,7 @@ import { type RunRow, type StageExecutionRow, runs, stageExecutions } from '../d
 function toRun(row: RunRow): Run {
   return {
     id: row.id,
-    workItemId: row.workItemId,
+    briefId: row.briefId,
     workflowId: row.workflowId,
     workflowVersion: row.workflowVersion,
     status: row.status as Run['status'],
@@ -39,7 +39,7 @@ function toStage(row: StageExecutionRow): StageExecution {
 }
 
 export interface CreateRunParams {
-  workItemId: string
+  briefId: string
   workflowId: string
   workflowVersion: number
   body: WorkflowDefBody
@@ -58,7 +58,7 @@ export interface CreateRunParams {
 
 /** Context the engine needs to drive a run. */
 export interface RunContext {
-  workItemId: string
+  briefId: string
   body: WorkflowDefBody
   maxIterations: number
   maxVerificationCycles: number
@@ -78,7 +78,7 @@ export class RunStore {
     await this.db.transaction(async (tx) => {
       await tx.insert(runs).values({
         id,
-        workItemId: params.workItemId,
+        briefId: params.briefId,
         workflowId: params.workflowId,
         workflowVersion: params.workflowVersion,
         workflowBody: params.body,
@@ -125,7 +125,7 @@ export class RunStore {
     const row = rows[0]
     if (!row) return null
     return {
-      workItemId: row.workItemId,
+      briefId: row.briefId,
       body: workflowDefBodySchema.parse(row.workflowBody),
       maxIterations: row.maxIterations,
       maxVerificationCycles: row.maxVerificationCycles,

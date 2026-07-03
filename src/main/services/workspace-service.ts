@@ -7,7 +7,7 @@ import { type RepoProbe, normalizeRepoPath } from '@shared/workspace'
 const MAX_DIR_SUGGESTIONS = 20
 
 /**
- * Filesystem + git helpers for the work-item editor: pick a folder, probe a
+ * Filesystem + git helpers for the brief editor: pick a folder, probe a
  * candidate repo path (git detection + remote/branch inference), and autocomplete
  * directory paths as the user types. Git facts are read straight from `.git`
  * (config/HEAD) so nothing here depends on `git` being installed.

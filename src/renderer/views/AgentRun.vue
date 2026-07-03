@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import type { EffortLevel, PermissionMode, WorkItemDetail } from '@shared/domain'
+import type { EffortLevel, PermissionMode, BriefDetail } from '@shared/domain'
 import type { StoredEvent } from '@shared/events'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useAgentStore } from '@renderer/stores/agent'
 import { useEventsStore } from '@renderer/stores/events'
-import { useWorkItemsStore } from '@renderer/stores/work-items'
+import { useBriefsStore } from '@renderer/stores/briefs'
 
 const agentStore = useAgentStore()
 const eventsStore = useEventsStore()
-const workItemsStore = useWorkItemsStore()
+const briefsStore = useBriefsStore()
 
 const { credentials, activeRunId } = storeToRefs(agentStore)
 const { events } = storeToRefs(eventsStore)
-const { items } = storeToRefs(workItemsStore)
+const { items } = storeToRefs(briefsStore)
 
 const MODELS = ['', 'claude-opus-4-8', 'claude-sonnet-5', 'claude-haiku-4-5', 'claude-fable-5']
 const EFFORTS: (EffortLevel | '')[] = ['', 'low', 'medium', 'high', 'xhigh', 'max']
@@ -28,8 +28,8 @@ const PERMISSION_MODES: PermissionMode[] = [
 ]
 
 // Form state
-const selectedWorkItemId = ref('')
-const detail = ref<WorkItemDetail | null>(null)
+const selectedBriefId = ref('')
+const detail = ref<BriefDetail | null>(null)
 const selectedRepoPath = ref('')
 const prompt = ref('')
 const personaName = ref('Implementer')
@@ -45,8 +45,8 @@ const error = ref<string | null>(null)
 const inputClass =
   'h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
-watch(selectedWorkItemId, async (id) => {
-  detail.value = id ? await workItemsStore.get(id) : null
+watch(selectedBriefId, async (id) => {
+  detail.value = id ? await briefsStore.get(id) : null
   prompt.value = detail.value?.currentSpec?.content ?? ''
   selectedRepoPath.value = detail.value?.repos[0]?.localPath ?? ''
 })
@@ -161,7 +161,7 @@ async function cancel(): Promise<void> {
 
 onMounted(() => {
   void agentStore.checkCredentials()
-  void workItemsStore.load()
+  void briefsStore.load()
   void eventsStore.init()
 })
 </script>
@@ -194,7 +194,7 @@ onMounted(() => {
         <label class="text-sm font-medium" for="wi">Work item</label>
         <select
           id="wi"
-          v-model="selectedWorkItemId"
+          v-model="selectedBriefId"
           class="h-9 rounded-md border border-input bg-background px-2 text-sm"
         >
           <option value="">Select a work item…</option>

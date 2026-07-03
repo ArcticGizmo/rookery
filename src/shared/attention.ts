@@ -3,7 +3,7 @@
  * (Phase J0.3). Pure and derived entirely from the event log, like `activity.ts`:
  * the Desk reads these, it never invents state the log doesn't record.
  *
- * NOTE: this still speaks the current domain vocabulary (run / workItem). The
+ * NOTE: this still speaks the current domain vocabulary (run / brief). The
  * great rename (Phase J1) carries these to flight / brief along with everything
  * else; keeping current names here avoids a rename island before J1 lands.
  */
@@ -16,7 +16,7 @@ export type InFlightStatus = 'pending' | 'running' | 'awaiting_gate'
 /** One brief currently in flight (a non-terminal run). */
 export interface BriefInFlight {
   runId: string
-  workItemId: string | null
+  briefId: string | null
   status: InFlightStatus
   currentStageName: string | null
   /** True when the flight is paused on a human decision (a held checkpoint or an escalation). */
@@ -41,7 +41,7 @@ function payloadOf(event: StoredEvent): Record<string, unknown> {
 
 interface RunAcc {
   runId: string
-  workItemId: string | null
+  briefId: string | null
   status: InFlightStatus
   currentStageName: string | null
   finished: boolean
@@ -71,7 +71,7 @@ function reduce(events: StoredEvent[]): { runs: Map<string, RunAcc>; agents: Map
     if (event.runId && event.type.startsWith('run.')) {
       const run: RunAcc = runs.get(event.runId) ?? {
         runId: event.runId,
-        workItemId: null,
+        briefId: null,
         status: 'pending',
         currentStageName: null,
         finished: false,
@@ -82,7 +82,7 @@ function reduce(events: StoredEvent[]): { runs: Map<string, RunAcc>; agents: Map
       run.updatedTs = event.ts
       switch (event.type) {
         case 'run.created':
-          run.workItemId = (p.workItemId as string) ?? run.workItemId
+          run.briefId = (p.briefId as string) ?? run.briefId
           break
         case 'run.started':
           run.status = 'running'
@@ -161,7 +161,7 @@ export function briefsInFlight(events: StoredEvent[]): BriefInFlight[] {
     .filter((r) => !r.finished)
     .map((r) => ({
       runId: r.runId,
-      workItemId: r.workItemId,
+      briefId: r.briefId,
       status: r.status,
       currentStageName: r.currentStageName,
       needsYou: needsYouRun(r),

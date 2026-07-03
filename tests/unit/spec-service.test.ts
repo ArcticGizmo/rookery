@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AuditLog } from '../../src/main/services/audit-log'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import { SpecService } from '../../src/main/services/spec-service'
-import { workItems } from '../../src/main/db/schema'
+import { briefs } from '../../src/main/db/schema'
 import { makeTestDb, type TestDb } from './helpers/test-db'
 
 const WORK_ITEM_ID = 'wi-1'
@@ -18,7 +18,7 @@ describe('SpecService', () => {
     specs = new SpecService(test.db, audit)
     const now = new Date().toISOString()
     await test.db
-      .insert(workItems)
+      .insert(briefs)
       .values({ id: WORK_ITEM_ID, title: 'Item', createdAt: now, updatedAt: now })
   })
 

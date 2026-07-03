@@ -6,11 +6,11 @@ import { type RepoProbe, normalizeRepoPath } from '@shared/workspace'
 import Button from '@renderer/components/ui/button/Button.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
 import { rookery } from '@renderer/lib/rookery'
-import { useWorkItemsStore } from '@renderer/stores/work-items'
+import { useBriefsStore } from '@renderer/stores/briefs'
 
 const props = defineProps<{ id?: string }>()
 const router = useRouter()
-const store = useWorkItemsStore()
+const store = useBriefsStore()
 
 interface RepoRow {
   name: string
@@ -98,7 +98,7 @@ async function loadDetail(id: string): Promise<void> {
     notFound.value = true
     return
   }
-  title.value = detail.workItem.title
+  title.value = detail.brief.title
   spec.value = detail.currentSpec?.content ?? ''
   repos.value = detail.repos.map((r) => ({
     name: r.name,
@@ -138,7 +138,7 @@ async function save(): Promise<void> {
         spec: spec.value,
         repos: reposPayload()
       })
-      await router.push(`/work-items/${detail.workItem.id}`)
+      await router.push(`/briefs/${detail.brief.id}`)
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -150,7 +150,7 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   if (!props.id) return
   await store.remove(props.id)
-  await router.push('/work-items')
+  await router.push('/briefs')
 }
 
 async function showDiff(): Promise<void> {
@@ -181,7 +181,7 @@ watch(
       <h1 class="text-2xl font-bold tracking-tight">
         {{ isEdit ? 'Edit work item' : 'New work item' }}
       </h1>
-      <RouterLink to="/work-items" class="text-sm text-muted-foreground hover:underline">
+      <RouterLink to="/briefs" class="text-sm text-muted-foreground hover:underline">
         ← Back to list
       </RouterLink>
     </header>

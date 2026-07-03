@@ -4,7 +4,7 @@ import type { AuditLog } from './audit-log'
 import { instanceNameForRun } from './infra'
 import type { InfraService } from './infra-service'
 import type { RunStore } from './run-store'
-import type { WorkItemService } from './work-item-service'
+import type { BriefService } from './brief-service'
 import type { LandingProvider, LandingSpec } from './landing'
 
 /**
@@ -20,7 +20,7 @@ export class LandingService {
     private readonly provider: LandingProvider | null,
     private readonly audit: AuditLog,
     private readonly infra: InfraService,
-    private readonly workItems: WorkItemService,
+    private readonly briefs: BriefService,
     private readonly runs: RunStore
   ) {}
 
@@ -68,7 +68,7 @@ export class LandingService {
       return unavailable('The run’s infrastructure has been torn down; there is nothing to land.')
     }
 
-    const detail = await this.workItems.get(rc.workItemId)
+    const detail = await this.briefs.get(rc.briefId)
     const repoByName = new Map((detail?.repos ?? []).map((r) => [r.name, r]))
     const landedRepos = await this.landedRepos(runId)
 
@@ -110,7 +110,7 @@ export class LandingService {
       throw new Error(`Landing provider "${provider.name}" is not available on this machine.`)
     }
 
-    const detail = await this.workItems.get((await this.runs.getContext(input.runId))!.workItemId)
+    const detail = await this.briefs.get((await this.runs.getContext(input.runId))!.briefId)
     const spec: LandingSpec = {
       runId: input.runId,
       repo: target.repo,
@@ -120,7 +120,7 @@ export class LandingService {
       branch: target.branch,
       base: target.base,
       remoteUrl: target.remoteUrl,
-      title: input.title || detail?.workItem.title || `Land ${target.branch}`,
+      title: input.title || detail?.brief.title || `Land ${target.branch}`,
       body: input.body || `Landing ${target.branch} from Rookery run ${input.runId}.`
     }
 

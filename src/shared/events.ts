@@ -14,13 +14,13 @@ export type AppEvent =
   | { type: 'app.update_downloaded'; actor: 'system'; payload: { version: string } }
   | { type: 'app.update_error'; actor: 'system'; payload: { message: string } }
   // Phase 2 — work items, spec versioning, workflow definitions.
-  | { type: 'workitem.created'; actor: 'human'; payload: { workItemId: string; title: string } }
-  | { type: 'workitem.updated'; actor: 'human'; payload: { workItemId: string; title: string } }
-  | { type: 'workitem.deleted'; actor: 'human'; payload: { workItemId: string } }
+  | { type: 'brief.created'; actor: 'human'; payload: { briefId: string; title: string } }
+  | { type: 'brief.updated'; actor: 'human'; payload: { briefId: string; title: string } }
+  | { type: 'brief.deleted'; actor: 'human'; payload: { briefId: string } }
   | {
       type: 'spec.version_created'
       actor: 'human'
-      payload: { workItemId: string; version: number; contentHash: string }
+      payload: { briefId: string; version: number; contentHash: string }
     }
   | {
       type: 'workflow.created'
@@ -138,7 +138,7 @@ export type AppEvent =
   | {
       type: 'run.created'
       actor: 'human'
-      payload: { runId: string; workItemId: string; workflowId: string; workflowVersion: number }
+      payload: { runId: string; briefId: string; workflowId: string; workflowVersion: number }
     }
   | { type: 'run.started'; actor: 'system'; payload: { runId: string } }
   | {

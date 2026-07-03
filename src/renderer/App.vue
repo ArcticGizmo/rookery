@@ -18,7 +18,7 @@ const { theme, toggle: toggleTheme } = useTheme()
 const links = [
   { to: '/dashboard', label: 'Activity' },
   { to: '/runs', label: 'Runs' },
-  { to: '/work-items', label: 'Work items' },
+  { to: '/briefs', label: 'Work items' },
   { to: '/workflows', label: 'Workflows' },
   { to: '/agent-run', label: 'Agent run' },
   { to: '/history', label: 'History' },

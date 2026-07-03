@@ -27,7 +27,7 @@ import type { InfraService } from '../services/infra-service'
 import type { LocalBranchService } from '../services/local-branch-service'
 import { instanceNameForRun } from '../services/infra'
 import type { RunStore } from '../services/run-store'
-import type { WorkItemService } from '../services/work-item-service'
+import type { BriefService } from '../services/brief-service'
 import type { WorkflowService } from '../services/workflow-service'
 import { evaluateCriteria } from './criteria'
 
@@ -104,7 +104,7 @@ export class RunEngine {
     private readonly runs: RunStore,
     private readonly audit: AuditLog,
     private readonly agents: AgentService,
-    private readonly workItems: WorkItemService,
+    private readonly briefs: BriefService,
     private readonly workflows: WorkflowService,
     private readonly infra: InfraService,
     private readonly localBranch: LocalBranchService
@@ -114,8 +114,8 @@ export class RunEngine {
     const input = startRunInputSchema.parse(rawInput)
     const wf = await this.workflows.get(input.workflowId)
     if (!wf) throw new Error(`Workflow ${input.workflowId} not found`)
-    const detail = await this.workItems.get(input.workItemId)
-    if (!detail) throw new Error(`Work item ${input.workItemId} not found`)
+    const detail = await this.briefs.get(input.briefId)
+    if (!detail) throw new Error(`Work item ${input.briefId} not found`)
 
     const executionMode = resolveExecutionMode(input)
     if (executionMode === 'local_branch') {
@@ -129,7 +129,7 @@ export class RunEngine {
 
     const body: WorkflowDefBody = { name: wf.name, description: wf.description, stages: wf.stages }
     const run = await this.runs.create({
-      workItemId: input.workItemId,
+      briefId: input.briefId,
       workflowId: wf.id,
       workflowVersion: wf.version,
       body,
@@ -145,7 +145,7 @@ export class RunEngine {
       actor: 'human',
       payload: {
         runId: run.id,
-        workItemId: input.workItemId,
+        briefId: input.briefId,
         workflowId: wf.id,
         workflowVersion: wf.version
       }
@@ -348,7 +348,7 @@ export class RunEngine {
   private async buildContext(runId: string): Promise<RunCtx | null> {
     const rc = await this.runs.getContext(runId)
     if (!rc) return null
-    const detail = await this.workItems.get(rc.workItemId)
+    const detail = await this.briefs.get(rc.briefId)
     const spec = detail?.currentSpec?.content ?? ''
     const instanceName = instanceNameForRun(runId)
 

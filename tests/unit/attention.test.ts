@@ -31,7 +31,7 @@ function log() {
 describe('briefsInFlight', () => {
   it('lists non-terminal runs with their current stage and carries the work item', () => {
     const l = log()
-    l.add('run.created', { runId: 'r1', workItemId: 'w1' }, { runId: 'r1', actor: 'human' })
+    l.add('run.created', { runId: 'r1', briefId: 'w1' }, { runId: 'r1', actor: 'human' })
     l.add('run.started', { runId: 'r1' }, { runId: 'r1' })
     l.add('run.stage_entered', { stageName: 'Build' }, { runId: 'r1', stageId: 's1' })
 
@@ -39,7 +39,7 @@ describe('briefsInFlight', () => {
     expect(flights).toHaveLength(1)
     expect(flights[0]).toMatchObject({
       runId: 'r1',
-      workItemId: 'w1',
+      briefId: 'w1',
       status: 'running',
       currentStageName: 'Build',
       needsYou: false

@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AuditLog } from '../../src/main/services/audit-log'
 import { InMemoryEventStore } from '../../src/main/services/in-memory-event-store'
 import { SpecService } from '../../src/main/services/spec-service'
-import { WorkItemService } from '../../src/main/services/work-item-service'
+import { BriefService } from '../../src/main/services/brief-service'
 import { makeTestDb, type TestDb } from './helpers/test-db'
 
-describe('WorkItemService', () => {
+describe('BriefService', () => {
   let test: TestDb
   let audit: AuditLog
-  let service: WorkItemService
+  let service: BriefService
 
   beforeEach(async () => {
     test = await makeTestDb()
     audit = new AuditLog(new InMemoryEventStore())
     const specs = new SpecService(test.db, audit)
-    service = new WorkItemService(test.db, audit, specs)
+    service = new BriefService(test.db, audit, specs)
   })
 
   afterEach(() => test.close())
@@ -26,7 +26,7 @@ describe('WorkItemService', () => {
       repos: [{ name: 'api', localPath: 'C:/git/api', remoteUrl: 'https://example.com/api' }]
     })
 
-    expect(detail.workItem.title).toBe('Add login')
+    expect(detail.brief.title).toBe('Add login')
     expect(detail.repos).toHaveLength(1)
     expect(detail.repos[0]!.name).toBe('api')
     expect(detail.repos[0]!.remoteUrl).toBe('https://example.com/api')
@@ -37,7 +37,7 @@ describe('WorkItemService', () => {
   it('audits creation and the initial spec version', async () => {
     await service.create({ title: 'X', spec: 'body', repos: [] })
     const events = await audit.list()
-    expect(events.some((e) => e.type === 'workitem.created')).toBe(true)
+    expect(events.some((e) => e.type === 'brief.created')).toBe(true)
     expect(events.some((e) => e.type === 'spec.version_created')).toBe(true)
   })
 
@@ -55,16 +55,16 @@ describe('WorkItemService', () => {
       spec: '',
       repos: [{ name: 'api', localPath: 'C:/git/api' }]
     })
-    const updated = await service.update(created.workItem.id, {
+    const updated = await service.update(created.brief.id, {
       title: 'Feature renamed',
       repos: [{ name: 'web', localPath: 'C:/git/web' }]
     })
-    expect(updated.workItem.title).toBe('Feature renamed')
+    expect(updated.brief.title).toBe('Feature renamed')
     expect(updated.repos).toHaveLength(1)
     expect(updated.repos[0]!.name).toBe('web')
 
     const events = await audit.list()
-    expect(events.some((e) => e.type === 'workitem.updated')).toBe(true)
+    expect(events.some((e) => e.type === 'brief.updated')).toBe(true)
   })
 
   it('normalizes an empty remote URL to undefined', async () => {
@@ -88,9 +88,9 @@ describe('WorkItemService', () => {
 
   it('deletes a work item and its spec versions', async () => {
     const created = await service.create({ title: 'ToDelete', spec: 'x', repos: [] })
-    await service.delete(created.workItem.id)
-    expect(await service.get(created.workItem.id)).toBeNull()
+    await service.delete(created.brief.id)
+    expect(await service.get(created.brief.id)).toBeNull()
     const events = await audit.list()
-    expect(events.some((e) => e.type === 'workitem.deleted')).toBe(true)
+    expect(events.some((e) => e.type === 'brief.deleted')).toBe(true)
   })
 })

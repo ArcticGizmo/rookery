@@ -3,9 +3,9 @@ import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink } from 'vue-router'
 import Button from '@renderer/components/ui/button/Button.vue'
-import { useWorkItemsStore } from '@renderer/stores/work-items'
+import { useBriefsStore } from '@renderer/stores/briefs'
 
-const store = useWorkItemsStore()
+const store = useBriefsStore()
 const { items, loading } = storeToRefs(store)
 
 function formatDate(ts: string): string {
@@ -24,7 +24,7 @@ onMounted(() => {
         <h1 class="text-2xl font-bold tracking-tight">Work items</h1>
         <p class="text-sm text-muted-foreground">A spec plus the repos it touches.</p>
       </div>
-      <RouterLink to="/work-items/new">
+      <RouterLink to="/briefs/new">
         <Button>New work item</Button>
       </RouterLink>
     </header>
@@ -37,7 +37,7 @@ onMounted(() => {
       <ul v-else class="divide-y divide-border">
         <li v-for="item in items" :key="item.id">
           <RouterLink
-            :to="`/work-items/${item.id}`"
+            :to="`/briefs/${item.id}`"
             class="flex items-center justify-between px-4 py-3 hover:bg-accent"
           >
             <span class="font-medium">{{ item.title }}</span>

@@ -4,11 +4,11 @@ import { type Db, resetAllData } from '../db'
 import type { ListEventsOptions } from '@shared/events'
 import type {
   AgentRunConfig,
-  CreateWorkItemInput,
+  CreateBriefInput,
   GateActionInput,
   LandRunInput,
   StartRunInput,
-  UpdateWorkItemInput,
+  UpdateBriefInput,
   WorkflowDefBody
 } from '@shared/domain'
 import type { RunEngine } from '../engine/run-engine'
@@ -18,14 +18,14 @@ import type { LandingService } from '../services/landing-service'
 import type { RunStore } from '../services/run-store'
 import type { SpecService } from '../services/spec-service'
 import type { UpdateService } from '../services/update-service'
-import type { WorkItemService } from '../services/work-item-service'
+import type { BriefService } from '../services/brief-service'
 import type { WorkflowService } from '../services/workflow-service'
 import type { WorkspaceService } from '../services/workspace-service'
 
 export interface IpcServices {
   db: Db
   auditLog: AuditLog
-  workItems: WorkItemService
+  briefs: BriefService
   specs: SpecService
   workflows: WorkflowService
   agent: AgentService
@@ -42,7 +42,7 @@ export function registerIpc(services: IpcServices): void {
   const {
     db,
     auditLog,
-    workItems,
+    briefs,
     specs,
     workflows,
     agent,
@@ -67,25 +67,25 @@ export function registerIpc(services: IpcServices): void {
   ipcMain.handle(IPC.fsListDirs, (_event, input: string) => workspace.listDirs(input))
 
   // Work items
-  ipcMain.handle(IPC.workItemsList, () => workItems.list())
-  ipcMain.handle(IPC.workItemsGet, (_event, id: string) => workItems.get(id))
-  ipcMain.handle(IPC.workItemsCreate, (_event, input: CreateWorkItemInput) =>
-    workItems.create(input)
+  ipcMain.handle(IPC.briefsList, () => briefs.list())
+  ipcMain.handle(IPC.briefsGet, (_event, id: string) => briefs.get(id))
+  ipcMain.handle(IPC.briefsCreate, (_event, input: CreateBriefInput) =>
+    briefs.create(input)
   )
-  ipcMain.handle(IPC.workItemsUpdate, (_event, id: string, input: UpdateWorkItemInput) =>
-    workItems.update(id, input)
+  ipcMain.handle(IPC.briefsUpdate, (_event, id: string, input: UpdateBriefInput) =>
+    briefs.update(id, input)
   )
-  ipcMain.handle(IPC.workItemsDelete, (_event, id: string) => workItems.delete(id))
+  ipcMain.handle(IPC.briefsDelete, (_event, id: string) => briefs.delete(id))
 
   // Spec versioning
-  ipcMain.handle(IPC.specSave, (_event, workItemId: string, content: string) =>
-    specs.saveSpec(workItemId, content)
+  ipcMain.handle(IPC.specSave, (_event, briefId: string, content: string) =>
+    specs.saveSpec(briefId, content)
   )
-  ipcMain.handle(IPC.specHistory, (_event, workItemId: string) => specs.history(workItemId))
+  ipcMain.handle(IPC.specHistory, (_event, briefId: string) => specs.history(briefId))
   ipcMain.handle(
     IPC.specDiff,
-    (_event, workItemId: string, fromVersion: number, toVersion: number) =>
-      specs.diff(workItemId, fromVersion, toVersion)
+    (_event, briefId: string, fromVersion: number, toVersion: number) =>
+      specs.diff(briefId, fromVersion, toVersion)
   )
 
   // Workflow definitions

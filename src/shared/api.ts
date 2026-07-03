@@ -4,7 +4,7 @@ import type { RepoProbe } from './workspace'
 import type { LandingResult, LandingTargets } from './landing'
 import type {
   AgentRunConfig,
-  CreateWorkItemInput,
+  CreateBriefInput,
   CredentialStatus,
   GateActionInput,
   LandRunInput,
@@ -13,9 +13,9 @@ import type {
   SpecDiff,
   SpecVersion,
   StartRunInput,
-  UpdateWorkItemInput,
-  WorkItem,
-  WorkItemDetail,
+  UpdateBriefInput,
+  Brief,
+  BriefDetail,
   WorkflowDef,
   WorkflowDefBody
 } from './domain'
@@ -42,18 +42,18 @@ export interface RookeryApi {
     /** Directory-path autocomplete candidates for a partial path. */
     listDirs: (input: string) => Promise<string[]>
   }
-  workItems: {
-    list: () => Promise<WorkItem[]>
-    get: (id: string) => Promise<WorkItemDetail | null>
-    create: (input: CreateWorkItemInput) => Promise<WorkItemDetail>
-    update: (id: string, input: UpdateWorkItemInput) => Promise<WorkItemDetail>
+  briefs: {
+    list: () => Promise<Brief[]>
+    get: (id: string) => Promise<BriefDetail | null>
+    create: (input: CreateBriefInput) => Promise<BriefDetail>
+    update: (id: string, input: UpdateBriefInput) => Promise<BriefDetail>
     remove: (id: string) => Promise<void>
   }
   spec: {
     /** Persist spec content; a new version is cut only when it changes. */
-    save: (workItemId: string, content: string) => Promise<SpecVersion>
-    history: (workItemId: string) => Promise<SpecVersion[]>
-    diff: (workItemId: string, fromVersion: number, toVersion: number) => Promise<SpecDiff>
+    save: (briefId: string, content: string) => Promise<SpecVersion>
+    history: (briefId: string) => Promise<SpecVersion[]>
+    diff: (briefId: string, fromVersion: number, toVersion: number) => Promise<SpecDiff>
   }
   workflows: {
     list: () => Promise<WorkflowDef[]>

@@ -53,7 +53,7 @@ export async function resetAllData(db: Db): Promise<void> {
   await db.delete(schema.runs)
   await db.delete(schema.specVersions)
   await db.delete(schema.repos)
-  await db.delete(schema.workItems)
+  await db.delete(schema.briefs)
   await db.delete(schema.workflowDefs)
   await db.delete(schema.events)
 }

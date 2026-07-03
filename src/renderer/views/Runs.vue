@@ -6,19 +6,19 @@ import type { RunExecutionMode } from '@shared/domain'
 import { validateWorkflow } from '@shared/workflow-validation'
 import Button from '@renderer/components/ui/button/Button.vue'
 import { useRunsStore } from '@renderer/stores/runs'
-import { useWorkItemsStore } from '@renderer/stores/work-items'
+import { useBriefsStore } from '@renderer/stores/briefs'
 import { useWorkflowsStore } from '@renderer/stores/workflows'
 
 const router = useRouter()
 const runsStore = useRunsStore()
-const workItemsStore = useWorkItemsStore()
+const briefsStore = useBriefsStore()
 const workflowsStore = useWorkflowsStore()
 
 const { items, loading } = storeToRefs(runsStore)
-const { items: workItems } = storeToRefs(workItemsStore)
+const { items: briefs } = storeToRefs(briefsStore)
 const { items: workflows } = storeToRefs(workflowsStore)
 
-const workItemId = ref('')
+const briefId = ref('')
 const workflowId = ref('')
 const maxIterations = ref(3)
 const maxVerificationCycles = ref(2)
@@ -39,7 +39,7 @@ const selectedWorkflowValid = computed(() => {
 const canStart = computed(
   () =>
     !starting.value &&
-    workItemId.value !== '' &&
+    briefId.value !== '' &&
     workflowId.value !== '' &&
     selectedWorkflowValid.value &&
     (executionMode.value !== 'local_branch' || workBranch.value.trim() !== '')
@@ -54,8 +54,8 @@ const STATUS_CLASS: Record<string, string> = {
   cancelled: 'bg-secondary text-muted-foreground'
 }
 
-function workItemTitle(id: string): string {
-  return workItems.value.find((w) => w.id === id)?.title ?? id.slice(0, 8)
+function briefTitle(id: string): string {
+  return briefs.value.find((w) => w.id === id)?.title ?? id.slice(0, 8)
 }
 
 function formatDate(ts: string): string {
@@ -67,7 +67,7 @@ async function start(): Promise<void> {
   starting.value = true
   try {
     const run = await runsStore.start({
-      workItemId: workItemId.value,
+      briefId: briefId.value,
       workflowId: workflowId.value,
       maxIterations: maxIterations.value,
       maxVerificationCycles: maxVerificationCycles.value,
@@ -88,7 +88,7 @@ async function start(): Promise<void> {
 
 onMounted(() => {
   void runsStore.load()
-  void workItemsStore.load()
+  void briefsStore.load()
   void workflowsStore.load()
 })
 </script>
@@ -108,11 +108,11 @@ onMounted(() => {
           <label class="text-sm font-medium" for="wi">Work item</label>
           <select
             id="wi"
-            v-model="workItemId"
+            v-model="briefId"
             class="h-9 rounded-md border border-input bg-background px-2 text-sm"
           >
             <option value="">Select…</option>
-            <option v-for="w in workItems" :key="w.id" :value="w.id">{{ w.title }}</option>
+            <option v-for="w in briefs" :key="w.id" :value="w.id">{{ w.title }}</option>
           </select>
         </div>
         <div class="flex flex-col gap-1">
@@ -226,7 +226,7 @@ onMounted(() => {
             class="flex items-center justify-between px-4 py-3 hover:bg-accent"
           >
             <span class="flex items-center gap-3">
-              <span class="font-medium">{{ workItemTitle(run.workItemId) }}</span>
+              <span class="font-medium">{{ briefTitle(run.briefId) }}</span>
               <span class="text-xs text-muted-foreground"
                 >stage {{ run.currentStageIndex + 1 }}</span
               >

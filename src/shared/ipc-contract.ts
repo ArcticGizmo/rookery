@@ -4,7 +4,7 @@ import type { RepoProbe } from './workspace'
 import type { LandingResult, LandingTargets } from './landing'
 import type {
   AgentRunConfig,
-  CreateWorkItemInput,
+  CreateBriefInput,
   CredentialStatus,
   GateActionInput,
   LandRunInput,
@@ -13,9 +13,9 @@ import type {
   SpecDiff,
   SpecVersion,
   StartRunInput,
-  UpdateWorkItemInput,
-  WorkItem,
-  WorkItemDetail,
+  UpdateBriefInput,
+  Brief,
+  BriefDetail,
   WorkflowDef,
   WorkflowDefBody
 } from './domain'
@@ -33,11 +33,11 @@ export const IPC = {
   repoProbe: 'repo:probe',
   fsListDirs: 'fs:list-dirs',
   // Work items + spec versioning
-  workItemsList: 'work-items:list',
-  workItemsGet: 'work-items:get',
-  workItemsCreate: 'work-items:create',
-  workItemsUpdate: 'work-items:update',
-  workItemsDelete: 'work-items:delete',
+  briefsList: 'briefs:list',
+  briefsGet: 'briefs:get',
+  briefsCreate: 'briefs:create',
+  briefsUpdate: 'briefs:update',
+  briefsDelete: 'briefs:delete',
   specSave: 'spec:save',
   specHistory: 'spec:history',
   specDiff: 'spec:diff',
@@ -77,16 +77,16 @@ export interface IpcInvokeMap {
   'repo:probe': { args: [localPath: string]; result: RepoProbe }
   'fs:list-dirs': { args: [input: string]; result: string[] }
 
-  'work-items:list': { args: []; result: WorkItem[] }
-  'work-items:get': { args: [id: string]; result: WorkItemDetail | null }
-  'work-items:create': { args: [input: CreateWorkItemInput]; result: WorkItemDetail }
-  'work-items:update': { args: [id: string, input: UpdateWorkItemInput]; result: WorkItemDetail }
-  'work-items:delete': { args: [id: string]; result: void }
+  'briefs:list': { args: []; result: Brief[] }
+  'briefs:get': { args: [id: string]; result: BriefDetail | null }
+  'briefs:create': { args: [input: CreateBriefInput]; result: BriefDetail }
+  'briefs:update': { args: [id: string, input: UpdateBriefInput]; result: BriefDetail }
+  'briefs:delete': { args: [id: string]; result: void }
 
-  'spec:save': { args: [workItemId: string, content: string]; result: SpecVersion }
-  'spec:history': { args: [workItemId: string]; result: SpecVersion[] }
+  'spec:save': { args: [briefId: string, content: string]; result: SpecVersion }
+  'spec:history': { args: [briefId: string]; result: SpecVersion[] }
   'spec:diff': {
-    args: [workItemId: string, fromVersion: number, toVersion: number]
+    args: [briefId: string, fromVersion: number, toVersion: number]
     result: SpecDiff
   }
 

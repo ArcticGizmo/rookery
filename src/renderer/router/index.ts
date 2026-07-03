@@ -17,19 +17,19 @@ export const router = createRouter({
       component: () => import('@renderer/views/History.vue')
     },
     {
-      path: '/work-items',
-      name: 'work-items',
-      component: () => import('@renderer/views/WorkItems.vue')
+      path: '/briefs',
+      name: 'briefs',
+      component: () => import('@renderer/views/Briefs.vue')
     },
     {
-      path: '/work-items/new',
-      name: 'work-item-new',
-      component: () => import('@renderer/views/WorkItemEditor.vue')
+      path: '/briefs/new',
+      name: 'brief-new',
+      component: () => import('@renderer/views/BriefEditor.vue')
     },
     {
-      path: '/work-items/:id',
-      name: 'work-item-edit',
-      component: () => import('@renderer/views/WorkItemEditor.vue'),
+      path: '/briefs/:id',
+      name: 'brief-edit',
+      component: () => import('@renderer/views/BriefEditor.vue'),
       props: true
     },
     {

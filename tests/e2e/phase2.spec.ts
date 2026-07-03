@@ -66,7 +66,7 @@ test('create a work item with a versioned spec, then a workflow — both audited
 
   // --- Audit trail ---
   await window.getByRole('link', { name: 'Events' }).click()
-  await expect(window.getByText('workitem.created').first()).toBeVisible()
+  await expect(window.getByText('brief.created').first()).toBeVisible()
   await expect(window.getByText('spec.version_created').first()).toBeVisible()
   await expect(window.getByText('workflow.created').first()).toBeVisible()
 })

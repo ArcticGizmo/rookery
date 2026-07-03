@@ -7,7 +7,7 @@ import { InfraService } from '../../src/main/services/infra-service'
 import { type GitCli, LocalBranchService } from '../../src/main/services/local-branch-service'
 import { RunStore } from '../../src/main/services/run-store'
 import { SpecService } from '../../src/main/services/spec-service'
-import { WorkItemService } from '../../src/main/services/work-item-service'
+import { BriefService } from '../../src/main/services/brief-service'
 import { WorkflowService } from '../../src/main/services/workflow-service'
 import { RunEngine } from '../../src/main/engine/run-engine'
 import { initRunSnapshot, reduceRun } from '../../src/shared/run-state-machine'
@@ -131,12 +131,12 @@ describe('RunEngine', () => {
   let audit: AuditLog
   let engine: RunEngine
   let runs: RunStore
-  let workItems: WorkItemService
+  let briefs: BriefService
   let workflows: WorkflowService
 
   async function setup(verdict: string, maxIterations = 3) {
     const specs = new SpecService(test.db, audit)
-    workItems = new WorkItemService(test.db, audit, specs)
+    briefs = new BriefService(test.db, audit, specs)
     workflows = new WorkflowService(test.db, audit)
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, verdictQuery(verdict))
@@ -145,19 +145,19 @@ describe('RunEngine', () => {
       runs,
       audit,
       agents,
-      workItems,
+      briefs,
       workflows,
       infra,
       new LocalBranchService(audit)
     )
 
-    const wi = await workItems.create({
+    const wi = await briefs.create({
       title: 'Feature',
       spec: 'Build feature X',
       repos: [{ name: 'api', localPath: 'C:/git/api' }]
     })
     const wf = await workflows.create(workflowBody())
-    return { workItemId: wi.workItem.id, workflowId: wf.id, maxIterations }
+    return { briefId: wi.brief.id, workflowId: wf.id, maxIterations }
   }
 
   beforeEach(async () => {
@@ -248,7 +248,7 @@ describe('RunEngine', () => {
     overrides: Partial<StartRunInput> = {}
   ) {
     const specs = new SpecService(test.db, audit)
-    workItems = new WorkItemService(test.db, audit, specs)
+    briefs = new BriefService(test.db, audit, specs)
     workflows = new WorkflowService(test.db, audit)
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, verificationQuery(checkerVerdicts))
@@ -257,13 +257,13 @@ describe('RunEngine', () => {
       runs,
       audit,
       agents,
-      workItems,
+      briefs,
       workflows,
       infra,
       new LocalBranchService(audit)
     )
 
-    const wi = await workItems.create({
+    const wi = await briefs.create({
       title: 'Feature',
       spec: 'Build feature X',
       repos: [{ name: 'api', localPath: 'C:/git/api' }]
@@ -271,7 +271,7 @@ describe('RunEngine', () => {
     const wf = await workflows.create(verificationWorkflow())
     // maxIterations 1 ⇒ verification fails the whole stage on the first bad verdict
     // (no in-stage retry) so the run-level route-back behavior is what's exercised.
-    return { workItemId: wi.workItem.id, workflowId: wf.id, maxIterations: 1, ...overrides }
+    return { briefId: wi.brief.id, workflowId: wf.id, maxIterations: 1, ...overrides }
   }
 
   it('auto-routes a failed verification back to the first stage, then completes on pass', async () => {
@@ -372,7 +372,7 @@ describe('RunEngine', () => {
 
   it('terminates an in-flight run and cancels its live agent', async () => {
     const specs = new SpecService(test.db, audit)
-    workItems = new WorkItemService(test.db, audit, specs)
+    briefs = new BriefService(test.db, audit, specs)
     workflows = new WorkflowService(test.db, audit)
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, hangingQuery())
@@ -381,19 +381,19 @@ describe('RunEngine', () => {
       runs,
       audit,
       agents,
-      workItems,
+      briefs,
       workflows,
       infra,
       new LocalBranchService(audit)
     )
 
-    const wi = await workItems.create({
+    const wi = await briefs.create({
       title: 'Feature',
       spec: 'Build feature X',
       repos: [{ name: 'api', localPath: 'C:/git/api' }]
     })
     const wf = await workflows.create(workflowBody())
-    const run = await engine.start({ workItemId: wi.workItem.id, workflowId: wf.id })
+    const run = await engine.start({ briefId: wi.brief.id, workflowId: wf.id })
 
     // Wait until the agent is actually running (drive loop is live, awaiting it).
     await waitFor(audit, (e) => has(e, 'agent.spawned'))
@@ -451,7 +451,7 @@ describe('RunEngine', () => {
 
   it('prepares a branch at the setup stage in local-branch mode, then completes', async () => {
     const specs = new SpecService(test.db, audit)
-    workItems = new WorkItemService(test.db, audit, specs)
+    briefs = new BriefService(test.db, audit, specs)
     workflows = new WorkflowService(test.db, audit)
     runs = new RunStore(test.db)
     const agents = new AgentService(audit, verdictQuery('APPROVE — looks good'))
@@ -460,20 +460,20 @@ describe('RunEngine', () => {
       runs,
       audit,
       agents,
-      workItems,
+      briefs,
       workflows,
       infra,
       new LocalBranchService(audit, successGit())
     )
 
-    const wi = await workItems.create({
+    const wi = await briefs.create({
       title: 'F',
       spec: 'do X',
       repos: [{ name: 'api', localPath: 'C:/git/api' }]
     })
     const wf = await workflows.create(localBranchWorkflow())
     const run = await engine.start({
-      workItemId: wi.workItem.id,
+      briefId: wi.brief.id,
       workflowId: wf.id,
       executionMode: 'local_branch',
       workBranch: 'rookery/x'
@@ -503,7 +503,7 @@ describe('RunEngine', () => {
     const body = workflowBody()
     const stageIds = body.stages.map((s) => s.id)
     const base = {
-      workItemId: input.workItemId,
+      briefId: input.briefId,
       workflowId: input.workflowId,
       workflowVersion: 1,
       body,

@@ -10,7 +10,7 @@ import { hashContent } from './hash'
 function toSpecVersion(row: SpecVersionRow): SpecVersion {
   return {
     id: row.id,
-    workItemId: row.workItemId,
+    briefId: row.briefId,
     version: row.version,
     contentHash: row.contentHash,
     content: row.content,
@@ -37,31 +37,31 @@ export class SpecService {
   ) {}
 
   /** The latest spec version for a work item, or null if none exists yet. */
-  async getLatest(workItemId: string): Promise<SpecVersion | null> {
+  async getLatest(briefId: string): Promise<SpecVersion | null> {
     const rows = await this.db
       .select()
       .from(specVersions)
-      .where(eq(specVersions.workItemId, workItemId))
+      .where(eq(specVersions.briefId, briefId))
       .orderBy(desc(specVersions.version))
       .limit(1)
     return rows[0] ? toSpecVersion(rows[0]) : null
   }
 
   /** Full version history for a work item, oldest first. */
-  async history(workItemId: string): Promise<SpecVersion[]> {
+  async history(briefId: string): Promise<SpecVersion[]> {
     const rows = await this.db
       .select()
       .from(specVersions)
-      .where(eq(specVersions.workItemId, workItemId))
+      .where(eq(specVersions.briefId, briefId))
       .orderBy(asc(specVersions.version))
     return rows.map(toSpecVersion)
   }
 
-  async getVersion(workItemId: string, version: number): Promise<SpecVersion | null> {
+  async getVersion(briefId: string, version: number): Promise<SpecVersion | null> {
     const rows = await this.db
       .select()
       .from(specVersions)
-      .where(and(eq(specVersions.workItemId, workItemId), eq(specVersions.version, version)))
+      .where(and(eq(specVersions.briefId, briefId), eq(specVersions.version, version)))
       .limit(1)
     return rows[0] ? toSpecVersion(rows[0]) : null
   }
@@ -70,8 +70,8 @@ export class SpecService {
    * Persist a spec. Returns the existing latest version unchanged when the
    * content hasn't changed; otherwise appends a new version and audits it.
    */
-  async saveSpec(workItemId: string, content: string): Promise<SpecVersion> {
-    const latest = await this.getLatest(workItemId)
+  async saveSpec(briefId: string, content: string): Promise<SpecVersion> {
+    const latest = await this.getLatest(briefId)
     const contentHash = hashContent(content)
     if (latest && latest.contentHash === contentHash) return latest
 
@@ -80,7 +80,7 @@ export class SpecService {
       .insert(specVersions)
       .values({
         id: randomUUID(),
-        workItemId,
+        briefId,
         version,
         contentHash,
         content,
@@ -93,23 +93,23 @@ export class SpecService {
       actor: 'human',
       runId: null,
       stageId: null,
-      payload: { workItemId, version, contentHash }
+      payload: { briefId, version, contentHash }
     })
     return stored
   }
 
   /** Line-level diff between two versions of a work item's spec. */
-  async diff(workItemId: string, fromVersion: number, toVersion: number): Promise<SpecDiff> {
+  async diff(briefId: string, fromVersion: number, toVersion: number): Promise<SpecDiff> {
     const [from, to] = await Promise.all([
-      this.getVersion(workItemId, fromVersion),
-      this.getVersion(workItemId, toVersion)
+      this.getVersion(briefId, fromVersion),
+      this.getVersion(briefId, toVersion)
     ])
-    if (!from) throw new Error(`Spec version ${fromVersion} not found for work item ${workItemId}`)
-    if (!to) throw new Error(`Spec version ${toVersion} not found for work item ${workItemId}`)
+    if (!from) throw new Error(`Spec version ${fromVersion} not found for work item ${briefId}`)
+    if (!to) throw new Error(`Spec version ${toVersion} not found for work item ${briefId}`)
 
     const lines = diffLines(from.content, to.content).flatMap((part) =>
       toLines(part.added ? 'added' : part.removed ? 'removed' : 'unchanged', part.value)
     )
-    return { workItemId, fromVersion, toVersion, lines }
+    return { briefId, fromVersion, toVersion, lines }
   }
 }
