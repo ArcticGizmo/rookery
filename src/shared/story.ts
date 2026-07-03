@@ -28,6 +28,14 @@ export interface StoryNode {
   /** An optional secondary line ("sub"); empty when there's nothing to add. */
   detail: string
   ts: string
+  /** The source event's raw payload — revealed when the node is zoomed (J9.2). */
+  payload: unknown
+  /**
+   * The granular agent activity (messages, tool calls, evaluations) that unfolded
+   * under this beat — the raw stream between it and the next beat. Progressive
+   * disclosure: hidden in the broad telling, revealed on zoom (J9.2).
+   */
+  children: StoredEvent[]
 }
 
 const LANE_OF: Record<EventActor, StoryLane> = {
@@ -164,24 +172,34 @@ function beatFor(event: StoredEvent): Beat | null {
 
 /**
  * Reduce a flight's events to its story: an oldest-first timeline of beats, each
- * tagged with its lane and timestamped. Events with no narrative beat (the
- * granular agent stream, unknown types) are omitted from the broad telling.
+ * tagged with its lane and timestamped. The granular agent stream is not dropped
+ * but nested under the beat it unfolded during — so a node can zoom in to it
+ * (J9.2). Granular events before the first beat, and events with no narrative
+ * beat, are the only ones omitted entirely.
  */
 export function buildStory(events: StoredEvent[]): StoryNode[] {
   const nodes: StoryNode[] = []
+  let current: StoryNode | null = null
   for (const event of events) {
-    if (GRANULAR.has(event.type)) continue
+    if (GRANULAR.has(event.type)) {
+      // Nest granular activity under the most recent beat, as its zoom detail.
+      if (current) current.children.push(event)
+      continue
+    }
     const beat = beatFor(event)
     if (!beat) continue
-    nodes.push({
+    current = {
       id: event.id,
       lane: LANE_OF[event.actor],
       actorLabel: beat.actorLabel,
       type: event.type,
       title: beat.title,
       detail: beat.detail,
-      ts: event.ts
-    })
+      ts: event.ts,
+      payload: event.payload,
+      children: []
+    }
+    nodes.push(current)
   }
   return nodes
 }

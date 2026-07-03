@@ -75,7 +75,7 @@ describe('buildStory', () => {
     expect(node!.detail).toBe('tighten the API')
   })
 
-  it('omits the granular agent stream — that is the zoom (J9.2), not the broad story', () => {
+  it('nests the granular agent stream under its beat for the zoom (J9.2)', () => {
     const l = log()
     l.add('agent.spawned', { agentRunId: 'a1', personaName: 'Dev', model: 'opus' }, { actor: 'agent' })
     l.add('agent.message', { agentRunId: 'a1', text: 'thinking…' }, { actor: 'agent' })
@@ -84,10 +84,31 @@ describe('buildStory', () => {
     l.add('flight.criterion_evaluated', { criterionType: 'tests_pass', passed: true, detail: '' })
     l.add('agent.finished', { agentRunId: 'a1' }, { actor: 'agent' })
 
-    // Only the spawn is a broad-story beat; the chatter is omitted.
+    // Only the spawn is a broad-story beat; the chatter is nested beneath it,
+    // not dropped and not promoted to top-level nodes.
     const story = buildStory(l.events)
     expect(story).toHaveLength(1)
     expect(story[0]!.type).toBe('agent.spawned')
+    expect(story[0]!.children.map((c) => c.type)).toEqual([
+      'agent.message',
+      'agent.tool_use',
+      'agent.tool_result',
+      'flight.criterion_evaluated',
+      'agent.finished'
+    ])
+  })
+
+  it('carries each beat its raw payload, and drops chatter before the first beat', () => {
+    const l = log()
+    // A stray granular event before any beat has no parent — dropped entirely.
+    l.add('agent.message', { agentRunId: 'a0', text: 'orphan' }, { actor: 'agent' })
+    l.add('flight.started', { flightId: 'f1', extra: 'kept' })
+
+    const story = buildStory(l.events)
+    expect(story).toHaveLength(1)
+    expect(story[0]).toMatchObject({ type: 'flight.started', children: [] })
+    // The raw event payload is available for progressive disclosure (J9.2).
+    expect(story[0]!.payload).toEqual({ flightId: 'f1', extra: 'kept' })
   })
 
   it('distinguishes an auto route-back from a human escalation', () => {
