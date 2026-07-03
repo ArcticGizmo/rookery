@@ -171,6 +171,12 @@ export type Stage = z.infer<typeof stageSchema>
 export const approachDefBodySchema = z.object({
   name: z.string().min(1, 'Approach name is required'),
   description: z.string().default(''),
+  /**
+   * When set, this approach was authored for a specific brief (the journey's
+   * per-brief approach). Stored in the JSON body so linking a brief to its
+   * approach needs no schema change. Unset on standalone/library approaches.
+   */
+  briefId: z.string().optional(),
   stages: z.array(stageSchema).default([])
 })
 export type ApproachDefBody = z.infer<typeof approachDefBodySchema>

@@ -23,10 +23,10 @@ export const router = createRouter({
       props: true
     },
     {
-      // Shape how the brief is tackled (placeholder until Phase J4).
+      // Shape how the brief is tackled (Phase J4).
       path: '/brief/:id/approach',
       name: 'brief-approach',
-      component: () => import('@renderer/views/ApproachStep.vue'),
+      component: () => import('@renderer/views/ApproachForBrief.vue'),
       props: true
     },
 
