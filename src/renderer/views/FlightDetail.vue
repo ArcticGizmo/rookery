@@ -5,16 +5,18 @@ import type {
   FlightStatus,
   LandingMethod,
   FlightDetail,
+  StageExecution,
   StageStatus
 } from '@shared/domain'
 import { type ChainTool, buildChainOfThought } from '@shared/chain-of-thought'
 import { holdCount } from '@shared/checkpoint-rail'
+import { stageRoles } from '@shared/approach-view'
 import type { StoredEvent } from '@shared/events'
 import type { InfraInstance, FlightInfra } from '@shared/infra'
 import type { LandingTargets } from '@shared/landing'
 import Button from '@renderer/components/ui/button/Button.vue'
 import MarkdownView from '@renderer/components/MarkdownView.vue'
-import { Chip, MonoLabel } from '@renderer/components/journey'
+import { Chip, MilestoneNode, MonoLabel } from '@renderer/components/journey'
 import { useScopedEvents } from '@renderer/composables/use-scoped-events'
 import { useFlightsStore } from '@renderer/stores/flights'
 import { useBriefsStore } from '@renderer/stores/briefs'
@@ -204,14 +206,6 @@ watch(
   }
 )
 
-const STAGE_CLASS: Record<StageStatus, string> = {
-  pending: 'border-border text-muted-foreground',
-  running: 'border-blue-500 text-blue-700',
-  awaiting_checkpoint: 'border-amber-500 text-amber-700',
-  passed: 'border-green-500 text-green-700',
-  failed: 'border-red-500 text-red-600'
-}
-
 const awaitingCheckpoint = computed(() => detail.value?.flight.status === 'awaiting_checkpoint')
 
 const currentCheckpoint = computed(() => {
@@ -268,6 +262,46 @@ const backTargets = computed(() => {
 
 function stageName(index: number): string {
   return detail.value?.approach.stages[index]?.name ?? `Stage ${index + 1}`
+}
+
+// --- Milestone timeline (J7.2): stages read as broad milestones -------------
+
+type MilestoneState = 'done' | 'active' | 'pending' | 'beacon' | 'block'
+
+function milestoneState(status: StageStatus): MilestoneState {
+  switch (status) {
+    case 'passed':
+      return 'done'
+    case 'running':
+      return 'active'
+    case 'awaiting_checkpoint':
+      return 'beacon'
+    case 'failed':
+      return 'block'
+    case 'pending':
+      return 'pending'
+  }
+}
+
+/** A one-line, human summary of where a stage is right now. */
+function milestoneSummary(exec: StageExecution): string {
+  const def = detail.value?.approach.stages[exec.stageIndex]
+  switch (exec.status) {
+    case 'passed':
+      return 'Done'
+    case 'running': {
+      const roles = def ? stageRoles(def) : []
+      return roles.length ? `${roles.join(', ')} working…` : 'In progress…'
+    }
+    case 'awaiting_checkpoint': {
+      const cp = def?.checkpoints.find((c) => c.kind === 'human')
+      return cp?.description || 'Waiting for your decision'
+    }
+    case 'failed':
+      return 'Failed — see activity below'
+    case 'pending':
+      return 'Not started'
+  }
 }
 
 function activityLine(event: StoredEvent): string {
@@ -524,24 +558,35 @@ onUnmounted(() => {
         </dl>
       </div>
 
-      <!-- Stage progress -->
-      <div class="flex flex-wrap gap-2">
-        <div
-          v-for="stage in detail.stages"
+      <!-- Milestone timeline: broad milestones, one line each (J7.2). -->
+      <section class="flex flex-col">
+        <MonoLabel class="mb-3">The journey</MonoLabel>
+        <MilestoneNode
+          v-for="(stage, index) in detail.stages"
           :key="stage.id"
-          class="flex flex-col gap-0.5 rounded-md border-l-4 bg-card px-3 py-2 text-sm"
-          :class="[
-            STAGE_CLASS[stage.status],
-            stage.stageIndex === detail.flight.currentStageIndex ? 'ring-1 ring-ring' : ''
-          ]"
+          :state="milestoneState(stage.status)"
+          :line="index < detail.stages.length - 1"
+          :pulse="stage.status === 'running' || stage.status === 'awaiting_checkpoint'"
         >
-          <span class="font-medium">{{ stageName(stage.stageIndex) }}</span>
-          <span class="text-xs"
-            >{{ stage.status
-            }}<template v-if="stage.iteration > 1"> · iter {{ stage.iteration }}</template></span
+          <div class="flex items-baseline gap-2">
+            <span class="mono-label text-ink-faint">{{ index + 1 }}</span>
+            <span class="text-sm font-semibold">{{ stageName(stage.stageIndex) }}</span>
+            <span v-if="stage.iteration > 1" class="mono-label text-ink-faint">
+              · iteration {{ stage.iteration }}
+            </span>
+          </div>
+          <p
+            class="text-xs"
+            :class="{
+              'text-beacon': stage.status === 'awaiting_checkpoint',
+              'text-block': stage.status === 'failed',
+              'text-muted-foreground': stage.status !== 'awaiting_checkpoint' && stage.status !== 'failed'
+            }"
           >
-        </div>
-      </div>
+            {{ milestoneSummary(stage) }}
+          </p>
+        </MilestoneNode>
+      </section>
 
       <!-- Pending checkpoint -->
       <section

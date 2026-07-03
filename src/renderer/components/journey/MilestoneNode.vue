@@ -9,7 +9,7 @@ import { cn } from '@renderer/lib/utils'
  */
 const props = withDefaults(
   defineProps<{
-    state?: 'done' | 'active' | 'pending' | 'beacon'
+    state?: 'done' | 'active' | 'pending' | 'beacon' | 'block'
     line?: boolean
     pulse?: boolean
     class?: string
@@ -23,7 +23,8 @@ const knob = computed(
       done: 'bg-pass border-pass',
       active: 'bg-primary border-primary',
       pending: 'bg-surface border-border-strong',
-      beacon: 'bg-beacon border-beacon'
+      beacon: 'bg-beacon border-beacon',
+      block: 'bg-block border-block'
     })[props.state]
 )
 </script>
