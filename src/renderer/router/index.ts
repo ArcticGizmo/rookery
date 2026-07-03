@@ -36,6 +36,13 @@ export const router = createRouter({
       component: () => import('@renderer/views/CheckpointRail.vue'),
       props: true
     },
+    {
+      // Send it into isolation and begin the flight (Phase J6).
+      path: '/brief/:id/launch',
+      name: 'brief-launch',
+      component: () => import('@renderer/views/LaunchFlight.vue'),
+      props: true
+    },
 
     // The flight (live) and its story (retrospective — Phase J9 refines; reuse the
     // flight view for now so the route resolves).

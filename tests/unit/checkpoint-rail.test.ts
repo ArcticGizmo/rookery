@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   defaultCheckpointDescription,
+  firstHold,
+  holdCount,
   setHumanHold,
   stageHolds
 } from '../../src/shared/checkpoint-rail'
@@ -64,6 +66,39 @@ describe('setHumanHold', () => {
     const before: Checkpoint[] = []
     setHumanHold(before, true, 'x', uid)
     expect(before).toEqual([])
+  })
+})
+
+describe('holdCount', () => {
+  const held = stage([{ id: 'h', kind: 'human', description: '' }])
+  const auto = stage([])
+
+  it('counts held stages plus a held landing', () => {
+    expect(holdCount([held, auto, held], { hold: true })).toBe(3)
+    expect(holdCount([held, auto, held], { hold: false })).toBe(2)
+    expect(holdCount([], { hold: false })).toBe(0)
+  })
+})
+
+describe('firstHold', () => {
+  const held = (name: string): Stage => ({ ...stage([{ id: 'h', kind: 'human', description: '' }]), name })
+  const auto = (name: string): Stage => ({ ...stage([]), name })
+
+  it('is the earliest held stage', () => {
+    expect(firstHold([auto('A'), held('B'), held('C')], { hold: true })).toEqual({
+      kind: 'stage',
+      index: 1,
+      label: 'B'
+    })
+  })
+
+  it('falls back to the landing when no stage holds', () => {
+    const result = firstHold([auto('A'), auto('B')], { hold: true })
+    expect(result.kind).toBe('landing')
+  })
+
+  it('is none when nothing holds', () => {
+    expect(firstHold([auto('A')], { hold: false }).kind).toBe('none')
   })
 })
 

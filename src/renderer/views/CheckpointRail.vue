@@ -4,6 +4,7 @@ import type { ApproachDefBody, Stage } from '@shared/domain'
 import { stageTypeLabel } from '@shared/approach-view'
 import {
   defaultCheckpointDescription,
+  holdCount as countHolds,
   setHumanHold,
   stageHolds
 } from '@shared/checkpoint-rail'
@@ -33,11 +34,9 @@ const error = ref<string | null>(null)
 
 const uid = (): string => crypto.randomUUID()
 
-const holdCount = computed(() => {
-  if (!body.value) return 0
-  const stageHolds_ = body.value.stages.filter(stageHolds).length
-  return stageHolds_ + (body.value.landing.hold ? 1 : 0)
-})
+const holdCount = computed(() =>
+  body.value ? countHolds(body.value.stages, body.value.landing) : 0
+)
 
 onMounted(async () => {
   const detail = await briefsStore.get(props.id)
@@ -232,9 +231,9 @@ async function setLandingHold(hold: boolean): Promise<void> {
           <span v-if="saving" class="text-ink-faint">Saving…</span>
           <span v-if="error" class="text-block">{{ error }}</span>
         </div>
-        <div class="flex shrink-0 items-center gap-3">
-          <span class="text-xs text-ink-faint">Next: send it into isolation & begin the flight.</span>
-        </div>
+        <RouterLink :to="`/brief/${props.id}/launch`" class="shrink-0">
+          <Button variant="outline">Send it into isolation →</Button>
+        </RouterLink>
       </footer>
     </template>
   </div>
