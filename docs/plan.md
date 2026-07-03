@@ -21,7 +21,7 @@ These are settled. Do not relitigate them in implementation without raising it e
 | Styling / components | **Tailwind CSS** + **shadcn-vue** (built on reka-ui) | Modern, headless, accessible; low lock-in. |
 | Main process | Node (Electron main) — orchestration engine, persistence, agent SDK | Node runtime available in-process. |
 | Agent engine | **Claude Agent SDK** (`@anthropic-ai/claude-agent-sdk`), in-process in main | Native session control, per-turn token/context usage, BYO MCP/skills/subagents map to SDK config. Reuses local Claude Code credentials. |
-| Persistence | **SQLite** via **better-sqlite3**, **Drizzle ORM** + drizzle-kit migrations | Synchronous, fast, embedded; typed queries; append-only audit + spec versioning. |
+| Persistence | **SQLite** via **libsql** (`@libsql/client`), **Drizzle ORM** + drizzle-kit migrations | Embedded, typed queries, append-only audit + spec versioning. Driver revised from better-sqlite3 (no Electron-43 prebuilt + corporate proxy blocks source builds; libsql is N-API/ABI-stable) — see ADR 0002. |
 | IPC | Hand-rolled **typed IPC contract** shared across main/preload/renderer (contextBridge, `contextIsolation: true`, `nodeIntegration: false`) | Type safety without a heavy dependency early. `electron-trpc` is a possible later upgrade. |
 | Worktree + docker infra | **`InfraProvider` interface**; `SprigProvider` (shells out to the `sprig` CLI, parses JSON) is the v1 implementation | Reuse proven tooling now; keep a native backend possible later without touching the engine. |
 | Testing | **Vitest** (unit), **Playwright** (Electron e2e) | |
@@ -123,7 +123,7 @@ Legend: `∥` = parallel-safe once dependencies met · `→` = depends on.
 
 | # | Task | Deliverable / acceptance | Deps |
 |---|---|---|---|
-| 1.1 | better-sqlite3 in main | DB opens at a resolved userData path; connection singleton; graceful close on quit. Native module rebuilt for Electron (electron-rebuild wired). | 0.2 |
+| 1.1 | libsql in main | DB opens at a resolved userData path; connection singleton; graceful close on quit. libsql is N-API (no per-runtime rebuild). | 0.2 |
 | 1.2 | Drizzle + migration runner | drizzle-kit configured; migrations run automatically on boot before the window loads; a no-op baseline migration applies cleanly on a fresh DB. | 1.1 |
 | 1.3 | Event log schema | `events` table: `id` (seq PK), `ts` (UTC ISO), `type`, `actor` (system/human/agent), `run_id?`, `stage_id?`, `payload` (JSON), plus supporting indexes. Migration + Drizzle model. | 1.2 |
 | 1.4 | Event type union | `src/shared/events.ts`: discriminated union of event types (start with `app.booted`, `app.shutdown`; extend later). Typed payloads. | 0.3 ∥ |
@@ -203,8 +203,14 @@ Legend: `∥` = parallel-safe once dependencies met · `→` = depends on.
 | 5.3 | Infra audit events | `infra.provisioning`, `infra.up`, `infra.down`, `infra.failed` events with instance/worktree/port details. | 5.2,1.5 |
 | 5.4 | Setup stage wiring | The workflow "setup" stage calls the provider to create worktrees + bring infra up for impacted repos; agents in later stages run with the worktree cwd. Teardown on run completion (configurable). | 5.3,4.3,3.2 |
 | 5.5 | IPC + UI: infra status | Surface per-run infra status (instances, worktree paths, container health) in the run view. | 5.4,4.9 |
+| 5.6 | Permission & audit hardening | Isolated-worktree agents default to `acceptEdits` (not `bypassPermissions`); a hard deny backstop (`SECURITY_DENY_RULES`: curl/wget/ssh/scp/sudo/nc/docker/`git push`/WebFetch) applies to every agent via `settings.permissions.deny`; `settingSources: []` stops inheriting the user's global `~/.claude` grants; `forwardSubagentText: true` + new `agent.tool_result`/`agent.permission_denied`/`agent.task` events (with `parentToolUseId`/`subagentType`) put **all** sub-agent and background-agent activity in the audit log. | 5.4,3.4 |
 
-**Phase 5 exit criteria:** A run's setup stage provisions isolated worktrees + docker infra via sprig, agents operate inside them, status is visible, and teardown works. Multiple runs coexist without collision.
+**Phase 5 exit criteria:** A run's setup stage provisions isolated worktrees + docker infra via sprig, agents operate inside them, status is visible, and teardown works. Multiple runs coexist without collision. Agents run least-privilege by default (worktree isolation + deny backstop, no `bypassPermissions`), and every action — including inside sub/background agents — is audited.
+
+> **Circle back (see §6 Q8):** the permission mode is currently fixed by the engine
+> (`plan` → `acceptEdits`). Letting users *choose* per persona/run (`acceptEdits` /
+> `auto` / `bypassPermissions`), and surfacing tool-permission prompts to a human via
+> `canUseTool` instead of auto-denying, is a deferred Phase 6 decision.
 
 ---
 
@@ -257,6 +263,23 @@ These do **not** block the plan; resolve when the relevant phase is reached.
 5. **Model/provider config surface.** Which models to expose in persona config, and whether to allow non-default effort/thinking settings, decided at 3.3.
 6. **Concurrency limits.** Max simultaneous runs/agents/infra instances — a Phase 6 tuning concern.
 7. **Cross-platform.** Plan targets Windows first (per environment). Confirm whether macOS/Linux are release targets before 7.3.
+8. **Configurable agent permission mode (deferred from Phase 5.6).** Today the engine fixes the
+   mode (read-only `plan` outside a worktree, `acceptEdits` inside one) with a hard deny
+   backstop and no inheritance of the user's global settings. Decide whether to let users
+   choose the mode per persona/run — `acceptEdits`, `auto` (model-classifier gating), or
+   `bypassPermissions` (explicit "dangerous" opt-in) — and whether to add an interactive
+   permission gate: wire the SDK `canUseTool` callback to a human prompt (reuse the Phase 4
+   gate UI) that emits `agent.permission_requested`/`_resolved` events and can persist
+   "always allow" rules per run, instead of auto-denying un-allow-listed tools. Also revisit
+   whether to relax specific deny-backstop entries (e.g. `docker`, `WebFetch`) per persona,
+   and whether to enable the SDK OS `sandbox` layer (verify Windows support first).
+9. **PR host abstraction (deferred from Phase 6.4).** The v1 `GitLandingProvider` opens PRs via
+   the GitHub `gh` CLI, so PR creation assumes GitHub + an installed/authenticated `gh` (direct
+   `merge` uses only `git` and is host-agnostic). Landing already sits behind the
+   `LandingProvider` port, so revisit whether to abstract the PR host — GitLab (`glab`),
+   Bitbucket, Azure DevOps, or a generic "push branch + print compare URL" fallback — either as
+   alternate providers or a pluggable PR backend within `GitLandingProvider`, selected per repo
+   (e.g. from the remote URL). Not needed while every target repo is on GitHub.
 
 ---
 

@@ -1,0 +1,1 @@
+ALTER TABLE `runs` ADD `max_verification_cycles` integer DEFAULT 2 NOT NULL;

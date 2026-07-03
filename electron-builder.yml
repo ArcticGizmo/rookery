@@ -1,0 +1,32 @@
+appId: com.rookery.app
+productName: Rookery
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: drizzle
+    to: drizzle
+# Auto-update (Phase 7.3): releases are published to GitHub Releases and
+# electron-updater reads the generated latest.yml from there. Builds are
+# currently UNSIGNED — Windows SmartScreen will warn on first install until a
+# code-signing certificate is configured (add `win.certificateFile` /
+# `certificatePassword` or an Azure Trusted Signing block here).
+publish:
+  provider: github
+  owner: ArcticGizmo
+  repo: rookery
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+# macOS / Linux are not release targets (Windows-first); `dir` produces an
+# unpacked build for local inspection only.
+mac:
+  target: dir
+linux:
+  target: dir

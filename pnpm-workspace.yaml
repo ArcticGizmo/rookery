@@ -1,0 +1,14 @@
+# Dependency build scripts we explicitly trust to run during install.
+# pnpm blocks dependency lifecycle scripts by default (supply-chain safety);
+# these are required for the app to build and run.
+allowBuilds:
+  electron: true # downloads the Electron runtime binary
+  electron-winstaller: true # Windows installer build (electron-builder)
+  esbuild: true # native bundler binary used by Vite/electron-vite
+  vue-demi: true # Vue 2/3 compat shim used by Pinia
+
+# pnpm 11 minimum-release-age gate: allow these freshly published versions.
+minimumReleaseAgeExclude:
+  - '@vue/language-core@3.3.6'
+  - electron@43.0.0
+  - vue-tsc@3.3.6
