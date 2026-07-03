@@ -1,29 +1,35 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import type { NotificationItem } from '@shared/notifications'
+import { briefsInFlight, needsYou } from '@shared/attention'
 import { useEventsStore } from '@renderer/stores/events'
 import { useNotificationsStore } from '@renderer/stores/notifications'
 import { useTheme } from '@renderer/composables/use-theme'
 import { rookery } from '@renderer/lib/rookery'
+import { Button } from '@renderer/components/ui/button'
+import { Chip } from '@renderer/components/journey'
 
 const route = useRoute()
 const router = useRouter()
 const eventsStore = useEventsStore()
 const notifications = useNotificationsStore()
+const { events } = storeToRefs(eventsStore)
 const { items, unreadCount, osEnabled } = storeToRefs(notifications)
 const { theme, toggle: toggleTheme } = useTheme()
 
+// Secondary surfaces; the primary journey (Desk → brief → flight → story) is
+// reached via the brand/Desk link and the attention lanes.
 const links = [
-  { to: '/dashboard', label: 'Activity' },
-  { to: '/flights', label: 'Flights' },
-  { to: '/briefs', label: 'Briefs' },
+  { to: '/', label: 'Desk' },
   { to: '/approaches', label: 'Approaches' },
-  { to: '/agent-run', label: 'Agent run' },
-  { to: '/history', label: 'History' },
-  { to: '/', label: 'Events' }
+  { to: '/history', label: 'History' }
 ]
+
+// Live attention counts for the two lanes (Phase J2.4), derived from the event log.
+const inFlightCount = computed(() => briefsInFlight(events.value).length)
+const needsYouCount = computed(() => needsYou(events.value).length)
 
 const open = ref(false)
 const resetting = ref(false)
@@ -64,7 +70,7 @@ function openNotification(n: NotificationItem): void {
   }
   if (n.flightId) {
     notifications.markFlightRead(n.flightId)
-    void router.push(`/flights/${n.flightId}`)
+    void router.push(`/flight/${n.flightId}`)
   }
 }
 
@@ -91,8 +97,16 @@ onMounted(() => {
 <template>
   <div class="flex min-h-screen flex-col bg-background text-foreground">
     <header class="border-b border-border">
-      <div class="mx-auto flex max-w-5xl items-center gap-6 px-6 py-3">
-        <span class="text-lg font-bold tracking-tight">Rookery</span>
+      <div class="mx-auto flex max-w-5xl items-center gap-5 px-6 py-3">
+        <RouterLink to="/" class="flex items-center gap-2">
+          <span
+            class="grid size-6 place-items-center rounded-md bg-primary text-sm text-primary-foreground"
+            aria-hidden="true"
+            >◆</span
+          >
+          <span class="text-lg font-bold tracking-tight">Rookery</span>
+        </RouterLink>
+
         <nav class="flex items-center gap-1">
           <RouterLink
             v-for="link in links"
@@ -107,11 +121,27 @@ onMounted(() => {
           </RouterLink>
         </nav>
 
-        <!-- Journey redesign reference surfaces (Phase J0, dev builds only) -->
+        <!-- Live attention lanes -->
+        <div class="ml-auto flex items-center gap-2">
+          <RouterLink to="/" title="Flights in flight">
+            <Chip :tone="inFlightCount ? 'active' : 'pending'" :led="inFlightCount > 0">
+              In flight {{ inFlightCount }}
+            </Chip>
+          </RouterLink>
+          <RouterLink to="/" title="Things that need you">
+            <Chip :tone="needsYouCount ? 'beacon' : 'pending'" :led="needsYouCount > 0">
+              Needs you {{ needsYouCount }}
+            </Chip>
+          </RouterLink>
+        </div>
+
+        <RouterLink to="/brief/new"><Button size="sm">＋ New brief</Button></RouterLink>
+
+        <!-- Journey component kit (dev builds only) -->
         <RouterLink
           v-if="isDev"
           to="/dev/gallery"
-          class="ml-auto rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          class="rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           title="Journey component kit (dev only)"
         >
           Kit
@@ -121,7 +151,6 @@ onMounted(() => {
         <button
           type="button"
           class="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          :class="isDev ? '' : 'ml-auto'"
           :aria-label="`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`"
           @click="toggleTheme"
         >

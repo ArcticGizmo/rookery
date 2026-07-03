@@ -1,37 +1,51 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import Home from '@renderer/views/Home.vue'
+import Desk from '@renderer/views/Desk.vue'
 
 // Hash history so routing works when the renderer is loaded from file:// in production.
+//
+// Journey route map (Phase J2): the Desk is home; work is followed as a brief →
+// approach → flight → story. The old tab paths redirect to their nearest new home.
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: '/', name: 'home', component: Home },
+    { path: '/', name: 'desk', component: Desk },
+
+    // Brief authoring
     {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: () => import('@renderer/views/Dashboard.vue')
-    },
-    {
-      path: '/history',
-      name: 'history',
-      component: () => import('@renderer/views/History.vue')
-    },
-    {
-      path: '/briefs',
-      name: 'briefs',
-      component: () => import('@renderer/views/Briefs.vue')
-    },
-    {
-      path: '/briefs/new',
+      path: '/brief/new',
       name: 'brief-new',
       component: () => import('@renderer/views/BriefEditor.vue')
     },
     {
-      path: '/briefs/:id',
-      name: 'brief-edit',
+      path: '/brief/:id',
+      name: 'brief',
       component: () => import('@renderer/views/BriefEditor.vue'),
       props: true
     },
+    {
+      // Shape how the brief is tackled (placeholder until Phase J4).
+      path: '/brief/:id/approach',
+      name: 'brief-approach',
+      component: () => import('@renderer/views/ApproachStep.vue'),
+      props: true
+    },
+
+    // The flight (live) and its story (retrospective — Phase J9 refines; reuse the
+    // flight view for now so the route resolves).
+    {
+      path: '/flight/:id',
+      name: 'flight',
+      component: () => import('@renderer/views/FlightDetail.vue'),
+      props: true
+    },
+    {
+      path: '/story/:id',
+      name: 'story',
+      component: () => import('@renderer/views/FlightDetail.vue'),
+      props: true
+    },
+
+    // Secondary surfaces, reachable from the shell (retired/reworked later phases).
     {
       path: '/approaches',
       name: 'approaches',
@@ -49,21 +63,22 @@ export const router = createRouter({
       props: true
     },
     {
+      path: '/history',
+      name: 'history',
+      component: () => import('@renderer/views/History.vue')
+    },
+    {
       path: '/agent-run',
       name: 'agent-run',
       component: () => import('@renderer/views/AgentRun.vue')
     },
     {
-      path: '/flights',
-      name: 'flights',
-      component: () => import('@renderer/views/Flights.vue')
+      // The raw event feed — kept as a low-level surface (History is the richer view).
+      path: '/events',
+      name: 'events',
+      component: () => import('@renderer/views/Home.vue')
     },
-    {
-      path: '/flights/:id',
-      name: 'flight-detail',
-      component: () => import('@renderer/views/FlightDetail.vue'),
-      props: true
-    },
+
     // Journey redesign reference surfaces (Phase J0). Not in the main nav.
     {
       path: '/dev/tokens',
@@ -74,6 +89,14 @@ export const router = createRouter({
       path: '/dev/gallery',
       name: 'dev-gallery',
       component: () => import('@renderer/views/dev/PrimitivesGallery.vue')
-    }
+    },
+
+    // --- Redirects from the retired tab paths → nearest new home ---
+    { path: '/dashboard', redirect: '/' },
+    { path: '/briefs', redirect: '/' },
+    { path: '/briefs/new', redirect: '/brief/new' },
+    { path: '/briefs/:id', redirect: (to) => `/brief/${to.params.id}` },
+    { path: '/flights', redirect: '/' },
+    { path: '/flights/:id', redirect: (to) => `/flight/${to.params.id}` }
   ]
 })
