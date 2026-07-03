@@ -5,6 +5,7 @@ import type {
   AgentPersona,
   Checkpoint,
   DoneCriterion,
+  LandingConfig,
   Stage,
   StageType,
   DoneCriterionType,
@@ -41,6 +42,8 @@ const isEdit = computed(() => Boolean(props.id))
 const name = ref('')
 const description = ref('')
 const stages = ref<Stage[]>([])
+// Preserved verbatim through the builder; checkpoints are placed on the rail (J5).
+const landing = ref<LandingConfig>({ hold: true })
 
 const saving = ref(false)
 const error = ref<string | null>(null)
@@ -131,6 +134,7 @@ async function load(id: string): Promise<void> {
   name.value = wf.name
   description.value = wf.description
   stages.value = wf.stages
+  landing.value = wf.landing
 }
 
 async function save(): Promise<void> {
@@ -140,7 +144,8 @@ async function save(): Promise<void> {
   const body = structuredClone({
     name: name.value.trim(),
     description: description.value,
-    stages: toRaw(stages.value)
+    stages: toRaw(stages.value),
+    landing: toRaw(landing.value)
   })
   try {
     if (isEdit.value && props.id) {

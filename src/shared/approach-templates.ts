@@ -173,6 +173,8 @@ export function instantiateTemplate(
   return {
     name: template.approachName,
     description: template.approachDescription,
+    // Templates land under human direction by default (J5.4).
+    landing: { hold: true },
     stages: template.stages.map((stage) => ({
       id: uid(),
       name: stage.name,

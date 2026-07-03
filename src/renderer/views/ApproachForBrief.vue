@@ -51,7 +51,8 @@ onMounted(async () => {
       name: linked.name,
       description: linked.description,
       briefId: props.id,
-      stages: structuredClone(linked.stages)
+      stages: structuredClone(linked.stages),
+      landing: { ...linked.landing }
     }
   }
   loading.value = false
@@ -87,7 +88,8 @@ function startBlank(): void {
     name: `Approach for ${briefTitle.value || 'this brief'}`,
     description: '',
     briefId: props.id,
-    stages: []
+    stages: [],
+    landing: { hold: true }
   }
   saved.value = false
 }
@@ -352,12 +354,15 @@ async function save(): Promise<void> {
       <footer class="flex items-center justify-between gap-4 border-t border-border pt-5">
         <div class="flex items-center gap-3 text-sm">
           <Chip v-if="validation?.ok" tone="pass" led>runnable</Chip>
-          <span v-if="saved" class="text-primary">✓ Saved. Placing checkpoints & sending come next.</span>
+          <span v-if="saved" class="text-primary">✓ Saved. Now place your checkpoints.</span>
           <span v-if="error" class="text-block">{{ error }}</span>
         </div>
         <div class="flex shrink-0 items-center gap-3">
           <RouterLink v-if="approachId" :to="`/approaches/${approachId}`">
             <Button variant="ghost" size="sm">Edit reviewers in builder →</Button>
+          </RouterLink>
+          <RouterLink v-if="approachId" :to="`/brief/${props.id}/checkpoints`">
+            <Button variant="outline">Place checkpoints →</Button>
           </RouterLink>
           <Button size="lg" :disabled="saving" @click="save">
             {{ saving ? 'Saving…' : 'Save approach' }}

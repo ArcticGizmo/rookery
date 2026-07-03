@@ -127,7 +127,12 @@ export class FlightEngine {
       }
     }
 
-    const body: ApproachDefBody = { name: wf.name, description: wf.description, stages: wf.stages }
+    const body: ApproachDefBody = {
+      name: wf.name,
+      description: wf.description,
+      stages: wf.stages,
+      landing: wf.landing
+    }
     const run = await this.flights.create({
       briefId: input.briefId,
       approachId: wf.id,

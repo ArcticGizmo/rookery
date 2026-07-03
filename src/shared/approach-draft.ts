@@ -91,6 +91,8 @@ export function parseApproachDraft(
     name: parsed.data.name.trim() || 'Drafted approach',
     description: '',
     briefId,
+    // Drafts land under human direction by default (J5.4).
+    landing: { hold: true },
     stages: parsed.data.stages.map((stage) => ({
       id: uid(),
       name: stage.name.trim() || 'Step',

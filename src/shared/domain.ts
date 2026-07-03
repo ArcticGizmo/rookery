@@ -167,6 +167,18 @@ export type Stage = z.infer<typeof stageSchema>
 
 // --- Approach definitions ---------------------------------------------------
 
+/**
+ * The landing checkpoint: how the finished change reaches its main branch
+ * (Phase J5.3). `hold: true` — the default — means the flight stops before
+ * landing so a human directs it (open a PR, or merge), never landing on its
+ * own. Persisted in the approach body (JSON) so no schema change is needed;
+ * J9 surfaces the actual per-repo landing.
+ */
+export const landingConfigSchema = z.object({
+  hold: z.boolean().default(true)
+})
+export type LandingConfig = z.infer<typeof landingConfigSchema>
+
 /** The editable body of a approach (what the builder produces and validates). */
 export const approachDefBodySchema = z.object({
   name: z.string().min(1, 'Approach name is required'),
@@ -177,7 +189,9 @@ export const approachDefBodySchema = z.object({
    * approach needs no schema change. Unset on standalone/library approaches.
    */
   briefId: z.string().optional(),
-  stages: z.array(stageSchema).default([])
+  stages: z.array(stageSchema).default([]),
+  /** How the change lands. Held by default — landing is the user's call. */
+  landing: landingConfigSchema.default({ hold: true })
 })
 export type ApproachDefBody = z.infer<typeof approachDefBodySchema>
 

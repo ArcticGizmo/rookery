@@ -29,6 +29,13 @@ export const router = createRouter({
       component: () => import('@renderer/views/ApproachForBrief.vue'),
       props: true
     },
+    {
+      // Place your checkpoints on the approach's seams (Phase J5).
+      path: '/brief/:id/checkpoints',
+      name: 'brief-checkpoints',
+      component: () => import('@renderer/views/CheckpointRail.vue'),
+      props: true
+    },
 
     // The flight (live) and its story (retrospective — Phase J9 refines; reuse the
     // flight view for now so the route resolves).
